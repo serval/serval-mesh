@@ -129,7 +129,7 @@ async fn init_http(storage_path: PathBuf) -> anyhow::Result<()> {
     let state = AxumState { storage_path };
     let app = Router::new()
         .route("/blob", put(store_blob))
-        .route("/:addr", get(get_blob))
+        .route("/blob/:addr", get(get_blob))
         .with_state(state);
 
     let addr: SocketAddr = "0.0.0.0:7475".parse()?;

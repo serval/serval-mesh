@@ -32,6 +32,6 @@ $ curl localhost:7475/blob -XPUT -d 'WILSON!'
 ```
 ### Retrieve content
 ```
-$ curl localhost:7475/68d5b57378f76645bf12506c88fb06a81ddb3965
+$ curl localhost:7475/blob/68d5b57378f76645bf12506c88fb06a81ddb3965
 WILSON!
 ```
