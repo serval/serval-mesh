@@ -33,7 +33,7 @@ binary to run, as well as the CAS address of input data to provide to that binar
 
 ## Discovery
 
-queuey-queue advertises itself over mDNS under the namespace `_queueyqueue._tcp.local.`. Its
+queuey-queue advertises itself over mDNS under the namespace `_serval:queue._tcp.local.`. Its
 properties include an `http_port` field telling consumers how to talk to it.
 
 ## Error handling and retries
