@@ -9,7 +9,7 @@ license = "BSD-2-Clause-Patent"
 [dependencies]
 anyhow = "1.0.66"
 axum = "0.6.1"
-dotenv = "0.15.0"
+dotenvy = "0.15.6"
 env_logger = "0.10.0"
 log = "0.4.17"
 tokio = { version = "1.22.0", features = ["full"] }

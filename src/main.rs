@@ -8,7 +8,7 @@
 )]
 
 use anyhow::anyhow;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 
 use crate::api::init_http;
 use crate::util::ports::find_nearest_port;
