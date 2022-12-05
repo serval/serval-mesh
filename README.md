@@ -13,12 +13,11 @@ In general, the job queue has the following responsibilities:
 - allowing the status of jobs to be queried
 - allowing the results of successful job runs to be collected
 
-## What is a job?
-
-A request for work to be done. Jobs are created by giving the job queue the CAS address of a WASI
+## Jobs
+A `job` is a request for work to be done. Jobs are created by giving the job queue the CAS address of a WASI
 binary to run, as well as the CAS address of input data to provide to that binary as its stdin.
 
-## Job statuses
+### Job statuses
 
 - `pending`: the job is waiting to be claimed by a worker
 - `active`: the job has been claimed by a worker, which is presumably doing something with it
@@ -51,6 +50,8 @@ queuey-queue advertises itself over mDNS under the namespace `_serval:queue._tcp
 properties include an `http_port` field telling consumers how to talk to it.
 
 ## API
+
+YAML is used at the moment in these examples for readability, but queuey-queue uses json as its payload format.
 
 ### `POST` `/jobs/create`
 
@@ -117,3 +118,26 @@ Parameters:
 
 - `status`: either `completed` or `failed`.
 - `output_addr`: CAS address of where the job's output was stored.
+
+## Repository layout
+
+This is a Rust project. To build, run `cargo build`. To run locally, `cargo run`. To run the tests, `cargo test`. If you do not have the rust compiler available, install it with [rustup](https://rustup.rs).
+
+A [justfile](https://just.systems) is provided for your convenience. It defines these recipes:
+
+```text
+➜ just -l
+Available recipes:
+    ci            # Run the same checks we run in CI
+    help          # List available recipes
+    install-tools # Cargo install required tools like `nextest`
+    licenses      # Vet dependency licenses
+    lint          # Lint and automatically fix what we can fix
+    test          # Run tests with nextest
+```
+
+Documentation of interest to *implementors* is in-line in the source and viewable with `cargo doc --open`. Full API documentation and other user docs are in the [docs](./docs/) subdirectory.
+
+# LICENSE
+
+[BSD-2-Clause-Patent](./LICENSE)
