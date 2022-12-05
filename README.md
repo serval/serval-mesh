@@ -13,11 +13,6 @@ In general, the job queue has the following responsibilities:
 - allowing the status of jobs to be queried
 - allowing the results of successful job runs to be collected
 
-## Constants
-
-- `ABANDONED_AGE` = 300. How many seconds since `updated_at` before we consider a job to be abandoned.
-- `MAX_ATTEMPTS` = 3. Maximum number of times to retry abandoned jobs before marking them as failed.
-
 ## What is a job?
 
 A request for work to be done. Jobs are created by giving the job queue the CAS address of a WASI
@@ -31,10 +26,10 @@ binary to run, as well as the CAS address of input data to provide to that binar
 - `failed`: the job was explicitly marked as failed by the worker that owned it, or it was abandoned
   `MAX_ATTEMPTS` times and will not be automatically tried again
 
-## Discovery
+## Constants
 
-queuey-queue advertises itself over mDNS under the namespace `_serval:queue._tcp.local.`. Its
-properties include an `http_port` field telling consumers how to talk to it.
+- `ABANDONED_AGE` = 300. How many seconds since `updated_at` before we consider a job to be abandoned.
+- `MAX_ATTEMPTS` = 3. Maximum number of times to retry abandoned jobs before marking them as failed.
 
 ## Error handling and retries
 
@@ -49,6 +44,11 @@ When a job is abandoned,
 - `run_attempts` is incremented
 - if `run_attempts` <= `MAX_ATTEMPTS`, status is set to `pending`
 - if `run_attempts` > `MAX_ATTEMPTS`, status is set to `failed`
+
+## Discovery
+
+queuey-queue advertises itself over mDNS under the namespace `_serval:queue._tcp.local.`. Its
+properties include an `http_port` field telling consumers how to talk to it.
 
 ## API
 
