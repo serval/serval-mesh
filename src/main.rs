@@ -9,11 +9,12 @@
 
 use anyhow::anyhow;
 use dotenvy::dotenv;
+use tokio::try_join;
 
-use crate::api::init_http;
 use crate::util::ports::find_nearest_port;
 
 mod api;
+mod mdns;
 mod util;
 
 #[tokio::main]
@@ -25,7 +26,9 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let http_port = find_nearest_port(1717)?;
-    init_http("0.0.0.0", http_port).await?;
+    let mdns = mdns::init_mdns(http_port);
+    let http_server = api::init_http("0.0.0.0", http_port);
+    try_join!(mdns, http_server)?;
 
     Err(anyhow!("HTTP server resolved unexpectedly"))
 }
