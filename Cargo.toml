@@ -9,7 +9,6 @@ license = "MIT" # until we figure out something better
 [dependencies]
 anyhow = "1.0.66"
 axum = "0.6.1"
-cargo-license = "0.5.1"
 clap = { version = "4.0.29", features = ["derive"] }
 dotenv = "0.15.0"
 env_logger = "0.10.0"
