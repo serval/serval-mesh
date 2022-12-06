@@ -15,6 +15,7 @@ use crate::util::ports::find_nearest_port;
 
 mod api;
 mod mdns;
+mod queue;
 mod util;
 
 #[tokio::main]
