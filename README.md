@@ -14,8 +14,10 @@ In general, the job queue has the following responsibilities:
 - allowing the results of successful job runs to be collected
 
 ## Jobs
-A `job` is a request for work to be done. Jobs are created by giving the job queue the CAS address of a WASI
-binary to run, as well as the CAS address of input data to provide to that binary as its stdin.
+
+A `job` is a request for work to be done. Jobs are created by giving the job queue
+[the CAS address](https://github.com/servals/castaway) of a WASI binary to run, as well as the CAS
+address of input data to provide to that binary as its stdin.
 
 ### Job statuses
 
