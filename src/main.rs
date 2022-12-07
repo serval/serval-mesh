@@ -1,9 +1,9 @@
-use std::{path::Path};
-use std::ffi::OsStr;
 use clap::Parser;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::ffi::OsStr;
+use std::path::Path;
 use wasi_common::pipe::{ReadPipe, WritePipe};
-use wasmtime::{Engine,Module, Linker, Store};
+use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 /// I am just a simple worker staying busy with one WebAssembly program at a time.
@@ -41,9 +41,6 @@ fn main() -> anyhow::Result<()> {
     let exec_path = Path::new(&args.exec_path);
     let exec_exists = exec_path.exists();
 
-    let input_path = Path::new(&args.input_path);
-    let input_exists = exec_path.exists();
-
     // Check if the executable file exists and looks as expected
     println!("\nExecutable file: {}", exec_path.display());
     if exec_exists {
@@ -56,10 +53,16 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1)
     }
     if exec_path.extension().and_then(OsStr::to_str) != Some("wasm") {
-        println!("\t🛑 File type not supported ({})!\nExiting.", exec_path.extension().and_then(OsStr::to_str).unwrap());
+        println!(
+            "\t🛑 File type not supported ({})!\nExiting.",
+            exec_path.extension().and_then(OsStr::to_str).unwrap()
+        );
         std::process::exit(2)
     }
     // TODO: check if it is *actually* valid WebAssembly (rather than just a valid extension).
+
+    let input_path = Path::new(&args.input_path);
+    let input_exists = input_path.exists();
 
     // Check if the input file exists and looks as expected
     println!("\nInput file: {}", input_path.display());
@@ -76,13 +79,16 @@ fn main() -> anyhow::Result<()> {
     // a lot more powerful and may be the way to go, but I had too many question marks in my eyes when
     // initially reading it to pursue it for a first draft.
     // [3]: https://petermalmgren.com/serverside-wasm-data/
-    
+
     let engine = Engine::default();
     let mut linker: Linker<WasiCtx> = Linker::new(&engine);
     wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
 
     // Creating some dummy input structure
-    let input = Input { name: args.input_path, num: 10 };
+    let input = Input {
+        name: args.input_path,
+        num: 10,
+    };
     // Serializing input structure to a string
     let serialized_input = serde_json::to_string(&input)?;
 
@@ -91,24 +97,10 @@ fn main() -> anyhow::Result<()> {
     let stdin = ReadPipe::from(serialized_input);
     let stdout = WritePipe::new_in_memory();
 
-    // // FIXME: The following section is what currently does not work.
-    // // I assume it has something to do with a WASI module that expects to 
-    // // be passed stdin/stdout pipes vs. one that does not get anything passed.
-    // // The "non-WASI" helloworld example from https://github.com/servals/wasm-samples/tree/main/wasi-hello-world
-    // // works just fine.
-    // // If run with the code block below, this currently fails with `Error: expected value at line 1 column 1`...
     // Build a WASI context which uses the custom stdin and stdout
-    // let wasi = WasiCtxBuilder::new()
-    //     .stdin(Box::new(stdin.clone()))
-    //     .stdout(Box::new(stdout.clone()))
-    //     .inherit_stderr()
-    //     .build();
-
-    // // // FIXME: This is a dummy replacement for the code above which simply inherits stdin/stdout.
-    // // // Remove as soon as the code block above works as intended.
     let wasi = WasiCtxBuilder::new()
-        .inherit_stdin()
-        .inherit_stdout()
+        .stdin(Box::new(stdin))
+        .stdout(Box::new(stdout.clone()))
         .inherit_stderr()
         .build();
 
@@ -125,19 +117,18 @@ fn main() -> anyhow::Result<()> {
         .get_default(&mut store, "")?
         .typed::<(), (), _>(&store)?
         .call(&mut store, ())?;
-    
+
     // From [3]: "Calling drop(store) is important, otherwise converting the WritePipe into a Vec<u8> will fail"
     drop(store);
-    
-    // // FIXME: Add the following block when the issue above has been mitigated.
-    // // Retrieve content from stdout pipe and JSON-serialize it
-    // let contents: Vec<u8> = stdout.try_into_inner()
-    //     .map_err(|_err| anyhow::Error::msg("sole remaining reference"))?
-    //     .into_inner();
-    // let output: Output = serde_json::from_slice(&contents)?;
-    // 
-    // // Print the resulting JSON.
-    // println!("The answer is {:#?}.", output);
+
+    let bytes: Vec<u8> = stdout
+        .try_into_inner()
+        .map_err(|_err| anyhow::Error::msg("sole remaining reference"))?
+        .into_inner();
+    let contents = std::str::from_utf8(&bytes)?;
+    println!("raw output:\n{:#?}", contents);
+    let output: String = serde_json::from_str(contents)?;
+    println!("The answer is {:#?}.", output);
 
     Ok(())
 }
