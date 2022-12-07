@@ -138,7 +138,7 @@ Available recipes:
     test          # Run tests with nextest
 ```
 
-Documentation of interest to *implementors* is in-line in the source and viewable with `cargo doc --open`. Full API documentation and other user docs are in the [docs](./docs/) subdirectory.
+Documentation of interest to _implementors_ is in-line in the source and viewable with `cargo doc --open`. Full API documentation and other user docs are in the [docs](./docs/) subdirectory.
 
 # LICENSE
 

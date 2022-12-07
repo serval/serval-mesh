@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use once_cell::sync::OnceCell;
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -196,7 +196,7 @@ mod tests {
         .unwrap();
         assert!(with_job(&job1_id, &mut |job| {
             assert!(job.status == JobStatus::Pending);
-            assert!(job.binary_addr == String::from("c16c8ad5430916385abee7fbcf0940c458d33024"));
+            assert!(job.binary_addr == *"c16c8ad5430916385abee7fbcf0940c458d33024");
             assert!(
                 job.input_addr == Some(String::from("eacf14915b010acd192b1096228ee5feeb4d9eb0"))
             );
@@ -228,6 +228,7 @@ mod tests {
         assert!(job2.id.eq(&job2_id));
         assert!(job1.runner_id == Some(runner_id));
         assert!(job2.runner_id == Some(runner_id));
+        assert!(job1.created_at <= job2.created_at);
 
         // both of the jobs in the queue have already been claimed
         assert!(claim_job(runner_id).is_none());
@@ -235,7 +236,7 @@ mod tests {
         // now, make one of them look abandoned
         with_job(&job1.id, &mut |job| {
             println!("Making job look old {job:?}");
-            job.updated_at = Utc::now() - Duration::seconds(ABANDONED_AGE_SECS + 1);
+            job.updated_at = Utc::now() - chrono::Duration::seconds(ABANDONED_AGE_SECS + 1);
             Ok(())
         })
         .unwrap();
@@ -243,7 +244,7 @@ mod tests {
         detect_abandoned_jobs();
         with_job(&job1.id, &mut |job| {
             assert!(job.status == JobStatus::Pending);
-            assert!(job.runner_id == None);
+            assert!(job.runner_id.is_none());
             Ok(())
         })
         .unwrap();
@@ -254,7 +255,7 @@ mod tests {
 
         // test a job that has been abandoned too many times
         with_job(&job1.id, &mut |job| {
-            job.updated_at = Utc::now() - Duration::seconds(ABANDONED_AGE_SECS + 1);
+            job.updated_at = Utc::now() - chrono::Duration::seconds(ABANDONED_AGE_SECS + 1);
             job.run_attempts = MAX_ATTEMPTS;
             Ok(())
         })
@@ -272,7 +273,7 @@ mod tests {
 
         // test tickling a job
         with_job(&job2.id, &mut |job| {
-            job.updated_at = Utc::now() - Duration::seconds(1);
+            job.updated_at = Utc::now() - chrono::Duration::seconds(1);
             Ok(())
         })
         .unwrap();
