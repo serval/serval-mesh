@@ -1,9 +1,9 @@
 use clap::Parser;
 use std::path::Path;
 use std::{ffi::OsStr, fs};
-use wasi_common::pipe::{ReadPipe, WritePipe};
-use wasmtime::{Engine, Linker, Module, Store};
-use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
+use wasi_common::pipe::ReadPipe;
+
+use engine::ServalEngine;
 
 /// I am just a simple worker staying busy with one WebAssembly program at a time.
 
@@ -68,46 +68,13 @@ fn main() -> anyhow::Result<()> {
     // initially reading it to pursue it for a first draft.
     // [3]: https://petermalmgren.com/serverside-wasm-data/
 
-    let engine = Engine::default();
-    let mut linker: Linker<WasiCtx> = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
+    let mut engine = ServalEngine::new()?;
 
-    // Reading the input
     let payload = fs::read_to_string(input_path)?;
-
-    // Creating stdin and stdout for the WASI context.
-    // This allows us to pipe input to the module and retrieve output after execution.
     let stdin = ReadPipe::from(payload);
-    let stdout = WritePipe::new_in_memory();
+    let binary = fs::read(exec_path)?;
 
-    // Build a WASI context which uses the custom stdin and stdout
-    let wasi = WasiCtxBuilder::new()
-        .stdin(Box::new(stdin))
-        .stdout(Box::new(stdout.clone()))
-        .inherit_stderr() // TODO: Decide whether to use stderr for anything?
-        .build();
-
-    // Create a `Store` for the WASI module to live in
-    let mut store = Store::new(&engine, wasi);
-
-    // Register the module with the linker
-    let module = Module::from_file(&engine, exec_path)?;
-    linker.module(&mut store, "", &module)?;
-
-    // This is where the WASM module actually gets run
-    println!("\nRunning {}...", exec_path.display());
-    linker
-        .get_default(&mut store, "")?
-        .typed::<(), (), _>(&store)?
-        .call(&mut store, ())?;
-
-    // From [3]: "Calling drop(store) is important, otherwise converting the WritePipe into a Vec<u8> will fail"
-    drop(store);
-
-    let bytes: Vec<u8> = stdout
-        .try_into_inner()
-        .map_err(|_err| anyhow::Error::msg("sole remaining reference"))?
-        .into_inner();
+    let bytes = engine.execute(&binary, stdin)?;
     let contents = String::from_utf8(bytes)?;
     println!("raw output:\n{}", contents);
 
