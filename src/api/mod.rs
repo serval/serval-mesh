@@ -1,13 +1,18 @@
 pub mod v1;
 
 use anyhow::anyhow;
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
 use std::net::SocketAddr;
 
 /// Initialize an HTTP service. Set up all routes.
 pub async fn init_http(host: &str, port: u16) -> anyhow::Result<()> {
-    let app = Router::new().route("/ping", get(v1::ping));
+    let app = Router::new()
+        .route("/ping", get(v1::ping))
+        .route("/jobs/create", post(v1::create));
 
     let addr = format!("{}:{}", host, port);
     log::info!("Job queue service about to listen on http://{addr}");

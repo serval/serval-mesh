@@ -1,13 +1,14 @@
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use once_cell::sync::OnceCell;
+use serde::Serialize;
 use std::sync::Mutex;
 use uuid::Uuid;
 
 // TODO: something better than a type alias, per https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
 type StorageAddress = String;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub enum JobStatus {
     Pending,
     Active,
@@ -15,7 +16,7 @@ pub enum JobStatus {
     Failed,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Job {
     id: Uuid,
     status: JobStatus,
@@ -59,7 +60,7 @@ fn detect_abandoned_jobs() {
     }
 }
 
-pub fn claim_job(runner_id: Uuid) -> Option<Job> {
+pub fn claim_job(&runner_id: &Uuid) -> Option<Job> {
     let mut queue = get_job_queue().lock().unwrap();
 
     let Some(unclaimed_job_idx) = queue
@@ -76,7 +77,7 @@ pub fn claim_job(runner_id: Uuid) -> Option<Job> {
     };
 
     job.run_attempts += 1;
-    job.runner_id = Some(runner_id);
+    job.runner_id = Some(runner_id.to_owned());
     job.status = JobStatus::Active;
     job.updated_at = Utc::now();
 
@@ -185,7 +186,7 @@ mod tests {
 
         // queue is empty, nothing to claim
         assert!(get_queue_len() == 0);
-        assert!(claim_job(runner_id).is_none());
+        assert!(claim_job(&runner_id).is_none());
 
         // Enqueue some jobs
         println!("len a {}", get_queue_len());
@@ -218,8 +219,8 @@ mod tests {
         assert!(fail_job(&job2_id, &None).is_err());
 
         // Make sure they get de-queued in the expected order
-        let job1 = claim_job(runner_id);
-        let job2 = claim_job(runner_id);
+        let job1 = claim_job(&runner_id);
+        let job2 = claim_job(&runner_id);
         assert!(job1.is_some());
         assert!(job2.is_some());
         let job1 = job1.unwrap();
@@ -231,7 +232,7 @@ mod tests {
         assert!(job1.created_at <= job2.created_at);
 
         // both of the jobs in the queue have already been claimed
-        assert!(claim_job(runner_id).is_none());
+        assert!(claim_job(&runner_id).is_none());
 
         // now, make one of them look abandoned
         with_job(&job1.id, &mut |job| {
@@ -250,7 +251,7 @@ mod tests {
         .unwrap();
 
         // test reclaiming a previously abandoned job
-        let reclaimed_job1 = claim_job(runner_id).unwrap();
+        let reclaimed_job1 = claim_job(&runner_id).unwrap();
         assert!(reclaimed_job1.id == job1.id);
 
         // test a job that has been abandoned too many times
@@ -266,7 +267,7 @@ mod tests {
             Ok(())
         })
         .unwrap();
-        assert!(claim_job(runner_id).is_none());
+        assert!(claim_job(&runner_id).is_none());
 
         // we should not be able to complete that abandoned job, because it's now marked as failed
         assert!(complete_job(&job1.id, &None,).is_err());
@@ -312,7 +313,7 @@ mod tests {
             Some(String::from("f9fa607695fb3145920d3d5f5ce231e58345f42f")),
         )
         .unwrap();
-        assert!(claim_job(runner_id).is_some());
+        assert!(claim_job(&runner_id).is_some());
         assert!(fail_job(
             &job3_id,
             &Some(String::from("9e9952ff277a803f0d9ae831d776303dfafca818"))
