@@ -12,7 +12,7 @@ The current state of this code base is far from where it will eventually be. Rig
 
 This assumes the existence of a `.wasm` file and an input file with arbitrary content (but usable by the WASM executable).
 
-For initial quick & dirty testing, compiling our [wasi-hello-world](https://github.com/servals/wasm-samples/tree/main/wasi-hello-world) example and creating a `testinput.txt` file with some text in it are prerequisits for an initial test.
+Compiling our [wasi-hello-world](https://github.com/servals/wasm-samples/tree/main/wasi-hello-world) example and creating a `testinput.txt` file with some text in it works for an initial quick & dirty test.
 
 Then, this code can be run as follows:
 
