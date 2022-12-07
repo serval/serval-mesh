@@ -1,0 +1,15 @@
+[package]
+name = "wait-for-it-once"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-2-Clause-Patent"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { version = "4.0.29", features = ["derive"] }
+engine = { path = "../engine" }
+wasi-common = "3.0.1"
+wasmtime = "3.0.1"
+wasmtime-wasi = "3.0.1"

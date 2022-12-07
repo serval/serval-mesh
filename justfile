@@ -2,6 +2,28 @@
 help:
     just -l
 
-# Run a test, assuming the example repo is one level up...
-test EXEC="loudify" IN="README.md":
-    cargo run -- ../wasm-samples/build/{{EXEC}}.wasm {{IN}}
+# Build all targets in debug mode
+@build:
+    cargo build --release --all-targets
+
+# Build all targets in release mode
+@release:
+    cargo build --release --all-targets
+
+# Run the same checks we run in CI
+@ci: test
+    cargo clippy --all-targets
+    cargo fmt --check
+
+# Run tests with nextest
+test:
+    @cargo nextest run --all-targets
+
+# Lint and automatically fix what we can fix
+@lint:
+    cargo fmt --all
+    cargo clippy --all-targets --fix --allow-dirty --allow-staged
+
+# Cargo install required tools like `nextest`
+@install-tools:
+    cargo install cargo-nextest
