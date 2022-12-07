@@ -1,12 +1,13 @@
 use axum::{
-    extract::Json,
+    extract::{Json, Path},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::queue::{claim_job, enqueue_job, Job};
+use crate::queue::{claim_job, enqueue_job, tickle_job, Job};
 
 // follow this pattern for endpoint groups
 // pub mod <filename>;
@@ -62,4 +63,12 @@ pub async fn claim(Json(payload): Json<JobsClaimRequest>) -> JsonHandlerResult<J
     };
 
     Ok(Json(JobsClaimResponse { job }))
+}
+
+pub async fn tickle(Path(job_id): Path<Uuid>) -> JsonHandlerResult<Value> {
+    let Ok(()) = tickle_job(&job_id) else {
+        return Err((StatusCode::BAD_REQUEST, String::from("Job does not exist or is not active")).into_response());
+    };
+
+    Ok(Json(json!({})))
 }

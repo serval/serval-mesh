@@ -13,7 +13,8 @@ pub async fn init_http(host: &str, port: u16) -> anyhow::Result<()> {
     let app = Router::new()
         .route("/ping", get(v1::ping))
         .route("/jobs/create", post(v1::create))
-        .route("/jobs/claim", post(v1::claim));
+        .route("/jobs/claim", post(v1::claim))
+        .route("/jobs/:job_id/tickle", post(v1::tickle));
 
     let addr = format!("{}:{}", host, port);
     log::info!("Job queue service about to listen on http://{addr}");
