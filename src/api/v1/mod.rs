@@ -1,6 +1,11 @@
-use axum::extract::Json;
+use axum::{
+    extract::Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+
+use crate::queue::enqueue_job;
 
 // follow this pattern for endpoint groups
 // pub mod <filename>;
@@ -20,9 +25,22 @@ pub struct JobsCreateRequest {
 pub struct JobsCreateResponse {
     job_id: String,
 }
-pub async fn create(Json(payload): Json<JobsCreateRequest>) -> Json<JobsCreateResponse> {
+
+type JsonHandlerResult<T> = Result<Json<T>, Response>;
+
+pub async fn create(
+    Json(payload): Json<JobsCreateRequest>,
+) -> JsonHandlerResult<JobsCreateResponse> {
+    // TODO: validate that payload.binary_addr and payload.input_addr are valid-looking addresses.
+    // Ideally this would happen at the Serde level but I don't see a way to implement constraints
+    // on string fields. My best idea so far would be to make these fields into [u8;40] and tell
+    // Serde to represent them as hex strings when in JSON format. This seems not ideal.
     log::info!("Enqueueing job {payload:?}");
-    Json(JobsCreateResponse {
-        job_id: String::from("1234"),
-    })
+    let Ok(job_id) = enqueue_job(payload.binary_addr, payload.input_addr) else {
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, String::from("Failed to enqueue job")).into_response());
+    };
+
+    Ok(Json(JobsCreateResponse {
+        job_id: job_id.to_string(),
+    }))
 }
