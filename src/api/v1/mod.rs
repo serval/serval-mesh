@@ -4,8 +4,9 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use crate::queue::enqueue_job;
+use crate::queue::{claim_job, enqueue_job, Job};
 
 // follow this pattern for endpoint groups
 // pub mod <filename>;
@@ -43,4 +44,22 @@ pub async fn create(
     Ok(Json(JobsCreateResponse {
         job_id: job_id.to_string(),
     }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct JobsClaimRequest {
+    runner_id: Uuid,
+}
+
+#[derive(Debug, Serialize)]
+pub struct JobsClaimResponse {
+    job: Job,
+}
+
+pub async fn claim(Json(payload): Json<JobsClaimRequest>) -> JsonHandlerResult<JobsClaimResponse> {
+    let Some(job) = claim_job(&payload.runner_id) else {
+        return Err((StatusCode::NO_CONTENT, String::from("No pending jobs")).into_response());
+    };
+
+    Ok(Json(JobsClaimResponse { job }))
 }
