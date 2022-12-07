@@ -70,8 +70,8 @@ Example output:
 job_id: F49B1EBD-EDF4-4839-9EDB-EF3082D32C14
 binary_addr: 59ae214373240a255f453cc2fa8d26ab60d6b532
 input_addr: 7a293b5b7ac61a1691848e375a110f19de3de698
-created_at: 1670273606
-updated_at: 1670273606
+created_at: 1670273606123
+updated_at: 1670273606456
 completed_at:
 status: pending
 run_attempts: 0
@@ -88,9 +88,9 @@ Example output:
 job_id: F49B1EBD-EDF4-4839-9EDB-EF3082D32C14
 binary_addr: 59ae214373240a255f453cc2fa8d26ab60d6b532
 input_addr: 7a293b5b7ac61a1691848e375a110f19de3de698
-created_at: 1670273606
-updated_at: 1670273663
-completed_at: 1670275321
+created_at: 1670273606123
+updated_at: 1670273663456
+completed_at: 1670275321789
 status: completed
 run_attempts: 1
 runner_id: A54FAF6A-8C15-4BC0-8C1D-49EBA31AD550
