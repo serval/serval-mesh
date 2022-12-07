@@ -1,7 +1,6 @@
 use clap::Parser;
-use serde::{Deserialize, Serialize};
-use std::{ffi::OsStr, fs};
 use std::path::Path;
+use std::{ffi::OsStr, fs};
 use wasi_common::pipe::{ReadPipe, WritePipe};
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
@@ -22,18 +21,6 @@ struct CLIArgs {
     /// Naive initial approach: We don't check file content and assume the executable knows what to do with it.
     /// TODO: How would we validate that an input file is "correct" without running the job and seeing if it fails? TBD.
     input_path: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Input {
-    pub name: String,
-    pub payload: String,
-    pub num: i32,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Output {
-    pub names: Vec<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -85,26 +72,19 @@ fn main() -> anyhow::Result<()> {
     let mut linker: Linker<WasiCtx> = Linker::new(&engine);
     wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
 
-    // Creating some dummy input structure
-    let payload = fs::read_to_string(input_path)?.parse()?;
-    let input = Input {
-        name: args.input_path,
-        payload: payload,
-        num: 10,
-    };
-    // Serializing input structure to a string
-    let serialized_input = serde_json::to_string(&input)?;
+    // Reading the input
+    let payload = fs::read_to_string(input_path)?;
 
     // Creating stdin and stdout for the WASI context.
     // This allows us to pipe input to the module and retrieve output after execution.
-    let stdin = ReadPipe::from(serialized_input);
+    let stdin = ReadPipe::from(payload);
     let stdout = WritePipe::new_in_memory();
 
     // Build a WASI context which uses the custom stdin and stdout
     let wasi = WasiCtxBuilder::new()
         .stdin(Box::new(stdin))
         .stdout(Box::new(stdout.clone()))
-        .inherit_stderr()
+        .inherit_stderr() // TODO: Decide whether to use stderr for anything?
         .build();
 
     // Create a `Store` for the WASI module to live in
@@ -128,10 +108,8 @@ fn main() -> anyhow::Result<()> {
         .try_into_inner()
         .map_err(|_err| anyhow::Error::msg("sole remaining reference"))?
         .into_inner();
-    let contents = std::str::from_utf8(&bytes)?;
-    println!("raw output:\n{:?}", contents);
-    let output: String = serde_json::from_str(contents)?;
-    println!("The answer is {:#?}.", output);
+    let contents = String::from_utf8(bytes)?;
+    println!("raw output:\n{}", contents);
 
     Ok(())
 }
