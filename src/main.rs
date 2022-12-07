@@ -1,6 +1,6 @@
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use std::ffi::OsStr;
+use std::{ffi::OsStr, fs};
 use std::path::Path;
 use wasi_common::pipe::{ReadPipe, WritePipe};
 use wasmtime::{Engine, Linker, Module, Store};
@@ -27,6 +27,7 @@ struct CLIArgs {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Input {
     pub name: String,
+    pub payload: String,
     pub num: i32,
 }
 
@@ -85,8 +86,10 @@ fn main() -> anyhow::Result<()> {
     wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
 
     // Creating some dummy input structure
+    let payload = fs::read_to_string(input_path)?.parse()?;
     let input = Input {
         name: args.input_path,
+        payload: payload,
         num: 10,
     };
     // Serializing input structure to a string
@@ -126,7 +129,7 @@ fn main() -> anyhow::Result<()> {
         .map_err(|_err| anyhow::Error::msg("sole remaining reference"))?
         .into_inner();
     let contents = std::str::from_utf8(&bytes)?;
-    println!("raw output:\n{:#?}", contents);
+    println!("raw output:\n{:?}", contents);
     let output: String = serde_json::from_str(contents)?;
     println!("The answer is {:#?}.", output);
 
