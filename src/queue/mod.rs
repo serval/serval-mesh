@@ -9,15 +9,16 @@ use uuid::Uuid;
 // TODO: something better than a type alias, per https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
 type StorageAddress = String;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
 pub enum JobStatus {
+    #[default]
     Pending,
     Active,
     Completed,
     Failed,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct Job {
     id: Uuid,
     status: JobStatus,
@@ -93,15 +94,11 @@ pub fn enqueue_job(
     let id = Uuid::new_v4();
     let job = Job {
         id,
-        status: JobStatus::Pending,
-        binary_addr,
-        input_addr,
-        output_addr: None,
         created_at: now,
         updated_at: now,
-        completed_at: None,
-        run_attempts: 0,
-        runner_id: None,
+        binary_addr,
+        input_addr,
+        ..Default::default()
     };
     let mut queue = get_job_queue().lock().unwrap();
     queue.push(job);
