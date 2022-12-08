@@ -52,17 +52,12 @@ pub struct JobsClaimRequest {
     runner_id: Uuid,
 }
 
-#[derive(Debug, Serialize)]
-pub struct JobsClaimResponse {
-    job: Job,
-}
-
-pub async fn claim(Json(payload): Json<JobsClaimRequest>) -> JsonHandlerResult<JobsClaimResponse> {
+pub async fn claim(Json(payload): Json<JobsClaimRequest>) -> JsonHandlerResult<Job> {
     let Some(job) = claim_job(&payload.runner_id) else {
         return Err((StatusCode::NO_CONTENT, String::from("No pending jobs")).into_response());
     };
 
-    Ok(Json(JobsClaimResponse { job }))
+    Ok(Json(job))
 }
 
 pub async fn tickle(Path(job_id): Path<Uuid>) -> JsonHandlerResult<Value> {
