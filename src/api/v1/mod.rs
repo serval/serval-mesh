@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::queue::{claim_job, enqueue_job, tickle_job, Job};
+use crate::queue::{claim_job, complete_job, enqueue_job, fail_job, tickle_job, Job};
 
 // follow this pattern for endpoint groups
 // pub mod <filename>;
@@ -67,6 +67,31 @@ pub async fn claim(Json(payload): Json<JobsClaimRequest>) -> JsonHandlerResult<J
 
 pub async fn tickle(Path(job_id): Path<Uuid>) -> JsonHandlerResult<Value> {
     let Ok(()) = tickle_job(&job_id) else {
+        return Err((StatusCode::BAD_REQUEST, String::from("Job does not exist or is not active")).into_response());
+    };
+
+    Ok(Json(json!({})))
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub enum JobCompletionStatus {
+    Completed,
+    Failed,
+}
+#[derive(Debug, Deserialize)]
+pub struct JobsCompleteRequest {
+    status: JobCompletionStatus,
+    output_addr: Option<String>,
+}
+pub async fn complete(
+    Path(job_id): Path<Uuid>,
+    Json(payload): Json<JobsCompleteRequest>,
+) -> JsonHandlerResult<Value> {
+    let res = match payload.status {
+        JobCompletionStatus::Failed => fail_job(&job_id, &payload.output_addr),
+        JobCompletionStatus::Completed => complete_job(&job_id, &payload.output_addr),
+    };
+    let Ok(()) = res else {
         return Err((StatusCode::BAD_REQUEST, String::from("Job does not exist or is not active")).into_response());
     };
 
