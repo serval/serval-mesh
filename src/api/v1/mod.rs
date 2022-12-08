@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::queue::{claim_job, complete_job, enqueue_job, fail_job, tickle_job, Job};
+use crate::queue::{claim_job, complete_job, enqueue_job, fail_job, get_job, tickle_job, Job};
 
 // follow this pattern for endpoint groups
 // pub mod <filename>;
@@ -96,4 +96,12 @@ pub async fn complete(
     };
 
     Ok(Json(json!({})))
+}
+
+pub async fn get(Path(job_id): Path<Uuid>) -> JsonHandlerResult<Job> {
+    let Ok(job) = get_job(&job_id) else {
+        return Err((StatusCode::NOT_FOUND, String::from("Job does not exist")).into_response());
+    };
+
+    Ok(Json(job))
 }

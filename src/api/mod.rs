@@ -14,6 +14,7 @@ pub async fn init_http(host: &str, port: u16) -> anyhow::Result<()> {
         .route("/ping", get(v1::ping))
         .route("/jobs/create", post(v1::create))
         .route("/jobs/claim", post(v1::claim))
+        .route("/jobs/:job_id", get(v1::get))
         .route("/jobs/:job_id/tickle", post(v1::tickle))
         .route("/jobs/:job_id/complete", post(v1::complete));
 
