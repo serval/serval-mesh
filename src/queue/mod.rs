@@ -136,10 +136,9 @@ fn with_job(
 ) -> anyhow::Result<()> {
     let mut queue = get_job_queue().lock().unwrap();
     let job = queue.iter_mut().find(|job| job.id == *job_id);
-    match job {
-        Some(job) => callback(job),
-        None => Err(anyhow!("No such job")),
-    }
+    let job = job.ok_or_else(|| anyhow!("No such job"))?;
+
+    callback(job)
 }
 
 pub fn complete_job(job_id: &Uuid, output_addr: &Option<StorageAddress>) -> anyhow::Result<()> {
