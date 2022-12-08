@@ -122,13 +122,14 @@ pub fn tickle_job(job_id: &Uuid) -> anyhow::Result<()> {
     })
 }
 
-// pub fn get_job(job_id: Uuid) -> anyhow::Result<&'static Job> {
-//     let mutex = get_job_queue().lock().unwrap();
-//     let queue: &JobQueue = &mutex;
-//     let job = queue.iter().find(|job| job.id == job_id);
-//     let job = job.ok_or(anyhow!("No such job"))?;
-//     Err(anyhow!(""))
-// }
+pub fn get_job(job_id: &Uuid) -> anyhow::Result<Job> {
+    let mutex = get_job_queue().lock().unwrap();
+    let queue: &JobQueue = &mutex;
+    let job = queue.iter().find(|job| job.id == *job_id);
+    let job = job.ok_or_else(|| anyhow!("No such job"))?;
+
+    Ok(job.clone())
+}
 
 fn with_job(
     job_id: &Uuid,
