@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+use std::{fs, path::PathBuf};
+
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -35,36 +37,61 @@ const MAX_ATTEMPTS: usize = 3;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct JobQueue {
+    persist_filename: Option<PathBuf>,
     queue: Vec<Job>,
 }
 
 impl JobQueue {
-    pub fn new() -> JobQueue {
+    pub fn new(persist_filename: Option<PathBuf>) -> JobQueue {
+        // If we were given a persist_filename, then go read that file and use its contents as the
+        // initial value of our queue.
+        let queue: Vec<Job> = persist_filename
+            .clone()
+            .and_then(|filename| {
+                let Ok(json_str) = fs::read_to_string(&filename) else {
+                    return None;
+                };
+                let Ok(queue_contents) = serde_json::from_str(&json_str) else {
+                    return None;
+                };
+                queue_contents
+            })
+            .unwrap_or_default();
+
         JobQueue {
-            ..Default::default()
+            persist_filename,
+            queue,
         }
     }
 
     pub fn claim_job(&mut self, &runner_id: &Uuid) -> Option<Job> {
-        let Some(unclaimed_job_idx) = self.queue
+        let claim_result = {
+            let Some(unclaimed_job_idx) = self.queue
             .iter()
             .position(|job| job.status == JobStatus::Pending) else {
                 return None
             };
 
-        // Take the job out of the queue, update it, put a copy of the updated version back into the
-        // queue, and return the (modified) original instance to the caller.
-        // This is surely the worst possible way to do this, but I am running out of ideas. :sob:
-        let Some(mut job) = self.queue.get_mut(unclaimed_job_idx) else {
-            return None
+            // Take the job out of the queue, update it, put a copy of the updated version back into the
+            // queue, and return the (modified) original instance to the caller.
+            // This is surely the worst possible way to do this, but I am running out of ideas. :sob:
+            let Some(mut job) = self.queue.get_mut(unclaimed_job_idx) else {
+                return None
+            };
+
+            job.run_attempts += 1;
+            job.runner_id = Some(runner_id.to_owned());
+            job.status = JobStatus::Active;
+            job.updated_at = Utc::now();
+
+            Some(job.clone())
         };
 
-        job.run_attempts += 1;
-        job.runner_id = Some(runner_id.to_owned());
-        job.status = JobStatus::Active;
-        job.updated_at = Utc::now();
+        if claim_result.is_some() {
+            _ = self.maybe_persist();
+        }
 
-        Some(job.clone())
+        claim_result
     }
 
     pub fn complete_job(
@@ -92,8 +119,10 @@ impl JobQueue {
             job.status == JobStatus::Active && time_since_update > ABANDONED_AGE_SECS
         };
 
+        let mut needs_persist = false;
         for mut job in self.queue.iter_mut().filter(is_abandoned) {
-            log::info!("Oh hey I found an abandoned job {job:?}");
+            needs_persist = true;
+
             job.status = if job.run_attempts < MAX_ATTEMPTS {
                 JobStatus::Pending
             } else {
@@ -101,6 +130,10 @@ impl JobQueue {
             };
             job.runner_id = None;
             job.updated_at = Utc::now();
+        }
+
+        if needs_persist {
+            _ = self.maybe_persist();
         }
     }
 
@@ -120,6 +153,8 @@ impl JobQueue {
             ..Default::default()
         };
         self.queue.push(job);
+
+        _ = self.maybe_persist();
 
         Ok(id)
     }
@@ -149,6 +184,19 @@ impl JobQueue {
         Ok(job.clone())
     }
 
+    fn maybe_persist(&self) -> anyhow::Result<()> {
+        let Some(filename) = &self.persist_filename else {
+            return Ok(());
+        };
+
+        log::info!("Persisting to {filename:?}");
+
+        let data = serde_json::to_string(&self.queue)?;
+        fs::write(filename, data)?;
+
+        Ok(())
+    }
+
     pub fn tickle_job(&mut self, job_id: &Uuid) -> anyhow::Result<()> {
         self.with_job(job_id, &mut |job| {
             if job.status != JobStatus::Active {
@@ -168,7 +216,10 @@ impl JobQueue {
         let job = self.queue.iter_mut().find(|job| job.id == *job_id);
         let job = job.ok_or_else(|| anyhow!("No such job"))?;
 
-        callback(job)
+        let res = callback(job);
+        _ = self.maybe_persist();
+
+        res
     }
 }
 

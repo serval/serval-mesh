@@ -5,15 +5,15 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::{api::v1::AxumState, queue::JobQueue};
 
 /// Initialize an HTTP service. Set up all routes.
-pub async fn init_http(host: &str, port: u16) -> anyhow::Result<()> {
+pub async fn init_http(host: &str, port: u16, job_queue_filename: PathBuf) -> anyhow::Result<()> {
     let state = AxumState {
-        job_queue: Arc::new(Mutex::new(JobQueue::new())),
+        job_queue: Arc::new(Mutex::new(JobQueue::new(Some(job_queue_filename)))),
     };
 
     let app = Router::new()
