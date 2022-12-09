@@ -88,7 +88,7 @@ impl JobQueue {
         };
 
         if claim_result.is_some() {
-            _ = self.maybe_persist();
+            self.maybe_persist();
         }
 
         claim_result
@@ -133,7 +133,7 @@ impl JobQueue {
         }
 
         if needs_persist {
-            _ = self.maybe_persist();
+            self.maybe_persist();
         }
     }
 
@@ -154,7 +154,7 @@ impl JobQueue {
         };
         self.queue.push(job);
 
-        _ = self.maybe_persist();
+        self.maybe_persist();
 
         Ok(id)
     }
@@ -184,17 +184,22 @@ impl JobQueue {
         Ok(job.clone())
     }
 
-    fn maybe_persist(&self) -> anyhow::Result<()> {
+    fn maybe_persist(&self) {
         let Some(filename) = &self.persist_filename else {
-            return Ok(());
+            // Persistence is not configured
+            return
         };
 
         log::info!("Persisting to {filename:?}");
 
-        let data = serde_json::to_string(&self.queue)?;
-        fs::write(filename, data)?;
-
-        Ok(())
+        match serde_json::to_string(&self.queue) {
+            Ok(data) => {
+                if let Err(err) = fs::write(filename, data) {
+                    log::warn!("Writing serialized queue to {filename:?} failed: {err:?}")
+                }
+            }
+            Err(err) => log::warn!("Serializing queue to JSON failed: {err:?}"),
+        }
     }
 
     pub fn tickle_job(&mut self, job_id: &Uuid) -> anyhow::Result<()> {
@@ -217,7 +222,7 @@ impl JobQueue {
         let job = job.ok_or_else(|| anyhow!("No such job"))?;
 
         let res = callback(job);
-        _ = self.maybe_persist();
+        self.maybe_persist();
 
         res
     }
