@@ -4,6 +4,7 @@ use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use std::io::Cursor;
 
+#[derive(Clone)]
 pub struct ServalEngine {
     engine: Engine,
     linker: Linker<WasiCtx>,

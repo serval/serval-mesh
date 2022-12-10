@@ -3,3 +3,5 @@ members = ["daemon", "engine", "once"]
 
 [workspace.dependencies]
 anyhow = "1.0.66"
+uuid = { version = "1.2.2", features = ["serde", "v4"] }
+
