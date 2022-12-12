@@ -1,5 +1,10 @@
 [workspace]
-members = ["daemon", "engine", "once"]
+members = [
+  "daemon",
+  "engine",
+  "once",
+  "queuey-queue"
+]
 
 [workspace.dependencies]
 anyhow = "1.0.66"
