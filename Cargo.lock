@@ -313,6 +313,7 @@ dependencies = [
  "sha1",
  "tokio",
  "tokio-util",
+ "utils",
 ]
 
 [[package]]
@@ -1542,13 +1543,13 @@ dependencies = [
  "clap",
  "dotenvy",
  "env_logger 0.10.0",
- "if-addrs",
  "log",
  "mdns-sd",
  "once_cell",
  "serde",
  "serde_json",
  "tokio",
+ "utils",
  "uuid",
 ]
 
@@ -2229,6 +2230,14 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+]
+
+[[package]]
+name = "utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "if-addrs",
 ]
 
 [[package]]

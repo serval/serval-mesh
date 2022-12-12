@@ -13,13 +13,11 @@ use anyhow::anyhow;
 use clap::Parser;
 use dotenvy::dotenv;
 use tokio::try_join;
-
-use crate::util::ports::find_nearest_port;
+use utils::ports::find_nearest_port;
 
 mod api;
 mod mdns;
 mod queue;
-mod util;
 
 #[derive(Parser, Debug)]
 struct Args {

@@ -4,7 +4,8 @@ members = [
   "daemon",
   "engine",
   "once",
-  "queuey-queue"
+  "queuey-queue",
+  "utils"
 ]
 
 [workspace.dependencies]

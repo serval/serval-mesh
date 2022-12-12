@@ -2,7 +2,7 @@ use mdns_sd::{ServiceDaemon, ServiceInfo};
 
 use std::{collections::HashMap, net::Ipv4Addr};
 
-use crate::util::addrs::my_ipv4_addrs;
+use utils::addrs::my_ipv4_addrs;
 
 pub async fn init_mdns(http_port: u16) -> anyhow::Result<()> {
     let mdns = ServiceDaemon::new().expect("Could not create mdns service daemon");
