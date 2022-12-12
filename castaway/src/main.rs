@@ -10,7 +10,7 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use sha1::{Digest, Sha1};
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;

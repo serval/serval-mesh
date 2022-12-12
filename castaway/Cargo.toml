@@ -10,7 +10,7 @@ license = "MIT" # until we figure out something better
 anyhow = "1.0.66"
 axum = "0.6.1"
 clap = { version = "4.0.29", features = ["derive"] }
-dotenv = "0.15.0"
+dotenvy = "0.15.6"
 env_logger = "0.10.0"
 hex = "0.4.3"
 log = "0.4.17"
