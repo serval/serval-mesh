@@ -7,13 +7,13 @@ license = "MIT" # until we figure out something better
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.66"
-axum = "0.6.1"
-clap = { version = "4.0.29", features = ["derive"] }
-dotenvy = "0.15.6"
-env_logger = "0.10.0"
+anyhow = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
+dotenvy = { workspace = true }
+env_logger = { workspace = true }
 hex = "0.4.3"
-log = "0.4.17"
+log = { workspace = true }
 sha1 = "0.10.5"
-tokio = { version = "1.22.0", features = ["full"] }
-tokio-util = { version = "0.7.4", features = ["io"] }
+tokio = { workspace = true }
+tokio-util = { workspace = true }

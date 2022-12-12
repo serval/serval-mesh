@@ -7,10 +7,10 @@ license = "BSD-2-Clause-Patent"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.66"
-axum = "0.6.1"
+anyhow = { workspace = true }
+axum = { workspace = true }
 chrono = { version = "0.4.23", features = ["serde"] }
-clap = { version = "4.0.29", features = ["derive"] }
+clap = { workspace = true }
 dotenvy = "0.15.6"
 env_logger = "0.10.0"
 log = "0.4.17"
