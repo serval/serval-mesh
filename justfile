@@ -27,3 +27,7 @@ test:
 # Cargo install required tools like `nextest`
 @install-tools:
     cargo install cargo-nextest
+
+# Everyone loves Lady Gaga, right?
+@dance:
+    open "https://www.youtube.com/watch?v=2Abk1jAONjw"
