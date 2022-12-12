@@ -2,6 +2,7 @@ use std::{env, fs, path::PathBuf};
 
 use clap::Parser;
 use dotenvy::dotenv;
+use utils::ports::find_nearest_port;
 
 mod api;
 
@@ -33,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
     log::info!("Storage path: {}", &storage_path.display());
 
     // Actually do the thing
-    let http_port = 7475; // TODO: pull in find_nearest_port utility
+    let http_port = find_nearest_port(7475)?;
     api::init_http("0.0.0.0", http_port, storage_path).await?;
 
     Ok(())

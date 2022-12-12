@@ -17,3 +17,4 @@ log = { workspace = true }
 sha1 = "0.10.5"
 tokio = { workspace = true }
 tokio-util = { workspace = true }
+utils = { path = "../utils" }
