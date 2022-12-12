@@ -2,6 +2,7 @@
 
 This monorepo contains the source for the various components of the Serval mesh, intended to run on any host where you want to run WASM payloads.
 
+- `castaway`: temporarily a separate service during MVP/demo period, this stores blobs for the Serval mesh. This functionality will eventually be integrated into the Serval agent.
 - `engine`: the [wasmtime](https://lib.rs/crates/wasmtime) glue
 - `once`: a CLI to execute a WASM payload once, useful for developing the engine
 - `daemon`: a daemon that listens on a port for incoming HTTP requests with payloads to run
