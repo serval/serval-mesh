@@ -1544,7 +1544,6 @@ dependencies = [
  "dotenvy",
  "env_logger 0.10.0",
  "log",
- "mdns-sd",
  "once_cell",
  "serde",
  "serde_json",
@@ -2238,6 +2237,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "if-addrs",
+ "log",
+ "mdns-sd",
 ]
 
 [[package]]

@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 anyhow.workspace = true
 if-addrs = "0.7.0"
+log.workspace = true
+mdns-sd = "0.5.9"
