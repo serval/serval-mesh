@@ -46,5 +46,5 @@ async fn main() -> anyhow::Result<()> {
     let http_server = api::init_http("0.0.0.0", http_port, job_queue_persist_filename);
     try_join!(mdns, http_server)?;
 
-    Err(anyhow!("HTTP server resolved unexpectedly"))
+    Err(anyhow!("Future resolved unexpectedly"))
 }
