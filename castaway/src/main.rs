@@ -1,8 +1,19 @@
+#![forbid(unsafe_code)]
+#![deny(future_incompatible)]
+#![warn(
+    missing_debug_implementations,
+    rust_2018_idioms,
+    trivial_casts,
+    unused_qualifications
+)]
+
 use std::{env, fs, path::PathBuf};
 
+use anyhow::anyhow;
 use clap::Parser;
 use dotenvy::dotenv;
-use utils::ports::find_nearest_port;
+use tokio::try_join;
+use utils::{mdns::advertise_service, ports::find_nearest_port};
 
 mod api;
 
@@ -35,7 +46,9 @@ async fn main() -> anyhow::Result<()> {
 
     // Actually do the thing
     let http_port = find_nearest_port(7475)?;
-    api::init_http("0.0.0.0", http_port, storage_path).await?;
+    let mdns = advertise_service("serval_storage", http_port, None);
+    let http_server = api::init_http("0.0.0.0", http_port, storage_path);
+    try_join!(http_server, mdns)?;
 
-    Ok(())
+    Err(anyhow!("Future resolved unexpectedly"))
 }

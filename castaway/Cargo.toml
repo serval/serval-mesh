@@ -14,6 +14,7 @@ dotenvy = { workspace = true }
 env_logger = { workspace = true }
 hex = "0.4.3"
 log = { workspace = true }
+mdns-sd = "0.5.9"
 sha1 = "0.10.5"
 tokio = { workspace = true }
 tokio-util = { workspace = true }

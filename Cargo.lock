@@ -310,6 +310,7 @@ dependencies = [
  "env_logger 0.10.0",
  "hex",
  "log",
+ "mdns-sd",
  "sha1",
  "tokio",
  "tokio-util",
