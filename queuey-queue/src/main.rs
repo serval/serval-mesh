@@ -13,13 +13,10 @@ use anyhow::anyhow;
 use clap::Parser;
 use dotenvy::dotenv;
 use tokio::try_join;
-
-use crate::util::ports::find_nearest_port;
+use utils::{mdns::advertise_service, ports::find_nearest_port};
 
 mod api;
-mod mdns;
 mod queue;
-mod util;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -44,9 +41,9 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let http_port = find_nearest_port(1717)?;
-    let mdns = mdns::init_mdns(http_port);
+    let mdns = advertise_service("serval_queue", http_port, None);
     let http_server = api::init_http("0.0.0.0", http_port, job_queue_persist_filename);
     try_join!(mdns, http_server)?;
 
-    Err(anyhow!("HTTP server resolved unexpectedly"))
+    Err(anyhow!("Future resolved unexpectedly"))
 }

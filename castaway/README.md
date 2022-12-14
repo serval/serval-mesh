@@ -24,14 +24,14 @@ https://en.wikipedia.org/wiki/Content-addressable_storage
 
 ```bash
 $ curl localhost:7475/blob -sT README.md
-0a2ad9799736639c67c79e2be0d188afdaf7816d%
+eef0465653bf02714b54a0b15da7e5146a98037f9d5ddff777591fd21b0c42eb%
 ```
 
 ### Store raw text
 
 ```
 $ curl localhost:7475/blob -XPUT -d 'WILSON!'
-68d5b57378f76645bf12506c88fb06a81ddb3965
+979f59d88a9ea9a2ce524f679861133cdfb7318570302f3147f129a12f2e9698
 ```
 
 ### Retrieve content
