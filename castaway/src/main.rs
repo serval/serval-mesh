@@ -19,7 +19,7 @@ mod api;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(long)]
+    #[clap(long)]
     // Where to store data; defaults to a one-off temporary directory if not specified
     path: Option<PathBuf>,
 }
