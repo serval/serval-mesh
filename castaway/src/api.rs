@@ -9,7 +9,7 @@ use axum::{
     routing::{get, put},
     Router,
 };
-use sha1::{Digest, Sha1};
+use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
 
@@ -21,7 +21,7 @@ struct AxumState {
 fn is_valid_blob_addr(addr: &String) -> bool {
     // this does not seem worth adding a regexp crate for
     let valid_chars = String::from("0123456789abcdef");
-    addr.len() == 40
+    addr.len() == 64
         && addr
             .to_lowercase()
             .chars()
@@ -62,7 +62,7 @@ async fn get_blob(
 }
 
 async fn store_blob(State(state): State<AxumState>, body: Bytes) -> impl IntoResponse {
-    let mut hasher = Sha1::new();
+    let mut hasher = Sha256::new();
     hasher.update(&body);
     let blob_addr = hex::encode(hasher.finalize());
     let filename = state.storage_path.join(&blob_addr);
