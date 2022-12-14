@@ -8,12 +8,14 @@
 )]
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
+use mdns_sd::{ServiceDaemon, ServiceEvent};
 use uuid::Uuid;
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
@@ -49,10 +51,14 @@ pub enum Command {
     History,
 }
 
+static SERVAL_NODE_URL: Mutex<Option<String>> = Mutex::new(None);
+
 /// Convenience function to build urls repeatably.
 fn build_url(path: String) -> String {
-    let baseurl =
-        std::env::var("SERVAL_NODE_URL").unwrap_or_else(|_| "http://localhost:8100".to_string());
+    let baseurl = SERVAL_NODE_URL.lock().unwrap();
+    let baseurl = baseurl
+        .as_ref()
+        .expect("build_url called while SERVAL_NODE_URL is None");
     format!("{baseurl}/{path}")
 }
 
@@ -137,10 +143,41 @@ fn history() -> Result<()> {
     Ok(())
 }
 
+fn blocking_maybe_discover_service_url(
+    service_type: &str,
+    env_var_override_name: &str,
+) -> Result<String> {
+    if let Ok(override_url) = std::env::var(env_var_override_name) {
+        return Ok(override_url);
+    }
+
+    println!("Looking for {service_type} node on the local network...");
+
+    let mdns = ServiceDaemon::new()?;
+    let service_type = format!("{service_type}._tcp.local.");
+    let receiver = mdns.browse(&service_type)?;
+    while let Ok(event) = receiver.recv() {
+        let ServiceEvent::ServiceResolved(info) = event else {
+            // We don't care about other events here
+            continue;
+        };
+        if let Some(addr) = info.get_addresses().iter().next() {
+            let port = info.get_port();
+            return Ok(format!("http://{addr}:{port}"));
+        }
+    }
+
+    Err(anyhow!(format!(
+        "Failed to discover {service_type} node on the local network"
+    )))
+}
+
 /// Parse command-line arguments and act.
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let baseurl = blocking_maybe_discover_service_url("_serval_daemon", "SERVAL_NODE_URL")?;
+    SERVAL_NODE_URL.lock().unwrap().replace(baseurl);
 
+    let args = Args::parse();
     match args.cmd {
         Command::Run {
             name,
