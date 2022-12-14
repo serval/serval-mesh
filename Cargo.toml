@@ -4,6 +4,7 @@ members = [
   "daemon",
   "engine",
   "once",
+  "pounce",
   "queuey-queue",
   "utils"
 ]

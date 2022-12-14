@@ -5,4 +5,5 @@
 **/*.rs.bk
 .env
 .DS_Store
+**/*.code-workspace
 

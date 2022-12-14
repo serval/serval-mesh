@@ -22,11 +22,19 @@ impl ServalEngine {
     pub fn execute(
         &mut self,
         binary: &[u8],
-        input: ReadPipe<Cursor<String>>,
+        input: Option<ReadPipe<Cursor<String>>>,
     ) -> anyhow::Result<Vec<u8>> {
         let stdout = WritePipe::new_in_memory();
+
+        let stdin = match input {
+            Some(v) => v,
+            None => {
+                ReadPipe::from("".to_string())
+            }
+        };
+
         let wasi = WasiCtxBuilder::new()
-            .stdin(Box::new(input))
+            .stdin(Box::new(stdin))
             .stdout(Box::new(stdout.clone()))
             .inherit_stderr()
             .build();
