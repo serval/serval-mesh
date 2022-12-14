@@ -74,7 +74,7 @@ fn main() -> anyhow::Result<()> {
     let stdin = ReadPipe::from(payload);
     let binary = fs::read(exec_path)?;
 
-    let bytes = engine.execute(&binary, stdin)?;
+    let bytes = engine.execute(&binary, Some(stdin))?;
     let contents = String::from_utf8(bytes)?;
     println!("raw output:\n{}", contents);
 
