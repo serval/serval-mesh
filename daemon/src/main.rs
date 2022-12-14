@@ -12,6 +12,7 @@ use engine::ServalEngine;
 use http::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
+use utils::mdns::advertise_service;
 use uuid::Uuid;
 
 use std::collections::HashMap;
@@ -168,8 +169,10 @@ async fn main() -> Result<()> {
     dotenv().ok();
     env_logger::init();
 
-    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("PORT").unwrap_or_else(|_| "8100".to_string());
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let port: u16 = std::env::var("PORT")
+        .unwrap_or_else(|_| "8100".to_string())
+        .parse()?;
 
     let state = Arc::new(Mutex::new(RunnerState::new()));
 
@@ -182,6 +185,8 @@ async fn main() -> Result<()> {
 
     let addr = format!("{}:{}", host, port);
     log::info!("wait-for-it daemon listening on {}", &addr);
+
+    advertise_service("serval_daemon", port, None)?;
 
     let addr: SocketAddr = addr.parse().unwrap();
     axum::Server::bind(&addr)
