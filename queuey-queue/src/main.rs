@@ -20,7 +20,7 @@ mod queue;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(long)]
+    #[clap(long)]
     persist: Option<PathBuf>,
 }
 
