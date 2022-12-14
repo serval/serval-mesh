@@ -4,7 +4,7 @@ use std::{collections::HashMap, net::Ipv4Addr};
 
 use crate::addrs::my_ipv4_addrs;
 
-pub async fn advertise_service(
+pub fn advertise_service(
     service_name: &str,
     port: u16,
     props: Option<HashMap<String, String>>,
