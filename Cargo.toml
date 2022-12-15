@@ -1,11 +1,11 @@
 [workspace]
 members = [
   "castaway",
-  "daemon",
   "engine",
-  "once",
   "pounce",
   "queuey-queue",
+  "serval-agent",
+  "test-runner",
   "utils"
 ]
 
