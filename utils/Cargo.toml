@@ -2,11 +2,12 @@
 name = "utils"
 version = "0.1.0"
 edition = "2021"
+license = "BSD-2-Clause-Patent"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow.workspace = true
+anyhow = { workspace = true }
 if-addrs = "0.7.0"
-log.workspace = true
+log = {workspace = true }
 mdns-sd = "0.5.9"

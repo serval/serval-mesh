@@ -28,9 +28,7 @@ impl ServalEngine {
 
         let stdin = match input {
             Some(v) => v,
-            None => {
-                ReadPipe::from("".to_string())
-            }
+            None => ReadPipe::from("".to_string()),
         };
 
         let wasi = WasiCtxBuilder::new()

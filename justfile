@@ -14,6 +14,11 @@ help:
 @ci: test
     cargo clippy --all-targets
     cargo fmt --check
+    cargo deny check licenses
+
+# Get security advisories from cargo-deny
+@security:
+    cargo deny check advisories
 
 # Run tests with nextest
 test:
@@ -27,7 +32,9 @@ test:
 # Cargo install required tools like `nextest`
 @install-tools:
     cargo install cargo-nextest
+    cargo install cargo-deny
 
 # Everyone loves Lady Gaga, right?
 @dance:
     open "https://www.youtube.com/watch?v=2Abk1jAONjw"
+
