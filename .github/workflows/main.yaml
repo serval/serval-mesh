@@ -3,10 +3,10 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - src/**
-      - Cargo.toml
-      - Cargo.lock
-      - .github/workflows/test.yaml
+      - "**/src/**"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - ".github/workflows/main.yaml"
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
