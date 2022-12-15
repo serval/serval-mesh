@@ -2061,6 +2061,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "serval-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "dotenvy",
+ "engine",
+ "env_logger 0.10.0",
+ "http",
+ "log",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "utils",
+ "uuid",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2217,6 +2236,18 @@ checksum = "cb20089a8ba2b69debd491f8d2d023761cbf196e999218c591fa1e7e15a21907"
 dependencies = [
  "rustix 0.36.5",
  "windows-sys 0.42.0",
+]
+
+[[package]]
+name = "test-runner"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "engine",
+ "wasi-common",
+ "wasmtime",
+ "wasmtime-wasi",
 ]
 
 [[package]]
@@ -2527,37 +2558,6 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
-
-[[package]]
-name = "wait-for-it-daemon"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "dotenvy",
- "engine",
- "env_logger 0.10.0",
- "http",
- "log",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "utils",
- "uuid",
-]
-
-[[package]]
-name = "wait-for-it-once"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "engine",
- "wasi-common",
- "wasmtime",
- "wasmtime-wasi",
-]
 
 [[package]]
 name = "want"

@@ -1,6 +1,8 @@
-# wait-for-it server
+# Serval Agent
 
-This server listens on HTTP for incoming job requests. It is _not yet_ a full Serval agent node, because it does not make any attempt to find a control node and ask for jobs. Instead it listens passively to be pushed incoming workloads.
+The serval agent is a persistent process that advertises itself on the network as a runner for WASM jobs. It listens on HTTP for incoming job requests.
+
+It is _not yet_ a full Serval agent node, because it does not make any attempt to find a control node and ask for jobs. Instead it listens passively to be pushed incoming workloads.
 
 It has _no persistent storage_ at the moment.
 
@@ -53,7 +55,7 @@ requestBody:
 
 For the moment, this endpoint responds with `202 Accepted` and a URL to poll for updates.
 
-### `GET /jobs/:id/status`
+### `GET /jobs/:id/status` UNIMPLEMENTED
 
 This endpoint responds with the status of a job.
 
@@ -66,6 +68,6 @@ Enum {
 }
 ```
 
-### `GET /jobs/:id/result`
+### `GET /jobs/:id/result` UNIMPLEMENTED
 
 Responds with job results. Format TBD.
