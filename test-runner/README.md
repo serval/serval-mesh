@@ -1,4 +1,4 @@
-# wait-for-it one shot
+# wasm test runner
 
 This is a command-line executable that runs a single wasi payload and exits. It is useful as a testbed for the embedded wasm engine!
 
@@ -34,10 +34,5 @@ Input file: testinput.txt
 Running wasi-hello-world.wasm...
 Content-Type: text/plain
 
-Servals communicate with pee. Both males and females mark their territories by
-spraying urine on trees and bushes, scraping fresh urine into the ground with
-their claws, and rubbing their cheek glands on the ground or brush. Males tend
-to mark their territory more frequently than females, spraying up to 46 times
-per hour or 41 times per square kilometer. One male was recorded marking 566
-times in a four hour period, when he was following a female.
+[random serval fact here]
 ```

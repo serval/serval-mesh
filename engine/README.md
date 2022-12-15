@@ -1,3 +1,3 @@
-# wait-for-it engine
+# Engine glue
 
-This is the library that implements our spin on the embedded WASM engine.
+This is the library that implements our convenience layer around the embedded WASM engine.

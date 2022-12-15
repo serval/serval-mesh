@@ -184,7 +184,7 @@ async fn main() -> Result<()> {
         .with_state(state);
 
     let addr = format!("{}:{}", host, port);
-    log::info!("wait-for-it daemon listening on {}", &addr);
+    log::info!("serval agent daemon listening on {}", &addr);
 
     advertise_service("serval_daemon", port, None)?;
 
