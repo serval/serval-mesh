@@ -2,8 +2,6 @@ use wasi_common::pipe::{ReadPipe, WritePipe};
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
-use std::io::Cursor;
-
 #[derive(Clone)]
 pub struct ServalEngine {
     engine: Engine,
@@ -19,18 +17,10 @@ impl ServalEngine {
         Ok(Self { engine, linker })
     }
 
-    pub fn execute(
-        &mut self,
-        binary: &[u8],
-        input: Option<ReadPipe<Cursor<String>>>,
-    ) -> anyhow::Result<Vec<u8>> {
+    pub fn execute(&mut self, binary: &[u8], input: &[u8]) -> anyhow::Result<Vec<u8>> {
         let stdout = WritePipe::new_in_memory();
 
-        let stdin = match input {
-            Some(v) => v,
-            None => ReadPipe::from("".to_string()),
-        };
-
+        let stdin = ReadPipe::from(input);
         let wasi = WasiCtxBuilder::new()
             .stdin(Box::new(stdin))
             .stdout(Box::new(stdout.clone()))

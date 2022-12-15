@@ -158,7 +158,7 @@ async fn execute_job(metadata: &JobMetadata, executable: Vec<u8>) -> anyhow::Res
         metadata.id
     );
     let mut engine = ServalEngine::new()?;
-    let bytes = engine.execute(&executable, None)?;
+    let bytes = engine.execute(&executable, &vec![])?;
     let contents = String::from_utf8(bytes)?;
 
     Ok(contents)

@@ -1,7 +1,6 @@
 use clap::Parser;
 use std::path::Path;
 use std::{ffi::OsStr, fs};
-use wasi_common::pipe::ReadPipe;
 
 use engine::ServalEngine;
 
@@ -71,10 +70,10 @@ fn main() -> anyhow::Result<()> {
     let mut engine = ServalEngine::new()?;
 
     let payload = fs::read_to_string(input_path)?;
-    let stdin = ReadPipe::from(payload);
+    let stdin = payload.as_bytes();
     let binary = fs::read(exec_path)?;
 
-    let bytes = engine.execute(&binary, Some(stdin))?;
+    let bytes = engine.execute(&binary, stdin)?;
     let contents = String::from_utf8(bytes)?;
     println!("raw output:\n{}", contents);
 
