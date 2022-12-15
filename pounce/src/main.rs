@@ -38,7 +38,9 @@ pub enum Command {
         description: Option<String>,
         /// The file containing the wasm binary to run. Omit to read from stdin.
         #[clap(value_name = "FILE")]
-        file: Option<PathBuf>,
+        binary_file: Option<PathBuf>,
+        /// Path to a file to pass to the binary
+        input_file: Option<PathBuf>,
     },
     /// Get the status of a job in progress.
     #[clap(display_order = 2)]
@@ -86,10 +88,19 @@ fn read_binary(maybepath: Option<PathBuf>) -> Result<Vec<u8>, anyhow::Error> {
 fn run(
     name: Option<String>,
     description: Option<String>,
-    maybepath: Option<PathBuf>,
+    maybebinarypath: Option<PathBuf>,
+    maybeinputpath: Option<PathBuf>,
 ) -> Result<()> {
-    let binary = read_binary(maybepath)?;
+    let binary = read_binary(maybebinarypath)?;
     let binary_part = reqwest::blocking::multipart::Part::bytes(binary);
+
+    let mut input_bytes: Vec<u8> = Vec::new();
+    if let Some(inputpath) = maybeinputpath {
+        let file = File::open(inputpath)?;
+        let mut reader = BufReader::new(file);
+        reader.read_to_end(&mut input_bytes)?;
+    };
+    let input_part = reqwest::blocking::multipart::Part::bytes(input_bytes);
 
     let envelope = serde_json::json!({
         "id": &Uuid::new_v4().to_string(),
@@ -101,7 +112,8 @@ fn run(
     let client = reqwest::blocking::Client::new();
     let form = reqwest::blocking::multipart::Form::new()
         .part("envelope", envelope_part)
-        .part("executable", binary_part);
+        .part("executable", binary_part)
+        .part("input", input_part);
 
     let url = build_url("jobs".to_string());
     let response = client.post(&url).multipart(form).send()?;
@@ -182,9 +194,10 @@ fn main() -> Result<()> {
         Command::Run {
             name,
             description,
-            file,
+            binary_file,
+            input_file,
         } => {
-            run(name, description, file)?;
+            run(name, description, binary_file, input_file)?;
         }
         Command::Results { id } => results(id)?,
         Command::Status { id } => status(id)?,
