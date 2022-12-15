@@ -141,7 +141,7 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
     // What we'll do later is accept this job for processing and send it to a thread or something.
     // But for now we do it right here, in our handler.
     // The correct response by design is a 202 Accepted plus the metadata object.
-    match execute_job(&metadata, binary).await {
+    match execute_job(&metadata, binary, input).await {
         Ok(v) => (StatusCode::OK, v),
         Err(e) => {
             state.errors += 1;
@@ -151,14 +151,21 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
 }
 
 /// Run a job in the wasm engine.
-async fn execute_job(metadata: &JobMetadata, executable: Vec<u8>) -> anyhow::Result<String> {
+async fn execute_job(
+    metadata: &JobMetadata,
+    executable: Vec<u8>,
+    input: Option<Vec<u8>>,
+) -> anyhow::Result<String> {
     log::info!(
         "about to run job name={}; id={}",
         metadata.name,
         metadata.id
     );
+
+    let stdin = input.unwrap_or_default();
+
     let mut engine = ServalEngine::new()?;
-    let bytes = engine.execute(&executable, &vec![])?;
+    let bytes = engine.execute(&executable, &stdin)?;
     let contents = String::from_utf8(bytes)?;
 
     Ok(contents)
