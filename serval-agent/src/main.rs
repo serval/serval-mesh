@@ -85,6 +85,7 @@ struct Envelope {
 async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCode, String) {
     let mut envelope: Option<Envelope> = None;
     let mut binary: Option<Vec<u8>> = None;
+    let mut input: Option<Vec<u8>> = None;
 
     // chomp up form input here
     while let Some(field) = multipart.next_field().await.unwrap() {
@@ -98,6 +99,9 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
                     return (StatusCode::BAD_REQUEST, "job envelope is invalid".to_string());
                 };
                 envelope = Some(parsed);
+            }
+            "input" => {
+                input = Some(data.to_vec());
             }
             "executable" => {
                 binary = Some(data.to_vec());
@@ -122,9 +126,10 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
     let metadata: JobMetadata = JobMetadata::from(envelope);
     let binary = binary.unwrap();
     log::info!(
-        "received WASM job; name={}; executable length={}",
+        "received WASM job; name={}; executable length={}; input length={}",
         metadata.name,
-        binary.len()
+        binary.len(),
+        input.as_ref().map(|input| input.len()).unwrap_or_else(|| 0),
     );
 
     // Poor human's history tracking here. We'll need to do better at some point.
