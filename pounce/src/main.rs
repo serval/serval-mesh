@@ -163,6 +163,7 @@ fn blocking_maybe_discover_service_url(
         return Ok(override_url);
     }
 
+    // TODO: add a timeout so we don't wait forever
     println!("Looking for {service_type} node on the local network...");
 
     let mdns = ServiceDaemon::new()?;
