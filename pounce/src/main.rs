@@ -125,9 +125,8 @@ fn run(
     let url = build_url("jobs".to_string());
     let response = client.post(url).multipart(form).send()?;
 
-    let body = response.text()?;
-
-    println!("{body}");
+    let response_body = response.bytes()?;
+    std::io::stdout().write_all(&response_body)?;
 
     Ok(())
 }

@@ -165,7 +165,7 @@ async fn execute_job(
     metadata: &JobMetadata,
     executable: Vec<u8>,
     input: Option<Vec<u8>>,
-) -> Result<String> {
+) -> Result<Vec<u8>> {
     log::info!(
         "about to run job name={}; id={}",
         metadata.name,
@@ -176,9 +176,8 @@ async fn execute_job(
 
     let mut engine = ServalEngine::new()?;
     let bytes = engine.execute(&executable, &stdin)?;
-    let contents = String::from_utf8(bytes)?;
 
-    Ok(contents)
+    Ok(bytes)
 }
 
 async fn monitor_history(state: State<AppState>) -> Json<RunnerState> {
