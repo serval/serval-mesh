@@ -186,10 +186,11 @@ fn blocking_maybe_discover_service_url(
 
 /// Parse command-line arguments and act.
 fn main() -> Result<()> {
+    let args = Args::parse();
+
     let baseurl = blocking_maybe_discover_service_url("_serval_daemon", "SERVAL_NODE_URL")?;
     SERVAL_NODE_URL.lock().unwrap().replace(baseurl);
 
-    let args = Args::parse();
     match args.cmd {
         Command::Run {
             name,
