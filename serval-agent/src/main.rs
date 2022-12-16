@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use axum::{
-    extract::{Multipart, State},
+    extract::{DefaultBodyLimit, Multipart, State},
     http::{Request, StatusCode},
     middleware::{self, Next},
     response::Response,
@@ -197,11 +197,13 @@ async fn main() -> Result<()> {
 
     let state = Arc::new(Mutex::new(RunnerState::new()));
 
+    const MAX_BODY_SIZE_BYTES: usize = 10 * 1024 * 1024;
     let app = Router::new()
         .route("/monitor/ping", get(ping))
         .route("/monitor/history", get(monitor_history))
         .route("/jobs", post(incoming))
         .route_layer(middleware::from_fn(clacks))
+        .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
         .with_state(state);
 
     let addr = format!("{}:{}", host, port);
