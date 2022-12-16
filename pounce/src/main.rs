@@ -123,7 +123,7 @@ fn run(
         .part("input", input_part);
 
     let url = build_url("jobs".to_string());
-    let response = client.post(&url).multipart(form).send()?;
+    let response = client.post(url).multipart(form).send()?;
 
     let body = response.text()?;
 
@@ -135,7 +135,7 @@ fn run(
 /// Get a job's status from a serval agent node.
 fn status(id: Uuid) -> Result<()> {
     let url = build_url(format!("jobs/{id}/status"));
-    let response = reqwest::blocking::get(&url)?;
+    let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
@@ -145,7 +145,7 @@ fn status(id: Uuid) -> Result<()> {
 /// Get a job's results from a serval agent node.
 fn results(id: Uuid) -> Result<()> {
     let url = build_url(format!("jobs/{id}/results"));
-    let response = reqwest::blocking::get(&url)?;
+    let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
@@ -155,7 +155,7 @@ fn results(id: Uuid) -> Result<()> {
 /// Get in-memory history from an agent node.
 fn history() -> Result<()> {
     let url = build_url("monitor/history".to_string());
-    let response = reqwest::blocking::get(&url)?;
+    let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
