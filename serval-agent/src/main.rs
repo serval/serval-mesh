@@ -85,6 +85,7 @@ struct Envelope {
 async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCode, String) {
     let mut envelope: Option<Envelope> = None;
     let mut binary: Option<Vec<u8>> = None;
+    let mut input: Option<Vec<u8>> = None;
 
     // chomp up form input here
     while let Some(field) = multipart.next_field().await.unwrap() {
@@ -98,6 +99,9 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
                     return (StatusCode::BAD_REQUEST, "job envelope is invalid".to_string());
                 };
                 envelope = Some(parsed);
+            }
+            "input" => {
+                input = Some(data.to_vec());
             }
             "executable" => {
                 binary = Some(data.to_vec());
@@ -122,9 +126,10 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
     let metadata: JobMetadata = JobMetadata::from(envelope);
     let binary = binary.unwrap();
     log::info!(
-        "received WASM job; name={}; executable length={}",
+        "received WASM job; name={}; executable length={}; input length={}",
         metadata.name,
-        binary.len()
+        binary.len(),
+        input.as_ref().map(|input| input.len()).unwrap_or_else(|| 0),
     );
 
     // Poor human's history tracking here. We'll need to do better at some point.
@@ -136,7 +141,7 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
     // What we'll do later is accept this job for processing and send it to a thread or something.
     // But for now we do it right here, in our handler.
     // The correct response by design is a 202 Accepted plus the metadata object.
-    match execute_job(&metadata, binary).await {
+    match execute_job(&metadata, binary, input).await {
         Ok(v) => (StatusCode::OK, v),
         Err(e) => {
             state.errors += 1;
@@ -146,14 +151,21 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
 }
 
 /// Run a job in the wasm engine.
-async fn execute_job(metadata: &JobMetadata, executable: Vec<u8>) -> anyhow::Result<String> {
+async fn execute_job(
+    metadata: &JobMetadata,
+    executable: Vec<u8>,
+    input: Option<Vec<u8>>,
+) -> anyhow::Result<String> {
     log::info!(
         "about to run job name={}; id={}",
         metadata.name,
         metadata.id
     );
+
+    let stdin = input.unwrap_or_default();
+
     let mut engine = ServalEngine::new()?;
-    let bytes = engine.execute(&executable, None)?;
+    let bytes = engine.execute(&executable, &stdin)?;
     let contents = String::from_utf8(bytes)?;
 
     Ok(contents)

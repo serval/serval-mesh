@@ -36,9 +36,12 @@ pub enum Command {
         /// A description for the job
         #[clap(long, short)]
         description: Option<String>,
-        /// The file containing the wasm binary to run. Omit to read from stdin.
-        #[clap(value_name = "FILE")]
-        file: Option<PathBuf>,
+        /// The file containing the wasm binary to run
+        #[clap(value_name = "WASM BINARY")]
+        binary_file: PathBuf,
+        /// Path to a file to pass to the binary; omit to read from stdin (if present)
+        #[clap(value_name = "OPTIONAL INPUT TO WASM BINARY")]
+        input_file: Option<PathBuf>,
     },
     /// Get the status of a job in progress.
     #[clap(display_order = 2)]
@@ -63,33 +66,48 @@ fn build_url(path: String) -> String {
 }
 
 /// Convenience function to read an input wasm binary either from a pathbuf or from stdin.
-fn read_binary(maybepath: Option<PathBuf>) -> Result<Vec<u8>, anyhow::Error> {
+fn read_file_or_stdin(maybepath: Option<PathBuf>) -> Result<Vec<u8>, anyhow::Error> {
     // TODO This implementation should become a streaming implementation.
-    let mut binary: Vec<u8> = Vec::new();
-    let size = if let Some(ref fpath) = maybepath {
-        let file = File::open(fpath)?;
-        let mut reader = BufReader::new(file);
-        reader.read_to_end(&mut binary)?
-    } else {
-        let mut reader = BufReader::new(std::io::stdin());
-        reader.read_to_end(&mut binary)?
-    };
-
-    if size == 0 {
-        Err(anyhow!("no executable data read!"))
-    } else {
-        Ok(binary)
+    let mut buf: Vec<u8> = Vec::new();
+    if let Some(fpath) = maybepath {
+        return read_file(fpath);
     }
+
+    if atty::is(atty::Stream::Stdin) {
+        return Ok(buf);
+    }
+
+    let mut reader = BufReader::new(std::io::stdin());
+    reader.read_to_end(&mut buf)?;
+
+    Ok(buf)
+}
+
+fn read_file(path: PathBuf) -> Result<Vec<u8>, anyhow::Error> {
+    // TODO This implementation should become a streaming implementation.
+    let mut buf: Vec<u8> = Vec::new();
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    reader.read_to_end(&mut buf)?;
+
+    Ok(buf)
 }
 
 /// Post a wasm executable to a waiting agent to run.
 fn run(
     name: Option<String>,
     description: Option<String>,
-    maybepath: Option<PathBuf>,
+    binarypath: PathBuf,
+    maybeinputpath: Option<PathBuf>,
 ) -> Result<()> {
-    let binary = read_binary(maybepath)?;
+    let binary = read_file(binarypath)?;
+    if binary.is_empty() {
+        return Err(anyhow!("no executable data read!"));
+    }
     let binary_part = reqwest::blocking::multipart::Part::bytes(binary);
+
+    let input_bytes = read_file_or_stdin(maybeinputpath)?;
+    let input_part = reqwest::blocking::multipart::Part::bytes(input_bytes);
 
     let envelope = serde_json::json!({
         "id": &Uuid::new_v4().to_string(),
@@ -101,10 +119,11 @@ fn run(
     let client = reqwest::blocking::Client::new();
     let form = reqwest::blocking::multipart::Form::new()
         .part("envelope", envelope_part)
-        .part("executable", binary_part);
+        .part("executable", binary_part)
+        .part("input", input_part);
 
     let url = build_url("jobs".to_string());
-    let response = client.post(&url).multipart(form).send()?;
+    let response = client.post(url).multipart(form).send()?;
 
     let body = response.text()?;
 
@@ -116,7 +135,7 @@ fn run(
 /// Get a job's status from a serval agent node.
 fn status(id: Uuid) -> Result<()> {
     let url = build_url(format!("jobs/{id}/status"));
-    let response = reqwest::blocking::get(&url)?;
+    let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
@@ -126,7 +145,7 @@ fn status(id: Uuid) -> Result<()> {
 /// Get a job's results from a serval agent node.
 fn results(id: Uuid) -> Result<()> {
     let url = build_url(format!("jobs/{id}/results"));
-    let response = reqwest::blocking::get(&url)?;
+    let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
@@ -136,7 +155,7 @@ fn results(id: Uuid) -> Result<()> {
 /// Get in-memory history from an agent node.
 fn history() -> Result<()> {
     let url = build_url("monitor/history".to_string());
-    let response = reqwest::blocking::get(&url)?;
+    let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
@@ -151,6 +170,7 @@ fn blocking_maybe_discover_service_url(
         return Ok(override_url);
     }
 
+    // TODO: add a timeout so we don't wait forever
     println!("Looking for {service_type} node on the local network...");
 
     let mdns = ServiceDaemon::new()?;
@@ -174,17 +194,19 @@ fn blocking_maybe_discover_service_url(
 
 /// Parse command-line arguments and act.
 fn main() -> Result<()> {
+    let args = Args::parse();
+
     let baseurl = blocking_maybe_discover_service_url("_serval_daemon", "SERVAL_NODE_URL")?;
     SERVAL_NODE_URL.lock().unwrap().replace(baseurl);
 
-    let args = Args::parse();
     match args.cmd {
         Command::Run {
             name,
             description,
-            file,
+            binary_file,
+            input_file,
         } => {
-            run(name, description, file)?;
+            run(name, description, binary_file, input_file)?;
         }
         Command::Results { id } => results(id)?,
         Command::Status { id } => status(id)?,

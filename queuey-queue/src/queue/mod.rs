@@ -48,7 +48,7 @@ impl JobQueue {
         let queue: Vec<Job> = persist_filename
             .clone()
             .and_then(|filename| {
-                let Ok(json_str) = fs::read_to_string(&filename) else {
+                let Ok(json_str) = fs::read_to_string(filename) else {
                     return None;
                 };
                 let Ok(queue_contents) = serde_json::from_str(&json_str) else {
