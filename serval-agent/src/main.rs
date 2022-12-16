@@ -1,3 +1,12 @@
+#![forbid(unsafe_code)]
+#![deny(future_incompatible)]
+#![warn(
+    missing_debug_implementations,
+    rust_2018_idioms,
+    trivial_casts,
+    unused_qualifications
+)]
+
 use anyhow::Result;
 use axum::{
     extract::{Multipart, State},
@@ -155,7 +164,7 @@ async fn execute_job(
     metadata: &JobMetadata,
     executable: Vec<u8>,
     input: Option<Vec<u8>>,
-) -> anyhow::Result<String> {
+) -> Result<String> {
     log::info!(
         "about to run job name={}; id={}",
         metadata.name,

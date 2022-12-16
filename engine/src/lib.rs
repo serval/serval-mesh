@@ -1,7 +1,17 @@
+#![forbid(unsafe_code)]
+#![deny(future_incompatible)]
+#![warn(
+    missing_debug_implementations,
+    rust_2018_idioms,
+    trivial_casts,
+    unused_qualifications
+)]
+
 use wasi_common::pipe::{ReadPipe, WritePipe};
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
+#[allow(missing_debug_implementations)]
 #[derive(Clone)]
 pub struct ServalEngine {
     engine: Engine,

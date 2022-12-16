@@ -109,7 +109,8 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "MIT",
-    "Unicode-DFS-2016"
+    "Unicode-DFS-2016",
+    "LicenseRef-ring"
 ]
 # List of explicitly disallowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
@@ -163,6 +164,13 @@ exceptions = [
     # Each entry is a crate relative path, and the (opaque) hash of its contents
     #{ path = "LICENSE", hash = 0xbd0eed23 }
 #]
+
+[[licenses.clarify]]
+name = "ring"
+expression = "LicenseRef-ring"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]
 
 [licenses.private]
 # If true, ignores workspace crates that aren't published, or are only
