@@ -170,7 +170,7 @@ fn blocking_maybe_discover_service_url(
     }
 
     // TODO: add a timeout so we don't wait forever
-    println!("Looking for {service_type} node on the local network...");
+    eprintln!("Looking for {service_type} node on the local network...");
 
     let mdns = ServiceDaemon::new()?;
     let service_type = format!("{service_type}._tcp.local.");
