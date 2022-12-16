@@ -1644,6 +1644,7 @@ name = "pounce"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atty",
  "clap",
  "mdns-sd",
  "reqwest",
