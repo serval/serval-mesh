@@ -12,8 +12,8 @@ help:
 
 # Run the same checks we run in CI
 @ci: test
-    cargo clippy --all-targets
-    cargo fmt --check
+    cargo clippy --all
+    cargo fmt --check --all
     cargo deny check licenses
 
 # Get security advisories from cargo-deny
@@ -26,8 +26,8 @@ test:
 
 # Lint and automatically fix what we can fix
 @lint:
+    cargo clippy --all --fix --allow-dirty --allow-staged
     cargo fmt --all
-    cargo clippy --all-targets --fix --allow-dirty --allow-staged
 
 # Cargo install required tools like `nextest`
 @install-tools:
