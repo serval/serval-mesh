@@ -12,7 +12,7 @@ use axum::{
     extract::{DefaultBodyLimit, Multipart, State},
     http::{Request, StatusCode},
     middleware::{self, Next},
-    response::Response,
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -91,7 +91,7 @@ struct Envelope {
 }
 
 /// Unimplemented main worker endpoint.
-async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCode, String) {
+async fn incoming(state: State<AppState>, mut multipart: Multipart) -> Response {
     let mut envelope: Option<Envelope> = None;
     let mut binary: Option<Vec<u8>> = None;
     let mut input: Option<Vec<u8>> = None;
@@ -105,7 +105,7 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
                 let data = data.to_vec();
                 let Ok(parsed) = serde_json::from_slice(&data) else {
                     // this is not good enough
-                    return (StatusCode::BAD_REQUEST, "job envelope is invalid".to_string());
+                    return (StatusCode::BAD_REQUEST, "job envelope is invalid".to_string()).into_response();
                 };
                 envelope = Some(parsed);
             }
@@ -125,7 +125,8 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
         return (
             StatusCode::BAD_REQUEST,
             "no wasm executable data provided!".to_string(),
-        );
+        )
+            .into_response();
     }
 
     let envelope = envelope.unwrap_or(Envelope {
@@ -151,10 +152,10 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> (StatusCo
     // But for now we do it right here, in our handler.
     // The correct response by design is a 202 Accepted plus the metadata object.
     match execute_job(&metadata, binary, input).await {
-        Ok(v) => (StatusCode::OK, v),
+        Ok(v) => (StatusCode::OK, v).into_response(),
         Err(e) => {
             state.errors += 1;
-            (StatusCode::BAD_REQUEST, e.to_string())
+            (StatusCode::BAD_REQUEST, e.to_string()).into_response()
         }
     }
 }
