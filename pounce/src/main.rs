@@ -9,6 +9,7 @@
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use mdns_sd::{ServiceDaemon, ServiceEvent};
+use owo_colors::OwoColorize;
 use uuid::Uuid;
 
 use std::fs::File;
@@ -21,6 +22,12 @@ use std::sync::Mutex;
 #[clap(name = "pounce 🐈", version)]
 /// Interacts with the running serval agent daemon via its http API.
 struct Args {
+    #[clap(
+        short,
+        parse(from_occurrences),
+        help = "Pass -v or -vv to increase verbosity"
+    )]
+    verbose: u64,
     #[clap(subcommand)]
     cmd: Command,
 }
@@ -109,10 +116,15 @@ fn run(
     let input_bytes = read_file_or_stdin(maybeinputpath)?;
     let input_part = reqwest::blocking::multipart::Part::bytes(input_bytes);
 
+    let name = name.unwrap_or_else(|| "unnamed".to_string());
+    let description = description.unwrap_or_else(|| "posted via command-line".to_string());
+
+    println!("Sending {} to serval agent...", name.blue().bold());
+
     let envelope = serde_json::json!({
         "id": &Uuid::new_v4().to_string(),
-        "name": name.unwrap_or_else(|| "temp-name".to_string()),
-        "description": description.unwrap_or_else(|| "posted via command-line".to_string())
+        "name": &name,
+        "description": &description
     });
     let envelope_part = reqwest::blocking::multipart::Part::text(envelope.to_string());
 
@@ -126,7 +138,10 @@ fn run(
     let response = client.post(url).multipart(form).send()?;
 
     let response_body = response.bytes()?;
+    log::info!("response body read; length={}", response_body.len());
+    println!("Output follows:\n----------");
     std::io::stdout().write_all(&response_body)?;
+    println!("----------");
 
     Ok(())
 }
@@ -170,7 +185,7 @@ fn blocking_maybe_discover_service_url(
     }
 
     // TODO: add a timeout so we don't wait forever
-    eprintln!("Looking for {service_type} node on the local network...");
+    log::info!("Looking for {service_type} node on the local network...");
 
     let mdns = ServiceDaemon::new()?;
     let service_type = format!("{service_type}._tcp.local.");
@@ -194,6 +209,14 @@ fn blocking_maybe_discover_service_url(
 /// Parse command-line arguments and act.
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    loggerv::Logger::new()
+        .verbosity(args.verbose) // if -v not passed, our default level is WARN
+        .line_numbers(false)
+        .module_path(true)
+        .colors(true)
+        .init()
+        .unwrap();
 
     let baseurl = blocking_maybe_discover_service_url("_serval_daemon", "SERVAL_NODE_URL")?;
     SERVAL_NODE_URL.lock().unwrap().replace(baseurl);
