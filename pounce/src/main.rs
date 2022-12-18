@@ -139,9 +139,9 @@ fn run(
 
     let response_body = response.bytes()?;
     log::info!("response body read; length={}", response_body.len());
-    println!("Output follows:\n----------");
+    eprintln!("Output follows:\n----------");
     std::io::stdout().write_all(&response_body)?;
-    println!("----------");
+    eprintln!("----------");
 
     Ok(())
 }
