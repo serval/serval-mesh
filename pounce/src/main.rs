@@ -49,7 +49,7 @@ pub enum Command {
         /// Path to a file to pass to the binary; omit to read from stdin (if present)
         #[clap(value_name = "OPTIONAL INPUT TO WASM BINARY")]
         input_file: Option<PathBuf>,
-        /// Path to write the output of the job to omit to write from stdout.
+        /// Path to write the output of the job. Omit to write to stdout.
         output_file: Option<PathBuf>,
     },
     /// Get the status of a job in progress.
