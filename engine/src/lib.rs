@@ -7,7 +7,11 @@
     unused_qualifications
 )]
 
-use wasi_common::pipe::{ReadPipe, WritePipe};
+use utils::errors::ServalError;
+use wasi_common::{
+    pipe::{ReadPipe, WritePipe},
+    I32Exit,
+};
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
@@ -41,10 +45,20 @@ impl ServalEngine {
         let module = Module::from_binary(&self.engine, binary)?;
         self.linker.module(&mut store, "", &module)?;
 
-        self.linker
+        if let Err(err) = self
+            .linker
             .get_default(&mut store, "")?
             .typed::<(), (), _>(&store)?
-            .call(&mut store, ())?;
+            .call(&mut store, ())
+        {
+            let Some(exit) = err.downcast_ref::<I32Exit>() else {
+                return Err(err);
+            };
+            if exit.0 != 0 {
+                // TODO: SER-37 - we should still capture stdout even if the binary exited with a non-zero exit code
+                return Err(ServalError::NonZeroExitCode(exit.0).into());
+            }
+        }
 
         // From [3]: "Calling drop(store) is important, otherwise converting the WritePipe into a Vec<u8> will fail"
         drop(store);

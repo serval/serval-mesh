@@ -8,6 +8,7 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow = { workspace = true }
+utils = { path = "../utils" }
 wasi-common = "3.0.1"
 wasmtime = "3.0.1"
 wasmtime-wasi = "3.0.1"

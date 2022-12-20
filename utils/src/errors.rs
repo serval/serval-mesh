@@ -19,4 +19,6 @@ pub enum ServalError {
     //
     //     #[error("an error we have no more details about happened")]
     //     Unknown,
+    #[error("binary terminated with non-zero exit code")]
+    NonZeroExitCode(i32),
 }
