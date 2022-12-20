@@ -151,6 +151,7 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> Response 
     // What we'll do later is accept this job for processing and send it to a thread or something.
     // But for now we do it right here, in our handler.
     // The correct response by design is a 202 Accepted plus the metadata object.
+    // TODO: SER-38 - capture exit code for failed jobs
     match execute_job(&metadata, binary, input).await {
         Ok(v) => (StatusCode::OK, v).into_response(),
         Err(e) => {
