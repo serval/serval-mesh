@@ -49,6 +49,8 @@ pub enum Command {
         /// Path to a file to pass to the binary; omit to read from stdin (if present)
         #[clap(value_name = "OPTIONAL INPUT TO WASM BINARY")]
         input_file: Option<PathBuf>,
+        /// Path to write the output of the job to omit to write from stdout.
+        output_file: Option<PathBuf>,
     },
     /// Get the status of a job in progress.
     #[clap(display_order = 2)]
@@ -106,6 +108,7 @@ fn run(
     description: Option<String>,
     binarypath: PathBuf,
     maybeinputpath: Option<PathBuf>,
+    maybeoutputpath: Option<PathBuf>,
 ) -> Result<()> {
     let binary = read_file(binarypath)?;
     if binary.is_empty() {
@@ -139,9 +142,22 @@ fn run(
 
     let response_body = response.bytes()?;
     log::info!("response body read; length={}", response_body.len());
-    eprintln!("Output follows:\n----------");
-    std::io::stdout().write_all(&response_body)?;
-    eprintln!("----------");
+    match maybeoutputpath {
+        Some(outputpath) => {
+            eprintln!("Writing output to {outputpath:?}");
+            let mut f = File::create(&outputpath)?;
+            f.write_all(&response_body)?;
+        }
+        None => {
+            if atty::is(atty::Stream::Stdin) && String::from_utf8(response_body.to_vec()).is_err() {
+                eprintln!("Response is non-printable binary data; redirect output to a file or provide an output filename to retrieve it.");
+            } else {
+                eprintln!("Output follows:\n----------");
+                std::io::stdout().write_all(&response_body)?;
+                eprintln!("----------");
+            };
+        }
+    }
 
     Ok(())
 }
@@ -227,8 +243,12 @@ fn main() -> Result<()> {
             description,
             binary_file,
             input_file,
+            output_file,
         } => {
-            run(name, description, binary_file, input_file)?;
+            // If people provide - as the filename, interpret that as stdin/stdout
+            let input_file = input_file.filter(|p| p != &PathBuf::from("-"));
+            let output_file = output_file.filter(|p| p != &PathBuf::from("-"));
+            run(name, description, binary_file, input_file, output_file)?;
         }
         Command::Results { id } => results(id)?,
         Command::Status { id } => status(id)?,
