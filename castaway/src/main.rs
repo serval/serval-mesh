@@ -12,7 +12,7 @@ use std::{env, fs, path::PathBuf};
 use anyhow::anyhow;
 use clap::Parser;
 use dotenvy::dotenv;
-use utils::{mdns::advertise_service, ports::find_nearest_port};
+use utils::{mdns::advertise_service, networking::find_nearest_port};
 
 mod api;
 
