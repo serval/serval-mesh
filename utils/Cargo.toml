@@ -11,3 +11,4 @@ anyhow = { workspace = true }
 if-addrs = "0.7.0"
 log = {workspace = true }
 mdns-sd = { workspace = true }
+thiserror = "1.0.38"

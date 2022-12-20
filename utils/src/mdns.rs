@@ -2,13 +2,15 @@ use mdns_sd::{ServiceDaemon, ServiceInfo};
 
 use std::{collections::HashMap, net::Ipv4Addr};
 
-use crate::addrs::my_ipv4_addrs;
+use crate::errors::ServalError;
+use crate::networking::my_ipv4_addrs;
 
+/// Advertise a service with the given name over MDNS.
 pub fn advertise_service(
     service_name: &str,
     port: u16,
     props: Option<HashMap<String, String>>,
-) -> anyhow::Result<()> {
+) -> Result<(), ServalError> {
     let mdns = ServiceDaemon::new()?;
 
     // TODO: enumerate and include IPv6 addresses

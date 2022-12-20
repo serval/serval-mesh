@@ -1,3 +1,3 @@
-pub mod addrs;
+pub mod errors;
 pub mod mdns;
-pub mod ports;
+pub mod networking;
