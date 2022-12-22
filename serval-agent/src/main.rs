@@ -21,7 +21,7 @@ use engine::ServalEngine;
 use http::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use utils::mdns::advertise_service;
+use utils::{mdns::advertise_service, structs::WasmResult};
 use uuid::Uuid;
 
 use std::collections::HashMap;
@@ -148,12 +148,31 @@ async fn incoming(state: State<AppState>, mut multipart: Multipart) -> Response 
     state.total += 1;
     state.jobs.insert(metadata.id.to_string(), metadata.clone());
 
+    let start = std::time::Instant::now();
+
     // What we'll do later is accept this job for processing and send it to a thread or something.
     // But for now we do it right here, in our handler.
     // The correct response by design is a 202 Accepted plus the metadata object.
     // TODO: SER-38 - capture exit code for failed jobs
     match execute_job(&metadata, binary, input).await {
-        Ok(v) => (StatusCode::OK, v).into_response(),
+        Ok(result) => {
+            // We're not doing anything with stderr here.
+            log::info!(
+                "job completed; job={}; code={}; elapsed_ms={}",
+                metadata.id,
+                result.code,
+                start.elapsed().as_millis()
+            );
+            if result.code == 0 {
+                // Zero exit status code is a success.
+                (StatusCode::OK, result.stdout).into_response()
+            } else {
+                // Now the fun part of http error signalling: the request was successful, but the
+                // result of the operation was bad from the user's point of view. Our behavior here
+                // is yet to be defined but I'm sending back stderr just to show we can.
+                (StatusCode::OK, result.stderr).into_response()
+            }
+        }
         Err(e) => {
             state.errors += 1;
             (StatusCode::BAD_REQUEST, e.to_string()).into_response()
@@ -166,7 +185,7 @@ async fn execute_job(
     metadata: &JobMetadata,
     executable: Vec<u8>,
     input: Option<Vec<u8>>,
-) -> Result<Vec<u8>> {
+) -> Result<WasmResult> {
     log::info!(
         "about to run job name={}; id={}",
         metadata.name,
@@ -176,9 +195,9 @@ async fn execute_job(
     let stdin = input.unwrap_or_default();
 
     let mut engine = ServalEngine::new()?;
-    let bytes = engine.execute(&executable, &stdin)?;
+    let result = engine.execute(&executable, &stdin)?;
 
-    Ok(bytes)
+    Ok(result)
 }
 
 async fn monitor_history(state: State<AppState>) -> Json<RunnerState> {
