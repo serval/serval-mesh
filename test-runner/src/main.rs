@@ -73,9 +73,13 @@ fn main() -> anyhow::Result<()> {
     let stdin = payload.as_bytes();
     let binary = fs::read(exec_path)?;
 
-    let bytes = engine.execute(&binary, stdin)?;
-    let contents = String::from_utf8(bytes)?;
-    println!("raw output:\n{}", contents);
+    let result = engine.execute(&binary, stdin)?;
+    eprintln!(
+        "\nWASM executable exited with status code = {}",
+        result.code
+    );
+    println!("stdout:\n{}", String::from_utf8(result.stdout)?);
+    println!("stderr:\n{}", String::from_utf8(result.stderr)?);
 
     Ok(())
 }

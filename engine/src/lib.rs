@@ -8,6 +8,7 @@
 )]
 
 use utils::errors::ServalError;
+use utils::structs::WasmResult;
 use wasi_common::{
     pipe::{ReadPipe, WritePipe},
     I32Exit,
@@ -31,43 +32,60 @@ impl ServalEngine {
         Ok(Self { engine, linker })
     }
 
-    pub fn execute(&mut self, binary: &[u8], input: &[u8]) -> anyhow::Result<Vec<u8>> {
+    pub fn execute(&mut self, binary: &[u8], input: &[u8]) -> Result<WasmResult, ServalError> {
         let stdout = WritePipe::new_in_memory();
+        let stderr = WritePipe::new_in_memory();
 
         let stdin = ReadPipe::from(input);
         let wasi = WasiCtxBuilder::new()
             .stdin(Box::new(stdin))
             .stdout(Box::new(stdout.clone()))
-            .inherit_stderr()
+            .stderr(Box::new(stderr.clone()))
             .build();
 
         let mut store = Store::new(&self.engine, wasi);
         let module = Module::from_binary(&self.engine, binary)?;
         self.linker.module(&mut store, "", &module)?;
 
-        if let Err(err) = self
+        let executed = self
             .linker
             .get_default(&mut store, "")?
             .typed::<(), (), _>(&store)?
-            .call(&mut store, ())
-        {
-            let Some(exit) = err.downcast_ref::<I32Exit>() else {
-                return Err(err);
-            };
-            if exit.0 != 0 {
-                // TODO: SER-37 - we should still capture stdout even if the binary exited with a non-zero exit code
-                return Err(ServalError::NonZeroExitCode(exit.0).into());
-            }
-        }
+            .call(&mut store, ());
 
-        // From [3]: "Calling drop(store) is important, otherwise converting the WritePipe into a Vec<u8> will fail"
+        // We have to drop the store here or we'll be unable to consume data from the WritePipe. See wasmtime docs.
         drop(store);
 
-        let bytes: Vec<u8> = stdout
+        let outbytes: Vec<u8> = stdout
             .try_into_inner()
-            .map_err(|_err| anyhow::Error::msg("sole remaining reference"))?
+            .map_err(|_err| anyhow::Error::msg("failed to read stdout from the engine results"))?
             .into_inner();
-        Ok(bytes)
+
+        let errbytes: Vec<u8> = stderr
+            .try_into_inner()
+            .map_err(|_err| anyhow::Error::msg("failed to read stdout from the engine results"))?
+            .into_inner();
+
+        let code = match executed {
+            Err(e) => {
+                println!("{:?}", e);
+                if let Some(exit) = e.downcast_ref::<I32Exit>() {
+                    // return Err(utils::errors::ServalError::WasmEngineError(e));
+                    exit.0
+                } else {
+                    -100
+                }
+            }
+            Ok(_) => 0,
+        };
+
+        let result = WasmResult {
+            code,
+            stdout: outbytes,
+            stderr: errbytes,
+        };
+
+        Ok(result)
     }
 }
 
