@@ -11,7 +11,26 @@ The current state of this code base is far from where it will eventually be. Rig
 ## Issues
 
 * There are three sections marked up with `FIXME:` markers. They all relate to an issue with providing custom pipes for stdin and stdout
-## Prerequisites
+
+## Usage
+
+```text
+test-runner
+Note: The CLI is just here for simple testing purpose. The real worker will pick up executables and
+inputs from an API endpoint
+
+USAGE:
+    test-runner <EXEC_PATH> [INPUT_PATH]
+
+ARGS:
+    <EXEC_PATH>     Path to the WASM executable to run
+    <INPUT_PATH>    Optional path to a file containing input for the executable
+
+OPTIONS:
+    -h, --help    Print help information
+```
+
+## Example
 
 This assumes the existence of a `.wasm` file and an input file with arbitrary content (but usable by the WASM executable).
 
@@ -20,19 +39,21 @@ Compiling our [wasi-hello-world](https://github.com/servals/wasm-samples/tree/ma
 Then, this code can be run as follows:
 
 ```
-cargo run -- path/to/wasi-hello-world.wasm testinput.txt
+cargo run -- path/to/serval-facts.wasm
 ```
 
-Running the `wasi-hello-world` example will produce output similar to the following:
+Running the `serval-facts` example will produce output similar to the following:
 ```
-Executable file: wasi-hello-world.wasm
-        ✅ File exists!
+executing: ../../wasm-samples/build/serval-facts.wasm
+exit status: 0
 
-Input file: testinput.txt
-        ✅ File exists!
-
-Running wasi-hello-world.wasm...
+stdout:
 Content-Type: text/plain
 
-[random serval fact here]
+Servals have cat fights. Threat displays between hostile servals can look scary,
+with the cats flattening their ears, arching their backs, baring their teeth,
+and nodding their heads vigorously. If the situation escalates, they lash out
+with their long front legs and bark and growl.
+
+stderr:
 ```

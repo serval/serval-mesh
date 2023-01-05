@@ -16,7 +16,7 @@ pub enum ServalError {
     #[error("unable to find a free port >= `{0}`")]
     NoFreePorts(u16),
 
-    /// MDNS failed for some reason. We wrap up the mdns library's error here.
+    /// MDNS failed for some reason. We wrap up the MDNS library's error here.
     #[error("unable to set up mdns")]
     MdnsError(#[from] mdns_sd::Error),
 

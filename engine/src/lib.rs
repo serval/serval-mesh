@@ -18,12 +18,14 @@ use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 #[allow(missing_debug_implementations)]
 #[derive(Clone)]
+/// Make one of these to get a WASM runner with the Serval glue.
 pub struct ServalEngine {
     engine: Engine,
     linker: Linker<WasiCtx>,
 }
 
 impl ServalEngine {
+    /// Create a new serval engine. There is nothing to configure.
     pub fn new() -> anyhow::Result<Self> {
         let engine = Engine::default();
         let mut linker: Linker<WasiCtx> = Linker::new(&engine);
@@ -32,6 +34,7 @@ impl ServalEngine {
         Ok(Self { engine, linker })
     }
 
+    /// Run the passed-in WASM executable on the given input bytes.
     pub fn execute(&mut self, binary: &[u8], input: &[u8]) -> Result<WasmResult, ServalError> {
         let stdout = WritePipe::new_in_memory();
         let stderr = WritePipe::new_in_memory();
@@ -66,13 +69,18 @@ impl ServalEngine {
             .map_err(|_err| anyhow::Error::msg("failed to read stdout from the engine results"))?
             .into_inner();
 
+        // Here we run the WASM and trap any errors. We do not consider non-zero exit codes to be
+        // an error in *executing* the WASM, but instead to be information to be returned to the
+        // caller.
         let code = match executed {
             Err(e) => {
                 println!("{:?}", e);
                 if let Some(exit) = e.downcast_ref::<I32Exit>() {
+                    // TODO this is not successfully getting the exit status from the engine.
                     // return Err(utils::errors::ServalError::WasmEngineError(e));
                     exit.0
                 } else {
+                    // TODO HACK we should figure out how to not need this
                     -100
                 }
             }

@@ -2276,6 +2276,7 @@ dependencies = [
  "anyhow",
  "clap",
  "engine",
+ "owo-colors",
  "wasi-common",
  "wasmtime",
  "wasmtime-wasi",

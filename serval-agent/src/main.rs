@@ -90,7 +90,7 @@ struct Envelope {
     description: String,
 }
 
-/// Unimplemented main worker endpoint.
+/// This is the main worker endpoint. It accepts incoming jobs and runs them.
 async fn incoming(state: State<AppState>, mut multipart: Multipart) -> Response {
     let mut envelope: Option<Envelope> = None;
     let mut binary: Option<Vec<u8>> = None;
