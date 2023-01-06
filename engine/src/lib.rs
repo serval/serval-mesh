@@ -74,14 +74,13 @@ impl ServalEngine {
         // caller.
         let code = match executed {
             Err(e) => {
-                println!("{:?}", e);
                 if let Some(exit) = e.downcast_ref::<I32Exit>() {
-                    // TODO this is not successfully getting the exit status from the engine.
-                    // return Err(utils::errors::ServalError::WasmEngineError(e));
                     exit.0
                 } else {
-                    // TODO HACK we should figure out how to not need this
-                    -100
+                    // This is a genuine error from the WASM engine, not a non-zero exit code from the
+                    // the WASM executable. We report this as -1. Your improvements to this signaling
+                    // method welcome.
+                    -1
                 }
             }
             Ok(_) => 0,

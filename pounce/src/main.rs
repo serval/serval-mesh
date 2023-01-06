@@ -6,6 +6,8 @@
     trivial_casts,
     unused_qualifications
 )]
+/// Pounce is a CLI tool that interacts with a running serval agent daemon via
+/// its HTTP API. It discovers running agents via mDNS advertisement.
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use mdns_sd::{ServiceDaemon, ServiceEvent};
@@ -20,7 +22,7 @@ use std::sync::Mutex;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
-/// Interacts with the running serval agent daemon via its http API.
+/// A structure defining arguments implemented via `clap` derive macros.
 struct Args {
     #[clap(
         short,
@@ -102,7 +104,7 @@ fn read_file(path: PathBuf) -> Result<Vec<u8>, anyhow::Error> {
     Ok(buf)
 }
 
-/// Post a wasm executable to a waiting agent to run.
+/// Post a WASM executable to a waiting agent to run.
 fn run(
     name: Option<String>,
     description: Option<String>,
@@ -152,7 +154,7 @@ fn run(
             if atty::is(atty::Stream::Stdin) && String::from_utf8(response_body.to_vec()).is_err() {
                 eprintln!("Response is non-printable binary data; redirect output to a file or provide an output filename to retrieve it.");
             } else {
-                eprintln!("Output follows:\n----------");
+                eprintln!("----------");
                 std::io::stdout().write_all(&response_body)?;
                 eprintln!("----------");
             };
