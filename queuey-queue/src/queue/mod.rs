@@ -9,15 +9,21 @@ use uuid::Uuid;
 // TODO: something better than a type alias, per https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
 type StorageAddress = String;
 
+/// A representation of current job status.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum JobStatus {
+    /// This job is pending.
     #[default]
     Pending,
+    /// This job is currently being executed.
     Active,
+    /// This job is complete.
     Completed,
+    /// This job has failed all attempts at execution.
     Failed,
 }
 
+/// Job metadata, including run history.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Job {
     id: Uuid,
@@ -35,6 +41,7 @@ pub struct Job {
 const ABANDONED_AGE_SECS: i64 = 300;
 const MAX_ATTEMPTS: usize = 3;
 
+/// A temporary in-memory job queue implementation.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct JobQueue {
     persist_filename: Option<PathBuf>,
@@ -42,6 +49,8 @@ pub struct JobQueue {
 }
 
 impl JobQueue {
+    /// Create a new job queue. If you provide a path to a writeable file, use that as storage.
+    /// Otherwise, the queue is in-memory only.
     pub fn new(persist_filename: Option<PathBuf>) -> JobQueue {
         // If we were given a persist_filename, then go read that file and use its contents as the
         // initial value of our queue.
@@ -64,6 +73,7 @@ impl JobQueue {
         }
     }
 
+    /// Claim a job from the queue, marking it as active.
     pub fn claim_job(&mut self, &runner_id: &Uuid) -> Option<Job> {
         let claim_result = {
             let Some(unclaimed_job_idx) = self.queue
@@ -94,6 +104,7 @@ impl JobQueue {
         claim_result
     }
 
+    /// Move a job to the completed state.
     pub fn complete_job(
         &mut self,
         job_id: &Uuid,
@@ -112,6 +123,7 @@ impl JobQueue {
         })
     }
 
+    /// Sweep for abandoned jobs.
     pub fn detect_abandoned_jobs(&mut self) {
         let now = Utc::now();
         let is_abandoned = |job: &&mut Job| {
@@ -137,6 +149,7 @@ impl JobQueue {
         }
     }
 
+    /// Add a job to the work queue.
     pub fn enqueue_job(
         &mut self,
         binary_addr: StorageAddress,
@@ -159,6 +172,7 @@ impl JobQueue {
         Ok(id)
     }
 
+    /// Move a job to the failed state.
     pub fn fail_job(
         &mut self,
         job_id: &Uuid,
@@ -177,6 +191,7 @@ impl JobQueue {
         })
     }
 
+    /// Fetch job metadata by id.
     pub fn get_job(&self, job_id: &Uuid) -> anyhow::Result<Job> {
         let job = self.queue.iter().find(|job| job.id == *job_id);
         let job = job.ok_or_else(|| anyhow!("No such job"))?;
@@ -202,6 +217,7 @@ impl JobQueue {
         }
     }
 
+    /// Touch an active job to indicate it is still being processed.
     pub fn tickle_job(&mut self, job_id: &Uuid) -> anyhow::Result<()> {
         self.with_job(job_id, &mut |job| {
             if job.status != JobStatus::Active {

@@ -8,6 +8,7 @@ license = "BSD-2-Clause-Patent"
 anyhow = { workspace = true }
 clap = { workspace = true }
 engine = { path = "../engine" }
+owo-colors = "3.5.0"
 wasi-common = "3.0.1"
 wasmtime = "3.0.1"
 wasmtime-wasi = "3.0.1"

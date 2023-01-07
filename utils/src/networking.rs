@@ -10,7 +10,7 @@ pub fn my_ipv4_addrs() -> Vec<Ipv4Addr> {
     my_ipv4_interfaces().iter().map(|i| i.ip).collect()
 }
 
-/// Internal function
+/// An implementation detail of my_ipv4_addrs
 fn my_ipv4_interfaces() -> Vec<Ifv4Addr> {
     if_addrs::get_if_addrs()
         .unwrap_or_default()
@@ -51,5 +51,14 @@ mod tests {
         assert!(result >= 8000, "found port should be >= 8000");
         let result = find_nearest_port(u16::MAX).expect("we should still find a port");
         assert_eq!(result, u16::MAX, "found port should be the max");
+    }
+
+    #[test]
+    fn ip_addresses_exist() {
+        let result = my_ipv4_interfaces();
+        assert!(
+            !result.is_empty(),
+            "we should always get at least one ipv4 address"
+        );
     }
 }
