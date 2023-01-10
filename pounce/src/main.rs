@@ -19,6 +19,7 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
@@ -133,7 +134,9 @@ fn run(
     });
     let envelope_part = reqwest::blocking::multipart::Part::text(envelope.to_string());
 
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()?;
     let form = reqwest::blocking::multipart::Form::new()
         .part("envelope", envelope_part)
         .part("executable", binary_part)
