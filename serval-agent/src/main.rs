@@ -11,7 +11,7 @@ use anyhow::Result;
 use axum::{
     extract::DefaultBodyLimit,
     middleware::{self},
-    routing::{get, post, put},
+    routing::{get, head, post, put},
     Router,
 };
 use dotenvy::dotenv;
@@ -46,6 +46,7 @@ async fn main() -> Result<()> {
         .route("/run/:addr", get(jobs::run_stored_job))
         .route("/blobs", put(storage::store_blob))
         .route("/blobs/:addr", get(storage::get_blob))
+        .route("/blobs/:addr", head(storage::has_blob))
         .route_layer(middleware::from_fn(clacks))
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
         .with_state(state);

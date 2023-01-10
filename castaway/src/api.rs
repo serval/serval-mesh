@@ -6,7 +6,7 @@ use axum::{
     extract::{Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
-    routing::{get, put},
+    routing::{get, head, put},
     Router,
 };
 
@@ -62,6 +62,15 @@ async fn get_blob(
     }
 }
 
+async fn has_blob(Path(blob_addr): Path<String>, State(state): State<AxumState>) -> StatusCode {
+    match state.storage.has_blob(&blob_addr).await {
+        Ok(true) => StatusCode::OK,
+        Ok(false) => StatusCode::NOT_FOUND,
+        Err(ServalError::BlobAddressInvalid(_)) => StatusCode::BAD_REQUEST,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
 async fn store_blob(State(state): State<AxumState>, body: Bytes) -> impl IntoResponse {
     match state.storage.store(&body).await {
         Ok((new, address)) => {
@@ -82,6 +91,7 @@ pub async fn init_http(host: &str, port: u16, storage_path: PathBuf) -> anyhow::
     let app = Router::new()
         .route("/blob", put(store_blob))
         .route("/blob/:addr", get(get_blob))
+        .route("/blob/:addr", head(has_blob))
         .with_state(state);
 
     let addr = format!("{}:{}", host, port);
