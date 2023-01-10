@@ -72,3 +72,21 @@ pub async fn store_blob(State(state): State<AppState>, body: Bytes) -> impl Into
         Err(_e) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
+
+pub async fn has_blob(Path(blob_addr): Path<String>, State(state): State<AppState>) -> StatusCode {
+    // Yeah, I don't like this.
+    let state = state.lock().await;
+
+    match state.storage.has_blob(&blob_addr).await {
+        Ok(exists) => {
+            log::info!("Has blob?; exists={exists} addr={blob_addr}");
+            if exists {
+                StatusCode::OK
+            } else {
+                StatusCode::NOT_FOUND
+            }
+        }
+        Err(ServalError::BlobAddressInvalid(_)) => StatusCode::BAD_REQUEST,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}

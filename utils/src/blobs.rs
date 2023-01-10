@@ -47,6 +47,15 @@ impl BlobStore {
         Ok(stream)
     }
 
+    // Given a content address, determine whether we have a blob stored there or not.
+    pub async fn has_blob(&self, address: &str) -> Result<bool, ServalError> {
+        match self.get_stream(address).await {
+            Ok(_) => Ok(true),
+            Err(ServalError::BlobAddressNotFound(_)) => Ok(false),
+            Err(err) => Err(err),
+        }
+    }
+
     pub async fn get_bytes(&self, address: &str) -> Result<Vec<u8>, ServalError> {
         let stream = self.get_stream(address).await?;
         let mut reader = StreamReader::new(stream);
