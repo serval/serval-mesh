@@ -217,7 +217,7 @@ async fn main() -> Result<()> {
 
     let state = Arc::new(Mutex::new(RunnerState::new()));
 
-    const MAX_BODY_SIZE_BYTES: usize = 10 * 1024 * 1024;
+    const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
     let app = Router::new()
         .route("/monitor/ping", get(ping))
         .route("/monitor/history", get(monitor_history))
