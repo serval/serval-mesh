@@ -14,4 +14,5 @@ mdns-sd = { workspace = true }
 owo-colors = "3.5.0"
 reqwest = { version = "0.11.13", features = ["blocking", "brotli", "json", "multipart", "rustls"] }
 serde_json = "1.0.89"
+thousands = "0.2.0"
 uuid = { workspace = true }

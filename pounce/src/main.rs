@@ -12,6 +12,7 @@ use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use mdns_sd::{ServiceDaemon, ServiceEvent};
 use owo_colors::OwoColorize;
+use thousands::Separable;
 use uuid::Uuid;
 
 use std::fs::File;
@@ -113,19 +114,31 @@ fn run(
     maybeinputpath: Option<PathBuf>,
     maybeoutputpath: Option<PathBuf>,
 ) -> Result<()> {
-    let binary = read_file(binarypath)?;
-    if binary.is_empty() {
+    let binary_bytes = read_file(binarypath.clone())?;
+    if binary_bytes.is_empty() {
         return Err(anyhow!("no executable data read!"));
     }
-    let binary_part = reqwest::blocking::multipart::Part::bytes(binary);
 
     let input_bytes = read_file_or_stdin(maybeinputpath)?;
+    let binary_payload_size = binary_bytes.len() + input_bytes.len();
+    let binary_part = reqwest::blocking::multipart::Part::bytes(binary_bytes);
     let input_part = reqwest::blocking::multipart::Part::bytes(input_bytes);
 
-    let name = name.unwrap_or_else(|| "unnamed".to_string());
+    let name = name.unwrap_or_else(|| {
+        // use the filename component of binarypath, e.g. /foo/bar.wasm -> bar.wasm
+        binarypath
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|z| z.to_string())
+            .unwrap_or_else(|| "unnamed".to_string())
+    });
     let description = description.unwrap_or_else(|| "posted via command-line".to_string());
 
-    println!("Sending {} to serval agent...", name.blue().bold());
+    println!(
+        "Sending {} ({} bytes for binary + payload) to serval agent...",
+        name.blue().bold(),
+        binary_payload_size.separate_with_commas(),
+    );
 
     let envelope = serde_json::json!({
         "id": &Uuid::new_v4().to_string(),
