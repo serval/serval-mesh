@@ -133,7 +133,13 @@ pub async fn run_stored_job(
     Path(blob_addr): Path<String>,
 ) -> impl IntoResponse {
     let locked = state.lock().await;
-    let Ok(binary) = locked.storage.get_bytes(&blob_addr).await else {
+
+    let Some(storage) = locked.storage.as_ref() else {
+        // todo: in this case, we should proxy this request to another node that is advertising the serval_storage role
+        return (StatusCode::SERVICE_UNAVAILABLE, "Storage is not available").into_response();
+    };
+
+    let Ok(binary) = storage.get_bytes(&blob_addr).await else {
         return (
             StatusCode::NOT_FOUND,
             format!("Blob {} not found", &blob_addr),
