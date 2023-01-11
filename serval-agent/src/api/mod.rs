@@ -7,7 +7,7 @@ use axum::{
 use http::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use utils::blobs::BlobStore;
+use utils::{blobs::BlobStore, errors::ServalError};
 use uuid::Uuid;
 
 use std::sync::Arc;
@@ -18,20 +18,24 @@ pub mod storage;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RunnerState {
-    storage: BlobStore,
+    storage: Option<BlobStore>,
     jobs: HashMap<String, JobMetadata>,
     total: usize,
     errors: usize,
 }
 
 impl RunnerState {
-    pub fn new(blob_path: PathBuf) -> Self {
-        RunnerState {
-            storage: BlobStore::new(blob_path),
+    pub fn new(blob_path: Option<PathBuf>) -> Result<Self, ServalError> {
+        let storage = match blob_path {
+            Some(path) => Some(BlobStore::new(path)?),
+            None => None,
+        };
+        Ok(RunnerState {
+            storage,
             total: 0,
             errors: 0,
             jobs: HashMap::new(),
-        }
+        })
     }
 }
 

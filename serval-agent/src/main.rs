@@ -14,34 +14,54 @@ use axum::{
     routing::{get, head, post, put},
     Router,
 };
+use clap::{Parser, ValueEnum};
 use dotenvy::dotenv;
 use tokio::sync::Mutex;
 use utils::mdns::advertise_service;
 
-use std::{fs, net::SocketAddr};
+use std::net::SocketAddr;
 use std::{path::PathBuf, sync::Arc};
 
 mod api;
 use crate::api::*;
+
+#[derive(Debug, ValueEnum, Clone)]
+enum StorageRoleConfig {
+    Auto,
+    Never,
+    Always,
+}
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[clap(long, value_enum, default_value = "auto")]
+    // Whether to assume the "storage" role in the mesh; defaults to StorageRoleConfig::Auto
+    storage_role: StorageRoleConfig,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
     env_logger::init();
 
+    let args = Args::parse();
+
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "8100".to_string())
         .parse()?;
-    let blob_path = std::env::var("BLOB_STORE")
-        .map(|path| PathBuf::from(path))
-        .unwrap_or_else(|_| std::env::temp_dir().join("serval_storage"));
-    if !PathBuf::from(&blob_path).exists() {
-        fs::create_dir(&blob_path)?;
-    }
+    let blob_path = match args.storage_role {
+        StorageRoleConfig::Never => None,
+        _ => Some(
+            std::env::var("BLOB_STORE")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| std::env::temp_dir().join("serval_storage")),
+        ),
+    };
+    let should_advertise_storage = blob_path.is_some();
 
     log::info!("serval agent blob store mounted; path={blob_path:?}");
-    let state = Arc::new(Mutex::new(RunnerState::new(blob_path)));
+    let state = Arc::new(Mutex::new(RunnerState::new(blob_path)?));
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
     let app = Router::new()
@@ -60,6 +80,11 @@ async fn main() -> Result<()> {
     log::info!("serval agent daemon listening on {}", &addr);
 
     advertise_service("serval_daemon", port, None)?;
+    if should_advertise_storage {
+        advertise_service("serval_storage", port, None)?;
+    } else {
+        log::info!("serval agent blob store not mounted; this node will not host storage");
+    }
 
     let addr: SocketAddr = addr.parse().unwrap();
     axum::Server::bind(&addr)

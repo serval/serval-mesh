@@ -5,6 +5,8 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use tokio_util::io::ReaderStream;
 use tokio_util::io::StreamReader;
 
+use std::fs;
+use std::io::ErrorKind;
 use std::path::PathBuf;
 
 use crate::errors::ServalError;
@@ -26,8 +28,23 @@ pub struct BlobStore {
 
 impl BlobStore {
     /// Create a new blob store, passing in a path to a writeable directory
-    pub fn new(location: PathBuf) -> Self {
-        Self { location }
+    pub fn new(location: PathBuf) -> Result<Self, ServalError> {
+        if !location.exists() {
+            fs::create_dir(&location)?;
+        }
+        if !location.is_dir() {
+            // todo: ErrorKind::NotADirectory would be more appropriate but as of 2023-01-11, that
+            // error is still behind an unstable flag "io_error_more". It should theoretically be
+            // usable by tomorrow's nightlies, oddly enough -- weird timing.
+            // https://github.com/rust-lang/rust/pull/106375
+            return Err(ServalError::IoError(ErrorKind::PermissionDenied.into()));
+        }
+        let md = fs::metadata(&location)?;
+        if md.permissions().readonly() {
+            return Err(ServalError::IoError(ErrorKind::PermissionDenied.into()));
+        }
+
+        Ok(Self { location })
     }
 
     /// Given a content address, return a read stream for the object stored there.

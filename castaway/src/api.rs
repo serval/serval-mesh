@@ -86,7 +86,7 @@ async fn store_blob(State(state): State<AxumState>, body: Bytes) -> impl IntoRes
 }
 
 pub async fn init_http(host: &str, port: u16, storage_path: PathBuf) -> anyhow::Result<()> {
-    let storage = BlobStore::new(storage_path);
+    let storage = BlobStore::new(storage_path)?;
     let state = AxumState { storage };
     let app = Router::new()
         .route("/blob", put(store_blob))
