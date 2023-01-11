@@ -56,6 +56,7 @@ impl BlobStore {
         }
     }
 
+    // A non-streaming way to retrieve a stored blob; please use get_stream instead wherever possible.
     pub async fn get_bytes(&self, address: &str) -> Result<Vec<u8>, ServalError> {
         let stream = self.get_stream(address).await?;
         let mut reader = StreamReader::new(stream);
