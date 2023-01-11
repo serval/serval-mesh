@@ -18,8 +18,8 @@ use dotenvy::dotenv;
 use tokio::sync::Mutex;
 use utils::mdns::advertise_service;
 
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{fs, net::SocketAddr};
+use std::{path::PathBuf, sync::Arc};
 
 mod api;
 use crate::api::*;
@@ -33,9 +33,14 @@ async fn main() -> Result<()> {
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "8100".to_string())
         .parse()?;
-    let blob_path = std::env::var("BLOB_STORE").unwrap_or_else(|_| "/tmp".to_string());
+    let blob_path = std::env::var("BLOB_STORE")
+        .map(|path| PathBuf::from(path))
+        .unwrap_or_else(|_| std::env::temp_dir().join("serval_storage"));
+    if !PathBuf::from(&blob_path).exists() {
+        fs::create_dir(&blob_path)?;
+    }
 
-    log::info!("serval agent blob store mounted; path={blob_path}");
+    log::info!("serval agent blob store mounted; path={blob_path:?}");
     let state = Arc::new(Mutex::new(RunnerState::new(blob_path)));
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;

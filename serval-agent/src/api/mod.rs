@@ -10,8 +10,8 @@ use tokio::sync::Mutex;
 use utils::blobs::BlobStore;
 use uuid::Uuid;
 
-use std::collections::HashMap;
 use std::sync::Arc;
+use std::{collections::HashMap, path::PathBuf};
 
 pub mod jobs;
 pub mod storage;
@@ -25,9 +25,9 @@ pub struct RunnerState {
 }
 
 impl RunnerState {
-    pub fn new(blob_path: String) -> Self {
+    pub fn new(blob_path: PathBuf) -> Self {
         RunnerState {
-            storage: BlobStore::new(blob_path.into()),
+            storage: BlobStore::new(blob_path),
             total: 0,
             errors: 0,
             jobs: HashMap::new(),
