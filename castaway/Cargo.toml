@@ -12,10 +12,8 @@ axum = { workspace = true }
 clap = { workspace = true }
 dotenvy = { workspace = true }
 env_logger = { workspace = true }
-hex = "0.4.3"
 log = { workspace = true }
 mdns-sd = "0.5.9"
-sha2 = "0.10.6"
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 utils = { path = "../utils" }

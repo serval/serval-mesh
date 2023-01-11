@@ -9,89 +9,76 @@ use axum::{
     routing::{get, put},
     Router,
 };
-use sha2::{Digest, Sha256};
-use tokio::io::AsyncWriteExt;
-use tokio_util::io::ReaderStream;
+
+use utils::blobs::BlobStore;
+use utils::errors::ServalError;
 
 #[derive(Clone)]
 struct AxumState {
-    storage_path: PathBuf,
-}
-
-fn is_valid_blob_addr(addr: &String) -> bool {
-    // this does not seem worth adding a regexp crate for
-    let valid_chars = String::from("0123456789abcdef");
-    addr.len() == 64
-        && addr
-            .to_lowercase()
-            .chars()
-            .all(|ch| valid_chars.contains(ch))
+    storage: BlobStore,
 }
 
 async fn get_blob(
     Path(blob_addr): Path<String>,
     State(state): State<AxumState>,
 ) -> impl IntoResponse {
-    if !is_valid_blob_addr(&blob_addr) {
-        log::warn!("Request for an invalid address; addr={}", blob_addr);
-        return StatusCode::BAD_REQUEST.into_response();
-    }
-    let filename = state.storage_path.join(&blob_addr);
-    if !filename.exists() {
-        log::warn!("Blob not found; addr={}", blob_addr);
-        return (
-            StatusCode::NOT_FOUND,
-            format!("Blob {} not found", &blob_addr),
-        )
-            .into_response();
-    }
+    match state.storage.get_stream(&blob_addr).await {
+        Ok(stream) => {
+            let body = StreamBody::new(stream);
+            let headers = [(
+                header::CONTENT_TYPE,
+                String::from("application/octet-stream"),
+            )];
 
-    let file = match tokio::fs::File::open(filename).await {
-        Ok(file) => file,
-        Err(_) => return StatusCode::NOT_FOUND.into_response(),
-    };
-    let stream = ReaderStream::new(file);
-    let body = StreamBody::new(stream);
-    let headers = [(
-        header::CONTENT_TYPE,
-        String::from("application/octet-stream"),
-    )];
-
-    log::info!("Serving blob; addr={}", &blob_addr);
-    (headers, body).into_response()
+            log::info!("Serving blob; addr={}", &blob_addr);
+            (headers, body).into_response()
+        }
+        Err(e) => match e {
+            ServalError::BlobAddressInvalid(_) => {
+                log::warn!("Request for an invalid address; addr={}", blob_addr);
+                StatusCode::BAD_REQUEST.into_response()
+            }
+            ServalError::BlobAddressNotFound(_) => {
+                log::warn!("Blob not found; addr={blob_addr}");
+                (
+                    StatusCode::NOT_FOUND,
+                    format!("Blob {} not found", &blob_addr),
+                )
+                    .into_response()
+            }
+            ServalError::IoError(_) => {
+                log::warn!("i/o error reading blob; addr={blob_addr}; {:?}", e);
+                (
+                    StatusCode::NOT_FOUND,
+                    format!("Blob {} not found", &blob_addr),
+                )
+                    .into_response()
+            }
+            _ => {
+                log::warn!("unexpected error case; addr={blob_addr}; {:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        },
+    }
 }
 
 async fn store_blob(State(state): State<AxumState>, body: Bytes) -> impl IntoResponse {
-    let mut hasher = Sha256::new();
-    hasher.update(&body);
-    let blob_addr = hex::encode(hasher.finalize());
-    let filename = state.storage_path.join(&blob_addr);
-    if filename.exists() {
-        log::info!("Blob that already existed; addr={}", &blob_addr);
-        return (StatusCode::OK, blob_addr).into_response();
-    }
-
-    let mut file = match tokio::fs::File::create(filename).await {
-        Ok(file) => file,
-        Err(err) => {
-            log::error!("Error opening destination file for writing, err={:?}", err);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    match state.storage.store(&body).await {
+        Ok((new, address)) => {
+            log::info!("Stored blob; addr={} size={}", &address, body.len());
+            if new {
+                (StatusCode::CREATED, address).into_response()
+            } else {
+                (StatusCode::OK, address).into_response()
+            }
         }
-    };
-    match file.write(&body).await {
-        Ok(_) => {
-            log::info!("Stored blob; addr={} size={}", &blob_addr, body.len());
-            (StatusCode::CREATED, blob_addr).into_response()
-        }
-        Err(err) => {
-            log::error!("Error writing blob, err={:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+        Err(_e) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
 pub async fn init_http(host: &str, port: u16, storage_path: PathBuf) -> anyhow::Result<()> {
-    let state = AxumState { storage_path };
+    let storage = BlobStore::new(storage_path);
+    let state = AxumState { storage };
     let app = Router::new()
         .route("/blob", put(store_blob))
         .route("/blob/:addr", get(get_blob))
