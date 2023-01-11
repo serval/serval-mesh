@@ -8,8 +8,14 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow = { workspace = true }
-if-addrs = "0.7.0"
+hex = "0.4.3"
+if-addrs = "0.8.0"
 log = {workspace = true }
 mdns-sd = { workspace = true }
+sha2 = "0.10.6"
 thiserror = "1.0.38"
+tokio = { workspace = true }
+tokio-util = { workspace = true }
 wasi-common = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

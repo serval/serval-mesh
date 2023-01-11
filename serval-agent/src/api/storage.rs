@@ -1,27 +1,21 @@
-use std::{net::SocketAddr, path::PathBuf};
-
-use anyhow::anyhow;
 use axum::{
     body::{Bytes, StreamBody},
     extract::{Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
-    routing::{get, put},
-    Router,
 };
 
-use utils::blobs::BlobStore;
 use utils::errors::ServalError;
 
-#[derive(Clone)]
-struct AxumState {
-    storage: BlobStore,
-}
+use super::*;
 
-async fn get_blob(
+pub async fn get_blob(
     Path(blob_addr): Path<String>,
-    State(state): State<AxumState>,
+    State(state): State<AppState>,
 ) -> impl IntoResponse {
+    // Yeah, I don't like this.
+    let state = state.lock().await;
+
     match state.storage.get_stream(&blob_addr).await {
         Ok(stream) => {
             let body = StreamBody::new(stream);
@@ -62,7 +56,10 @@ async fn get_blob(
     }
 }
 
-async fn store_blob(State(state): State<AxumState>, body: Bytes) -> impl IntoResponse {
+pub async fn store_blob(State(state): State<AppState>, body: Bytes) -> impl IntoResponse {
+    // Yeah, I don't like this.
+    let state = state.lock().await;
+
     match state.storage.store(&body).await {
         Ok((new, address)) => {
             log::info!("Stored blob; addr={} size={}", &address, body.len());
@@ -73,25 +70,5 @@ async fn store_blob(State(state): State<AxumState>, body: Bytes) -> impl IntoRes
             }
         }
         Err(_e) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    }
-}
-
-pub async fn init_http(host: &str, port: u16, storage_path: PathBuf) -> anyhow::Result<()> {
-    let storage = BlobStore::new(storage_path);
-    let state = AxumState { storage };
-    let app = Router::new()
-        .route("/blob", put(store_blob))
-        .route("/blob/:addr", get(get_blob))
-        .with_state(state);
-
-    let addr = format!("{}:{}", host, port);
-    let addr: SocketAddr = addr.parse()?;
-    log::info!("API service about to listen on http://{addr}");
-    match axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(e) => Err(anyhow!(e)),
     }
 }

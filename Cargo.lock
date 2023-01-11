@@ -317,10 +317,8 @@ dependencies = [
  "clap",
  "dotenvy",
  "env_logger 0.10.0",
- "hex",
  "log",
  "mdns-sd",
- "sha2",
  "tokio",
  "tokio-util",
  "utils",
@@ -1143,6 +1141,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "if-addrs"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26b24dd0826eee92c56edcda7ff190f2cf52115c49eadb2c2da8063e2673a8c2"
+dependencies = [
+ "libc",
+ "windows-sys 0.42.0",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1372,7 +1380,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69b070a70988c737646f0ff395f4317934c4a90ec14910477e3d1d5a5e22f60d"
 dependencies = [
  "flume",
- "if-addrs",
+ "if-addrs 0.7.0",
  "log",
  "polling",
  "socket2",
@@ -1844,9 +1852,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.7.0"
+version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e076559ef8e241f2ae3479e36f97bd5741c0330689e217ad51ce2c76808b868a"
+checksum = "48aaa5748ba571fb95cd2c85c09f629215d3a6ece942baa100950af03a34f733"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2106,6 +2114,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-util",
  "utils",
  "uuid",
 ]
@@ -2551,10 +2560,16 @@ name = "utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "if-addrs",
+ "hex",
+ "if-addrs 0.8.0",
  "log",
  "mdns-sd",
+ "serde",
+ "serde_json",
+ "sha2",
  "thiserror",
+ "tokio",
+ "tokio-util",
  "wasi-common",
 ]
 
