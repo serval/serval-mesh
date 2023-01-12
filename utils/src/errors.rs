@@ -43,6 +43,9 @@ pub enum ServalError {
     /// A conversion for std:io:Error
     #[error("io error")]
     IoError(#[from] std::io::Error),
+
+    #[error("mdns service was not found before timeout")]
+    ServiceNotFound,
 }
 
 use axum::http::StatusCode;
@@ -66,6 +69,7 @@ impl IntoResponse for ServalError {
             ServalError::BlobAddressInvalid(_) => StatusCode::BAD_REQUEST,
             ServalError::BlobAddressNotFound(_) => StatusCode::NOT_FOUND,
             ServalError::IoError(_) => StatusCode::NOT_FOUND,
+            ServalError::ServiceNotFound => StatusCode::NOT_FOUND,
         };
 
         (status, self.to_string()).into_response()
