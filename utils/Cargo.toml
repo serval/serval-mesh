@@ -7,15 +7,15 @@ license = "BSD-2-Clause-Patent"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
 hex = "0.4.3"
 if-addrs = "0.8.0"
-log = {workspace = true }
-mdns-sd = { workspace = true }
+log.workspace = true
+mdns-sd.workspace = true
 sha2 = "0.10.6"
 thiserror = "1.0.38"
-tokio = { workspace = true }
-tokio-util = { workspace = true }
-wasi-common = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
+tokio.workspace = true
+tokio-util.workspace = true
+wasi-common.workspace = true
+serde.workspace = true
+serde_json.workspace = true

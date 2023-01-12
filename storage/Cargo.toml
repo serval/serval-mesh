@@ -7,13 +7,13 @@ license = "MIT" # until we figure out something better
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { workspace = true }
-axum = { workspace = true }
-clap = { workspace = true }
-dotenvy = { workspace = true }
-env_logger = { workspace = true }
-log = { workspace = true }
+anyhow.workspace = true
+axum.workspace = true
+clap.workspace = true
+dotenvy.workspace = true
+env_logger.workspace = true
+log.workspace = true
 mdns-sd = "0.5.9"
-tokio = { workspace = true }
-tokio-util = { workspace = true }
+tokio.workspace = true
+tokio-util.workspace = true
 utils = { path = "../utils" }

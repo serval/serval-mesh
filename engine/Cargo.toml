@@ -7,8 +7,8 @@ license = "BSD-2-Clause-Patent"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
 utils = { path = "../utils" }
-wasi-common = { workspace = true }
+wasi-common.workspace = true
 wasmtime = "3.0.1"
 wasmtime-wasi = "3.0.1"

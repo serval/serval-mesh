@@ -5,14 +5,14 @@ edition = "2021"
 license = "BSD-2-Clause-Patent"
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
 atty = "0.2.14"
 clap = { version = "3.2.23", features = ["derive", "wrap_help"] } # older version on purpose
-log = { workspace = true }
+log.workspace = true
 loggerv = "0.7.2"
-mdns-sd = { workspace = true }
+mdns-sd.workspace = true
 owo-colors = "3.5.0"
 reqwest = { version = "0.11.13", features = ["blocking", "brotli", "json", "multipart", "rustls"] }
-serde_json = "1.0.89"
+serde_json.workspace = true
 thousands = "0.2.0"
-uuid = { workspace = true }
+uuid.workspace = true
