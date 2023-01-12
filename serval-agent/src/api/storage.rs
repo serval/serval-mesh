@@ -15,11 +15,7 @@ pub async fn get_blob(
 ) -> impl IntoResponse {
     // Yeah, I don't like this.
     let state = state.lock().await;
-
-    let Some(storage) = state.storage.as_ref() else {
-        // todo: in this case, we should proxy this request to another node that is advertising the serval_storage role
-        return (StatusCode::SERVICE_UNAVAILABLE, "Storage not available").into_response();
-    };
+    let storage = state.storage.as_ref().unwrap();
 
     match storage.get_stream(&blob_addr).await {
         Ok(stream) => {
@@ -64,11 +60,7 @@ pub async fn get_blob(
 pub async fn store_blob(State(state): State<AppState>, body: Bytes) -> impl IntoResponse {
     // Yeah, I don't like this.
     let state = state.lock().await;
-
-    let Some(storage) = state.storage.as_ref() else {
-        // todo: in this case, we should proxy this request to another node that is advertising the serval_storage role
-        return (StatusCode::SERVICE_UNAVAILABLE, "Storage not available").into_response();
-    };
+    let storage = state.storage.as_ref().unwrap();
 
     match storage.store(&body).await {
         Ok((new, address)) => {
@@ -86,11 +78,7 @@ pub async fn store_blob(State(state): State<AppState>, body: Bytes) -> impl Into
 pub async fn has_blob(Path(blob_addr): Path<String>, State(state): State<AppState>) -> StatusCode {
     // Yeah, I don't like this.
     let state = state.lock().await;
-
-    let Some(storage) = state.storage.as_ref() else {
-        // todo: in this case, we should proxy this request to another node that is advertising the serval_storage role
-        return StatusCode::SERVICE_UNAVAILABLE;
-    };
+    let storage = state.storage.as_ref().unwrap();
 
     match storage.has_blob(&blob_addr).await {
         Ok(exists) => {
