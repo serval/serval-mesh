@@ -1,5 +1,5 @@
 [package]
-name = "castaway"
+name = "storage"
 version = "0.1.0"
 edition = "2021"
 license = "MIT" # until we figure out something better

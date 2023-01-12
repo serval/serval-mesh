@@ -1,5 +1,5 @@
 [package]
-name = "pounce"
+name = "serval"
 version = "0.1.0"
 edition = "2021"
 license = "BSD-2-Clause-Patent"
