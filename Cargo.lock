@@ -309,22 +309,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "castaway"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "dotenvy",
- "env_logger 0.10.0",
- "log",
- "mdns-sd",
- "tokio",
- "tokio-util",
- "utils",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1675,23 +1659,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pounce"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "atty",
- "clap",
- "log",
- "loggerv",
- "mdns-sd",
- "owo-colors",
- "reqwest",
- "serde_json",
- "thousands",
- "uuid",
-]
-
-[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1740,7 +1707,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "queuey-queue"
+name = "queue"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2101,6 +2068,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "serval"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atty",
+ "clap",
+ "log",
+ "loggerv",
+ "mdns-sd",
+ "owo-colors",
+ "reqwest",
+ "serde_json",
+ "thousands",
+ "uuid",
+]
+
+[[package]]
 name = "serval-agent"
 version = "0.1.0"
 dependencies = [
@@ -2200,6 +2184,22 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
+
+[[package]]
+name = "storage"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "dotenvy",
+ "env_logger 0.10.0",
+ "log",
+ "mdns-sd",
+ "tokio",
+ "tokio-util",
+ "utils",
+]
 
 [[package]]
 name = "strsim"

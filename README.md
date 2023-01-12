@@ -6,12 +6,12 @@ This monorepo contains the source for the various components of the Serval mesh,
 
 The repo is a Rust workspace containing the following members:
 
-- `serval-agent`: a daemon that listens on a port for incoming HTTP requests with payloads to run
+- `agent`: a daemon that listens on a port for incoming HTTP requests with payloads to run
 - `engine`: a library for the [wasmtime](https://lib.rs/crates/wasmtime) glue; in early stages
-- `pounce`: a command-line interface for controlling the mesh and creating WASM jobs
+- `cli`: a command-line interface (called `serval` when built) for controlling the mesh and creating WASM jobs
 - `utils`: a library for code we use in several places
-- `castaway`: temporarily a separate service during MVP/demo period, this stores blobs for the Serval mesh. This functionality will eventually be integrated into the Serval agent.
-- `queuey-queue`: temporarily a separate service during MVP/demo period, this is manages the job queue for the Serval mesh. This functionality will eventually be integrated into the Serval agent.
+- `storage`: temporarily a separate service during MVP/demo period, this stores blobs for the Serval mesh. This functionality will eventually be integrated into the Serval agent.
+- `queue`: temporarily a separate service during MVP/demo period, this is manages the job queue for the Serval mesh. This functionality will eventually be integrated into the Serval agent.
 - `test-runner`: a CLI to execute a WASM payload once, useful for developing the engine
 
 ## Local development
