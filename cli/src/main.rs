@@ -10,9 +10,10 @@
 /// its HTTP API. It discovers running agents via mDNS advertisement.
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
-use mdns_sd::{ServiceDaemon, ServiceEvent};
+
 use owo_colors::OwoColorize;
 use thousands::Separable;
+use tokio::runtime::Runtime;
 use uuid::Uuid;
 
 use std::fs::File;
@@ -21,6 +22,8 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
+
+use utils::mdns::discover_service;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
@@ -218,26 +221,23 @@ fn blocking_maybe_discover_service_url(
         return Ok(override_url);
     }
 
-    // TODO: add a timeout so we don't wait forever
     log::info!("Looking for {service_type} node on the local network...");
 
-    let mdns = ServiceDaemon::new()?;
-    let service_type = format!("{service_type}._tcp.local.");
-    let receiver = mdns.browse(&service_type)?;
-    while let Ok(event) = receiver.recv() {
-        let ServiceEvent::ServiceResolved(info) = event else {
-            // We don't care about other events here
-            continue;
-        };
-        if let Some(addr) = info.get_addresses().iter().next() {
-            let port = info.get_port();
-            return Ok(format!("http://{addr}:{port}"));
-        }
-    }
+    let Ok(info) = Runtime::new().unwrap().block_on(discover_service(service_type)) else {
+        return Err(anyhow!(format!(
+            "Failed to discover {service_type} node on the local network"
+        )));
+    };
 
-    Err(anyhow!(format!(
-        "Failed to discover {service_type} node on the local network"
-    )))
+    let Some(addr) = info.get_addresses().iter().next() else {
+        // this should not ever happen, but computers
+        return Err(anyhow!(format!(
+            "Discovered a node that has no addresses",
+        )));
+    };
+
+    let port = info.get_port();
+    return Ok(format!("http://{addr}:{port}"));
 }
 
 /// Parse command-line arguments and act.
