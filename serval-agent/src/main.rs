@@ -14,7 +14,6 @@ use axum::{
     routing::{get, head, post, put},
     Router,
 };
-use clap::{Parser, ValueEnum};
 use dotenvy::dotenv;
 use tokio::sync::Mutex;
 use utils::mdns::advertise_service;
@@ -25,18 +24,11 @@ use std::{path::PathBuf, sync::Arc};
 mod api;
 use crate::api::*;
 
-#[derive(Debug, ValueEnum, Clone)]
+#[derive(Debug, Clone)]
 enum StorageRoleConfig {
     Auto,
     Never,
     Always,
-}
-
-#[derive(Parser, Debug)]
-struct Args {
-    #[clap(long, value_enum, default_value = "auto")]
-    // Whether to assume the "storage" role in the mesh; defaults to StorageRoleConfig::Auto
-    storage_role: StorageRoleConfig,
 }
 
 #[tokio::main]
@@ -44,13 +36,23 @@ async fn main() -> Result<()> {
     dotenv().ok();
     env_logger::init();
 
-    let args = Args::parse();
-
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "8100".to_string())
         .parse()?;
-    let blob_path = match args.storage_role {
+    let storage_role = match &std::env::var("STORAGE_ROLE").unwrap_or_else(|_| "auto".to_string())[..]
+    {
+        "always" => StorageRoleConfig::Always,
+        "auto" => StorageRoleConfig::Auto,
+        "never" => StorageRoleConfig::Never,
+        _ => {
+            log::warn!(
+                "Invalid value for STORAGE_ROLE environment variable; defaulting to 'never'"
+            );
+            StorageRoleConfig::Never
+        }
+    };
+    let blob_path = match storage_role {
         StorageRoleConfig::Never => None,
         _ => Some(
             std::env::var("BLOB_STORE")

@@ -7,7 +7,6 @@ license = "BSD-2-Clause-Patent"
 [dependencies]
 anyhow = { workspace = true }
 axum = { version = "0.6.1", features = ["json", "multipart"] }
-clap.workspace = true
 dotenvy = "0.15.6"
 engine = { path = "../engine" }
 env_logger = "0.10.0"

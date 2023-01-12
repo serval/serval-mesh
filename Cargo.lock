@@ -2106,7 +2106,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "clap",
  "dotenvy",
  "engine",
  "env_logger 0.10.0",
