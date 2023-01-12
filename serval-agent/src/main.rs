@@ -60,10 +60,8 @@ async fn main() -> Result<()> {
                 .unwrap_or_else(|_| std::env::temp_dir().join("serval_storage")),
         ),
     };
-    let should_advertise_storage = blob_path.is_some();
 
-    log::info!("serval agent blob store mounted; path={blob_path:?}");
-    let state = Arc::new(Mutex::new(RunnerState::new(blob_path)?));
+    let state = Arc::new(Mutex::new(RunnerState::new(blob_path.clone())?));
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
     let app = Router::new()
@@ -82,10 +80,10 @@ async fn main() -> Result<()> {
     log::info!("serval agent daemon listening on {}", &addr);
 
     advertise_service("serval_daemon", port, None)?;
-    if should_advertise_storage {
+
+    if blob_path.is_some() {
+        log::info!("serval agent blob store mounted; path={blob_path:?}");
         advertise_service("serval_storage", port, None)?;
-    } else {
-        log::info!("serval agent blob store not mounted; this node will not host storage");
     }
 
     let addr: SocketAddr = addr.parse().unwrap();
