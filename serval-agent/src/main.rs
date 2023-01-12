@@ -69,9 +69,16 @@ async fn main() -> Result<()> {
         .route("/monitor/history", get(jobs::monitor_history))
         .route("/jobs", post(jobs::incoming))
         .route("/run/:addr", get(jobs::run_stored_job))
-        .route("/blobs", put(storage::store_blob))
-        .route("/blobs/:addr", get(storage::get_blob))
-        .route("/blobs/:addr", head(storage::has_blob))
+        // begin optional endpoints; these requests will be pre-empted by our
+        // proxy_unavailable_services middleware if they aren't implemented by this instance.
+        .route("/storage/blobs", put(storage::store_blob))
+        .route("/storage/blobs/:addr", get(storage::get_blob))
+        .route("/storage/blobs/:addr", head(storage::has_blob))
+        // end optional endpoints
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            proxy_unavailable_services,
+        ))
         .route_layer(middleware::from_fn(clacks))
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
         .with_state(state);
