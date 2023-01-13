@@ -21,7 +21,7 @@ pub async fn proxy_unavailable_services<B>(
         let state = state.lock().await;
         if state.storage.is_none() {
             log::info!(
-                "proxy_unavailable_services intecepting request; path={}",
+                "proxy_unavailable_services intercepting request; path={}",
                 path,
             );
 
