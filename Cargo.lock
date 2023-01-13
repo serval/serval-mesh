@@ -2097,6 +2097,7 @@ dependencies = [
  "env_logger 0.10.0",
  "http",
  "log",
+ "mdns-sd",
  "reqwest",
  "serde",
  "serde_json",

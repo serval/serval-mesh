@@ -62,6 +62,7 @@ async fn main() -> Result<()> {
         ),
     };
 
+    // todo: add instance_id (a UUID) to RunnerState
     let state = Arc::new(Mutex::new(RunnerState::new(blob_path.clone())?));
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
