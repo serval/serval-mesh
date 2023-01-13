@@ -1,9 +1,8 @@
 use anyhow::Result;
 use axum::{
-    extract::State,
     http::{Request, StatusCode},
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use http::header::HeaderValue;
 use serde::{Deserialize, Serialize};
@@ -15,6 +14,7 @@ use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf};
 
 pub mod jobs;
+pub mod proxy;
 pub mod storage;
 
 #[derive(Debug, Clone, Serialize)]
@@ -98,26 +98,4 @@ pub async fn clacks<B>(req: Request<B>, next: Next<B>) -> Result<Response, Statu
 /// Respond to ping. Useful for monitoring.
 pub async fn ping() -> String {
     "pong".to_string()
-}
-
-pub async fn proxy_unavailable_services<B>(
-    State(state): State<AppState>,
-    req: Request<B>,
-    next: Next<B>,
-) -> Result<Response, StatusCode> {
-    if req.uri().path().starts_with("/storage/") {
-        let state = state.lock().await;
-        if state.storage.is_none() {
-            log::info!(
-                "proxy_unavailable_services intecepting request; path={}",
-                req.uri().path()
-            );
-            // todo: In this case, we should proxy this request to another node that is advertising
-            // the serval_storage role. For now, let's just barf.
-            return Ok((StatusCode::SERVICE_UNAVAILABLE, "Storage not available").into_response());
-        }
-    }
-
-    let response = next.run(req).await;
-    Ok(response)
 }
