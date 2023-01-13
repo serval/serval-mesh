@@ -16,7 +16,7 @@ use axum::{
 };
 use dotenvy::dotenv;
 use tokio::sync::Mutex;
-use utils::mdns::advertise_service;
+use utils::{mdns::advertise_service, networking::find_nearest_port};
 
 use std::net::SocketAddr;
 use std::{path::PathBuf, sync::Arc};
@@ -38,7 +38,8 @@ async fn main() -> Result<()> {
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port: u16 = std::env::var("PORT")
-        .unwrap_or_else(|_| "8100".to_string())
+        .map(Ok)
+        .unwrap_or_else(|_| find_nearest_port(8100).map(|port| port.to_string()))?
         .parse()?;
     let storage_role = match &std::env::var("STORAGE_ROLE").unwrap_or_else(|_| "auto".to_string())[..]
     {
