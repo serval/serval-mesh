@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
         // end optional endpoints
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
-            proxy_unavailable_services,
+            proxy::proxy_unavailable_services,
         ))
         .route_layer(middleware::from_fn(clacks))
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
