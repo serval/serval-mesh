@@ -2567,6 +2567,7 @@ name = "utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "hex",
  "if-addrs 0.8.0",
  "log",
