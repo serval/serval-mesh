@@ -18,5 +18,6 @@ thiserror = "1.0.38"
 tokio.workspace = true
 tokio-util.workspace = true
 wasi-common.workspace = true
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -46,6 +46,9 @@ pub enum ServalError {
 
     #[error("mdns service was not found before timeout")]
     ServiceNotFound,
+
+    #[error("reqwest error")]
+    ReqwestError(#[from] reqwest::Error),
 }
 
 use axum::http::StatusCode;
@@ -70,6 +73,7 @@ impl IntoResponse for ServalError {
             ServalError::BlobAddressNotFound(_) => StatusCode::NOT_FOUND,
             ServalError::IoError(_) => StatusCode::NOT_FOUND,
             ServalError::ServiceNotFound => StatusCode::NOT_FOUND,
+            ServalError::ReqwestError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         (status, self.to_string()).into_response()
