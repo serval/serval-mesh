@@ -86,10 +86,12 @@ pub struct Envelope {
 /// Remember what is important.
 pub async fn clacks<B>(req: Request<B>, next: Next<B>) -> Result<Response, StatusCode> {
     let mut response = next.run(req).await;
-    response.headers_mut().append(
-        "X-Clacks-Overhead",
-        HeaderValue::from_static("GNU/Terry Pratchett"),
-    );
+    if !response.headers().contains_key("X-Clacks-Overhead") {
+        response.headers_mut().append(
+            "X-Clacks-Overhead",
+            HeaderValue::from_static("GNU/Terry Pratchett"),
+        );
+    }
     Ok(response)
 }
 
