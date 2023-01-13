@@ -8,6 +8,7 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow.workspace = true
+axum.workspace = true
 hex = "0.4.3"
 if-addrs = "0.8.0"
 log.workspace = true

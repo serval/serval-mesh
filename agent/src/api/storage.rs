@@ -28,32 +28,10 @@ pub async fn get_blob(
             log::info!("Serving blob; addr={}", &blob_addr);
             (headers, body).into_response()
         }
-        Err(e) => match e {
-            ServalError::BlobAddressInvalid(_) => {
-                log::warn!("Request for an invalid address; addr={}", blob_addr);
-                StatusCode::BAD_REQUEST.into_response()
-            }
-            ServalError::BlobAddressNotFound(_) => {
-                log::warn!("Blob not found; addr={blob_addr}");
-                (
-                    StatusCode::NOT_FOUND,
-                    format!("Blob {} not found", &blob_addr),
-                )
-                    .into_response()
-            }
-            ServalError::IoError(_) => {
-                log::warn!("i/o error reading blob; addr={blob_addr}; {:?}", e);
-                (
-                    StatusCode::NOT_FOUND,
-                    format!("Blob {} not found", &blob_addr),
-                )
-                    .into_response()
-            }
-            _ => {
-                log::warn!("unexpected error case; addr={blob_addr}; {:?}", e);
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
-        },
+        Err(e) => {
+            log::warn!("error reading blob; addr={}; error={}", blob_addr, e);
+            e.into_response()
+        }
     }
 }
 
