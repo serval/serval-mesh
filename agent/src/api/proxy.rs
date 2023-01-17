@@ -51,7 +51,10 @@ async fn proxy_request_to_service<B>(
     })?;
 
     let result = proxy_request_to_other_node(req, &node_info).await;
-    result
+    result.map_err(|err| {
+        log::warn!("Failed to proxy request to other node; node={node_info:?}; err={err:?}");
+        err
+    })
 }
 
 async fn proxy_request_to_other_node<B>(
@@ -82,24 +85,16 @@ async fn proxy_request_to_other_node<B>(
     );
 
     // Actually send the request
-    inner_req
-        .send()
-        .await
-        .map(reqwest_response_to_axum_response)?
-        .await
-        .map(|mut resp| {
-            resp.headers_mut().append(
-                "Serval-Proxied-From",
-                "<todo: put instance_id from `info`'s properties here>"
-                    .parse()
-                    .unwrap(),
-            );
-            resp
-        })
-        .map_err(|err| {
-            log::warn!("Failed to proxy request to other node; node={host}:{port}; err={err:?}");
-            err
-        })
+    let inner_req_res = inner_req.send().await?;
+    let mut resp = reqwest_response_to_axum_response(inner_req_res).await?;
+    resp.headers_mut().append(
+        "Serval-Proxied-From",
+        "<todo: put instance_id from `info`'s properties here>"
+            .parse()
+            .unwrap(),
+    );
+
+    Ok(resp)
 }
 
 async fn reqwest_response_to_axum_response(
