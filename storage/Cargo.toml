@@ -17,3 +17,4 @@ mdns-sd = "0.5.9"
 tokio.workspace = true
 tokio-util.workspace = true
 utils = { path = "../utils" }
+uuid.workspace = true

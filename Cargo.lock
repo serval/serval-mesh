@@ -2203,6 +2203,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "utils",
+ "uuid",
 ]
 
 [[package]]
@@ -2583,6 +2584,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
+ "uuid",
  "wasi-common",
 ]
 

@@ -1,5 +1,6 @@
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use tokio::time::timeout as tokio_timeout;
+use uuid::Uuid;
 
 use std::time::Duration;
 use std::{collections::HashMap, net::Ipv4Addr};
@@ -11,6 +12,7 @@ use crate::networking::my_ipv4_addrs;
 pub fn advertise_service(
     service_name: &str,
     port: u16,
+    instance_id: &Uuid,
     props: Option<HashMap<String, String>>,
 ) -> Result<(), ServalError> {
     let mdns = ServiceDaemon::new()?;
@@ -26,7 +28,7 @@ pub fn advertise_service(
     // Register our service
     let service_info = ServiceInfo::new(
         &service_domain,
-        service_name,
+        &instance_id.to_string(),
         &service_hostname,
         &my_addrs[..],
         port,

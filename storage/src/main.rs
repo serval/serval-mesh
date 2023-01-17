@@ -13,6 +13,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use dotenvy::dotenv;
 use utils::{mdns::advertise_service, networking::find_nearest_port};
+use uuid::Uuid;
 
 mod api;
 
@@ -45,7 +46,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Actually do the thing
     let http_port = find_nearest_port(7475)?;
-    advertise_service("serval_storage", http_port, None)?;
+    let instance_id = Uuid::new_v4();
+    advertise_service("serval_storage", http_port, &instance_id, None)?;
     api::init_http("0.0.0.0", http_port, storage_path).await?;
 
     Err(anyhow!("Future resolved unexpectedly"))
