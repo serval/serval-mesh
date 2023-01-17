@@ -125,3 +125,55 @@ async fn reqwest_response_to_axum_response(
 
     Ok(axum_resp)
 }
+
+#[cfg(test)]
+mod tests {
+
+    use anyhow::anyhow;
+    use axum::body::Bytes;
+    use http::response::Builder;
+    use reqwest::Response;
+    use utils::futures::get_future_sync;
+
+    use super::*;
+
+    fn get_axum_body_as_bytes(resp: axum::response::Response) -> Result<Bytes> {
+        let body = resp.into_body();
+        let Some(body_bytes) = get_future_sync(hyper::body::to_bytes(body)).ok() else {
+            return Err(anyhow!("Could not get body bytes"));
+        };
+
+        Ok(body_bytes)
+    }
+
+    #[test]
+    fn test_reqwest_response_to_axum_response() {
+        let mut reqwest_resp = Response::from(
+            Builder::new()
+                .status(418)
+                .body("<whistling noises intensify>")
+                .unwrap(),
+        );
+        reqwest_resp
+            .headers_mut()
+            .append("foo", HeaderValue::from_str("bar").unwrap());
+
+        // Make sure the Reqwest response matches expectations
+        assert_eq!(reqwest_resp.status(), 418);
+
+        // Make sure the conversion works
+        let result = get_future_sync(reqwest_response_to_axum_response(reqwest_resp));
+        assert!(result.is_ok());
+        let axum_resp = result.unwrap();
+        assert_eq!(418, axum_resp.status());
+        assert_eq!(
+            HeaderValue::from_str("bar").unwrap(),
+            axum_resp.headers().get("foo").unwrap()
+        );
+        let body_bytes: Vec<u8> = get_axum_body_as_bytes(axum_resp).unwrap().into();
+        assert_eq!(
+            "<whistling noises intensify>",
+            String::from_utf8_lossy(&body_bytes)
+        );
+    }
+}
