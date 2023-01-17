@@ -17,4 +17,4 @@ serde_json.workspace = true
 thousands = "0.2.0"
 tokio.workspace = true
 utils = { path = "../utils" }
-uuid = { workspace = true }
+uuid.workspace = true
