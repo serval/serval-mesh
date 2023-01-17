@@ -17,6 +17,7 @@ use axum::{
 use dotenvy::dotenv;
 use tokio::sync::Mutex;
 use utils::{mdns::advertise_service, networking::find_nearest_port};
+use uuid::Uuid;
 
 use std::net::SocketAddr;
 use std::{path::PathBuf, sync::Arc};
@@ -62,8 +63,11 @@ async fn main() -> Result<()> {
         ),
     };
 
-    // todo: add instance_id (a UUID) to RunnerState
-    let state = Arc::new(Mutex::new(RunnerState::new(blob_path.clone())?));
+    let instance_id = Uuid::new_v4();
+    let state = Arc::new(Mutex::new(RunnerState::new(
+        instance_id,
+        blob_path.clone(),
+    )?));
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
     let app = Router::new()
@@ -88,11 +92,11 @@ async fn main() -> Result<()> {
     let addr = format!("{}:{}", host, port);
     log::info!("serval agent daemon listening on {}", &addr);
 
-    advertise_service("serval_daemon", port, None)?;
+    advertise_service("serval_daemon", port, &instance_id, None)?;
 
     if blob_path.is_some() {
         log::info!("serval agent blob store mounted; path={blob_path:?}");
-        advertise_service("serval_storage", port, None)?;
+        advertise_service("serval_storage", port, &instance_id, None)?;
     }
 
     let addr: SocketAddr = addr.parse().unwrap();

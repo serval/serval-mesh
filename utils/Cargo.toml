@@ -17,6 +17,7 @@ sha2 = "0.10.6"
 thiserror = "1.0.38"
 tokio.workspace = true
 tokio-util.workspace = true
+uuid.workspace = true
 wasi-common.workspace = true
 reqwest.workspace = true
 serde.workspace = true

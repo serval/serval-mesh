@@ -19,6 +19,7 @@ pub mod storage;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RunnerState {
+    instance_id: Uuid,
     storage: Option<BlobStore>,
     jobs: HashMap<String, JobMetadata>,
     total: usize,
@@ -26,12 +27,14 @@ pub struct RunnerState {
 }
 
 impl RunnerState {
-    pub fn new(blob_path: Option<PathBuf>) -> Result<Self, ServalError> {
+    pub fn new(instance_id: Uuid, blob_path: Option<PathBuf>) -> Result<Self, ServalError> {
         let storage = match blob_path {
             Some(path) => Some(BlobStore::new(path)?),
             None => None,
         };
+
         Ok(RunnerState {
+            instance_id,
             storage,
             total: 0,
             errors: 0,
