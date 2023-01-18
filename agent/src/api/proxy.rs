@@ -7,7 +7,10 @@ use axum::{
 };
 use http::header::{CONTENT_LENGTH, EXPECT, HOST};
 use mdns_sd::ServiceInfo;
-use utils::{errors::ServalError, mdns::discover_service};
+use utils::{
+    errors::ServalError,
+    mdns::{discover_service, get_service_instance_id},
+};
 
 use super::*;
 
@@ -61,6 +64,7 @@ async fn proxy_request_to_other_node<B>(
     req: &Request<B>,
     info: &ServiceInfo,
 ) -> Result<Response, ServalError> {
+    let target_instance_id = get_service_instance_id(info)?;
     let host = info.get_addresses().iter().next().unwrap(); // unwrap is safe because discover_service will never return a service without addresses
     let port = info.get_port();
     let path = req.uri().path();
@@ -87,11 +91,10 @@ async fn proxy_request_to_other_node<B>(
     // Actually send the request
     let inner_req_res = inner_req.send().await?;
     let mut resp = reqwest_response_to_axum_response(inner_req_res).await?;
+
     resp.headers_mut().append(
         "Serval-Proxied-From",
-        "<todo: put instance_id from `info`'s properties here>"
-            .parse()
-            .unwrap(),
+        HeaderValue::from_str(&target_instance_id.to_string()).map_err(anyhow::Error::from)?,
     );
 
     Ok(resp)
