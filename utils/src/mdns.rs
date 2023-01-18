@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use tokio::time::timeout as tokio_timeout;
 use uuid::Uuid;
@@ -86,4 +87,52 @@ pub async fn discover_service_with_timeout(
     };
 
     resp
+}
+
+pub fn get_service_instance_id(service_info: &ServiceInfo) -> Result<Uuid, ServalError> {
+    let Some(instance_id) = service_info
+        .get_fullname().split('.')
+        .next()
+        .and_then(|instance_id_str| Uuid::parse_str(instance_id_str).ok()) else {
+            return Err(anyhow!("Invalid service name").into());
+        };
+
+    Ok(instance_id)
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[test]
+    fn test_get_service_instance_id() {
+        let service_info_with_instance_id = ServiceInfo::new(
+            "_test",
+            "09441923-9193-479C-A0DB-9422E209A3CF",
+            "example.com",
+            Ipv4Addr::LOCALHOST,
+            0,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            Uuid::parse_str("09441923-9193-479C-A0DB-9422E209A3CF").unwrap(),
+            get_service_instance_id(&service_info_with_instance_id).unwrap(),
+        );
+
+        let service_info_with_invalid_instance_id = ServiceInfo::new(
+            "_test",
+            "hotdogs",
+            "example.com",
+            Ipv4Addr::LOCALHOST,
+            0,
+            None,
+        )
+        .unwrap();
+
+        let result = get_service_instance_id(&service_info_with_invalid_instance_id);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ServalError::AnyhowError(_),));
+    }
 }
