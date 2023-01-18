@@ -1,5 +1,4 @@
 use thiserror::Error;
-use wasi_common;
 
 use crate::structs::WasmResult;
 
@@ -28,9 +27,9 @@ pub enum ServalError {
     #[error("the WASM executable terminated abnormally; code={}", result.code)]
     AbnormalWasmExit { result: WasmResult },
 
-    /// The WASMtime engine responded with an error.
-    #[error("wasmtime engine error")]
-    WasmEngineError(#[from] wasi_common::Error),
+    // A conversion for anyhow::Error
+    #[error("an anyhow! error")]
+    AnyhowError(#[from] anyhow::Error),
 
     /// The caller has attempted to load an object from the blob store with an invalid address.
     #[error("blob address is not a valid hex representation of a sha256 hash `{0}`")]
@@ -65,10 +64,7 @@ impl IntoResponse for ServalError {
                 // that the WASM executable was bad in some way.
                 StatusCode::BAD_REQUEST
             }
-            ServalError::WasmEngineError(_) => {
-                // A different guess here. Please do change as we understand our signaling better!
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+            ServalError::AnyhowError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ServalError::BlobAddressInvalid(_) => StatusCode::BAD_REQUEST,
             ServalError::BlobAddressNotFound(_) => StatusCode::NOT_FOUND,
             ServalError::IoError(_) => StatusCode::NOT_FOUND,
