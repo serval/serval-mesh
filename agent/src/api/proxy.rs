@@ -28,7 +28,7 @@ pub async fn proxy_unavailable_services<B>(
                 path,
             );
 
-            let Ok(resp) = proxy_request_to_service(&req, "_serval_storage").await else {
+            let Ok(resp) = proxy_request_to_service(&req, "_serval_storage", &state.instance_id).await else {
                 // Welp, not much we can do
                 return Ok((StatusCode::SERVICE_UNAVAILABLE, "Storage not available").into_response());
             };
@@ -47,13 +47,14 @@ pub async fn proxy_unavailable_services<B>(
 async fn proxy_request_to_service<B>(
     req: &Request<B>,
     service_name: &str,
+    source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
     let node_info = discover_service(service_name).await.map_err(|err| {
         log::warn!("proxy_unavailable_services failed to find a node offering the service; service={service_name}; err={err:?}");
         err
     })?;
 
-    let result = proxy_request_to_other_node(req, &node_info).await;
+    let result = proxy_request_to_other_node(req, &node_info, source_instance_id).await;
     result.map_err(|err| {
         log::warn!("Failed to proxy request to other node; node={node_info:?}; err={err:?}");
         err
@@ -63,6 +64,7 @@ async fn proxy_request_to_service<B>(
 async fn proxy_request_to_other_node<B>(
     req: &Request<B>,
     info: &ServiceInfo,
+    source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
     let target_instance_id = get_service_instance_id(info)?;
     let host = info.get_addresses().iter().next().unwrap(); // unwrap is safe because discover_service will never return a service without addresses
@@ -83,9 +85,10 @@ async fn proxy_request_to_other_node<B>(
         }
         inner_req = inner_req.header(k, v);
     }
+
     inner_req = inner_req.header(
         "Serval-Proxied-For",
-        "<todo: put instance_id here once it exists in AppState>",
+        HeaderValue::from_str(&source_instance_id.to_string()).map_err(anyhow::Error::from)?,
     );
 
     // Actually send the request
