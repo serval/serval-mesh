@@ -31,6 +31,32 @@ impl ServalEngine {
         let mut linker: Linker<WasiCtx> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
 
+        // Wire up our host functions (e.g. functionality that we want to expose to the jobs we
+        // run). The first parameter to func_wrap is the name of the import namespace and the
+        // second is the name of the function. The default namespace for WASM imports is "env".
+        // For example, this:
+        // ```
+        // linker.func_wrap("env", "add", |a: i32, b: i32| -> i32 { a + b })?;
+        // ```
+        // will define a function at `env::add`, which you can access in your WASM job under the
+        // name "add" with the following extern block:
+        // ```
+        // extern "C" { fn add(a: i32, b: i32) -> i32; }
+        // ```
+        // If you'd like your function to be under a different namespace, define it like this...
+        // ```
+        // linker.func_wrap("foo", "add", |a: i32, b: i32| -> i32 { a + b })?;
+        // ```
+        // ...and import like this:
+        // ```
+        // #[link(wasm_import_module = "serval")]
+        // extern "C" { fn add(a: i32, b: i32) -> i32; }
+        // ```
+
+        // This exists solely so there's *something* for jobs to import, just so ensure the
+        // mechanisms all work.
+        linker.func_wrap("serval", "add", |a: i32, b: i32| -> i32 { a + b })?;
+
         Ok(Self { engine, linker })
     }
 
