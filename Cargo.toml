@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "storage",
   "engine",
   "cli",
   "queue",

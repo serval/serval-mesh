@@ -1365,7 +1365,6 @@ checksum = "69b070a70988c737646f0ff395f4317934c4a90ec14910477e3d1d5a5e22f60d"
 dependencies = [
  "flume",
  "if-addrs 0.7.0",
- "log",
  "polling",
  "socket2",
 ]
@@ -2188,23 +2187,6 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
-
-[[package]]
-name = "storage"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "dotenvy",
- "env_logger 0.10.0",
- "log",
- "mdns-sd",
- "tokio",
- "tokio-util",
- "utils",
- "uuid",
-]
 
 [[package]]
 name = "strsim"
