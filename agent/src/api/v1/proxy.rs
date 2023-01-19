@@ -13,6 +13,7 @@ use utils::{
 };
 
 use super::*;
+use crate::structures::AppState;
 
 pub async fn proxy_unavailable_services<B>(
     State(state): State<AppState>,
