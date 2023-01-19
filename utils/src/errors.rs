@@ -28,7 +28,7 @@ pub enum ServalError {
     AbnormalWasmExit { result: WasmResult },
 
     // A conversion for anyhow::Error
-    #[error("an anyhow! error")]
+    #[error("anyhow::Error: {0}")]
     AnyhowError(#[from] anyhow::Error),
 
     /// The caller has attempted to load an object from the blob store with an invalid address.
@@ -40,13 +40,13 @@ pub enum ServalError {
     BlobAddressNotFound(String),
 
     /// A conversion for std:io:Error
-    #[error("io error")]
+    #[error("std::io::Error: {0}")]
     IoError(#[from] std::io::Error),
 
     #[error("mdns service was not found before timeout")]
     ServiceNotFound,
 
-    #[error("reqwest error")]
+    #[error("reqwest::Error: {0}")]
     ReqwestError(#[from] reqwest::Error),
 }
 
