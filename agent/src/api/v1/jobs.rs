@@ -8,7 +8,7 @@ use axum::{
 use engine::ServalEngine;
 use utils::structs::WasmResult;
 
-use super::*;
+use crate::structures::*;
 
 /// This is the main worker endpoint. It accepts incoming jobs and runs them.
 pub async fn incoming(state: State<AppState>, mut multipart: Multipart) -> Response {
@@ -49,14 +49,11 @@ pub async fn incoming(state: State<AppState>, mut multipart: Multipart) -> Respo
             .into_response();
     };
 
-    let envelope = envelope.unwrap_or(Envelope {
-        name: "unknown".to_string(),
-        description: "unknown job description".to_string(),
-    });
+    let envelope = envelope.unwrap_or_default();
     let metadata: JobMetadata = JobMetadata::from(envelope);
     log::info!(
         "received WASM job; name={}; executable length={}; input length={}",
-        metadata.name,
+        metadata.name(),
         binary.len(),
         input.as_ref().map(|input| input.len()).unwrap_or_else(|| 0),
     );
@@ -75,7 +72,9 @@ async fn run_job_inner(
     // Poor human's history tracking here. We'll need to do better at some point.
     // E.g., handle overflows. That would be some nice uptime.
     state.total += 1;
-    state.jobs.insert(metadata.id.to_string(), metadata.clone());
+    state
+        .jobs
+        .insert(metadata.id().to_string(), metadata.clone());
 
     let start = std::time::Instant::now();
 
@@ -85,8 +84,8 @@ async fn run_job_inner(
     // TODO: SER-38 - capture exit code for failed jobs
     log::info!(
         "about to run job name={}; id={}; executable size={}",
-        metadata.name,
-        metadata.id,
+        metadata.name(),
+        metadata.id(),
         binary.len()
     );
     match execute_job(binary, input).await {
@@ -94,7 +93,7 @@ async fn run_job_inner(
             // We're not doing anything with stderr here.
             log::info!(
                 "job completed; job={}; code={}; elapsed_ms={}",
-                metadata.id,
+                metadata.id(),
                 result.code,
                 start.elapsed().as_millis()
             );

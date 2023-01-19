@@ -7,7 +7,7 @@ use axum::{
 
 use utils::errors::ServalError;
 
-use super::*;
+use crate::structures::AppState;
 
 pub async fn get_blob(
     Path(blob_addr): Path<String>,

@@ -25,6 +25,9 @@ use std::{path::PathBuf, sync::Arc};
 mod api;
 use crate::api::*;
 
+mod structures;
+use crate::structures::RunnerState;
+
 #[derive(Debug, Clone)]
 enum StorageRoleConfig {
     Auto,
@@ -72,18 +75,18 @@ async fn main() -> Result<()> {
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
     let app = Router::new()
         .route("/monitor/ping", get(ping))
-        .route("/monitor/history", get(jobs::monitor_history))
-        .route("/jobs", post(jobs::incoming))
-        .route("/run/:addr", get(jobs::run_stored_job))
+        .route("/v1/monitor/history", get(v1::jobs::monitor_history))
+        .route("/v1/jobs", post(v1::jobs::incoming))
+        .route("/v1/run/:addr", get(v1::jobs::run_stored_job))
         // begin optional endpoints; these requests will be pre-empted by our
         // proxy_unavailable_services middleware if they aren't implemented by this instance.
-        .route("/storage/blobs", put(storage::store_blob))
-        .route("/storage/blobs/:addr", get(storage::get_blob))
-        .route("/storage/blobs/:addr", head(storage::has_blob))
+        .route("/v1/storage/blobs", put(v1::storage::store_blob))
+        .route("/v1/storage/blobs/:addr", get(v1::storage::get_blob))
+        .route("/v1/storage/blobs/:addr", head(v1::storage::has_blob))
         // end optional endpoints
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
-            proxy::proxy_unavailable_services,
+            v1::proxy::proxy_unavailable_services,
         ))
         .route_layer(middleware::from_fn(clacks))
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))

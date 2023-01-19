@@ -78,7 +78,7 @@ fn build_url(path: String) -> String {
     let baseurl = baseurl
         .as_ref()
         .expect("build_url called while SERVAL_NODE_URL is None");
-    format!("{baseurl}/{path}")
+    format!("{baseurl}/v1/{path}")
 }
 
 /// Convenience function to read an input wasm binary either from a pathbuf or from stdin.
