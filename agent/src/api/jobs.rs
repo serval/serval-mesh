@@ -41,20 +41,19 @@ pub async fn incoming(state: State<AppState>, mut multipart: Multipart) -> Respo
         }
     }
 
-    if binary.is_none() {
+    let Some(binary) = binary else {
         return (
             StatusCode::BAD_REQUEST,
             "no wasm executable data provided!".to_string(),
         )
             .into_response();
-    }
+    };
 
     let envelope = envelope.unwrap_or(Envelope {
         name: "unknown".to_string(),
         description: "unknown job description".to_string(),
     });
     let metadata: JobMetadata = JobMetadata::from(envelope);
-    let binary = binary.unwrap();
     log::info!(
         "received WASM job; name={}; executable length={}; input length={}",
         metadata.name,
