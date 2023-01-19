@@ -24,7 +24,7 @@ pub fn advertise_service(
     let service_domain = format!("_{service_name}._tcp.local.");
     let service_hostname = format!("{service_name}.local.");
 
-    log::info!("Advertising {service_name}; domain={service_domain} port={port} props={props:?}");
+    log::info!("Advertising {service_name}; instance_id={instance_id} domain={service_domain} port={port} props={props:?}");
 
     // Register our service
     let service_info = ServiceInfo::new(
