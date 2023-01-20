@@ -79,7 +79,7 @@ impl ServalEngine {
         let executed = self
             .linker
             .get_default(&mut store, "")?
-            .typed::<(), (), _>(&store)?
+            .typed::<(), ()>(&store)?
             .call(&mut store, ());
 
         // We have to drop the store here or we'll be unable to consume data from the WritePipe. See wasmtime docs.
