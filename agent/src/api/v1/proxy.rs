@@ -21,7 +21,7 @@ pub async fn proxy_unavailable_services<B>(
     next: Next<B>,
 ) -> Result<Response, StatusCode> {
     let path = req.uri().path();
-    if path.starts_with("/storage/") {
+    if path.starts_with("/v1/storage/") {
         let state = state.lock().await;
         if state.storage.is_none() {
             log::info!(
