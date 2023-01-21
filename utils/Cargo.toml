@@ -7,18 +7,21 @@ license = "BSD-2-Clause-Patent"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow.workspace = true
-axum.workspace = true
+anyhow = { workspace = true }
+axum = { workspace = true }
+cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }
 hex = "0.4.3"
 if-addrs = "0.8.0"
-log.workspace = true
-mdns-sd.workspace = true
+log = { workspace = true }
+mdns-sd = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
 sha2 = "0.10.6"
-thiserror.workspace = true
-tokio.workspace = true
-tokio-util.workspace = true
-uuid.workspace = true
-wasi-common.workspace = true
-reqwest.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+ssri = "7.0.0"
+thiserror = { workspace = true }
+tokio-util = { workspace = true }
+tokio = { workspace = true }
+toml = "0.7.0"
+uuid = { workspace = true }
+wasi-common = { workspace = true }

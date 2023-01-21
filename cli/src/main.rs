@@ -10,10 +10,10 @@
 /// its HTTP API. It discovers running agents via mDNS advertisement.
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
-
+use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
-use thousands::Separable;
 use tokio::runtime::Runtime;
+use utils::structs::Manifest;
 use uuid::Uuid;
 
 use std::fs::File;
@@ -27,7 +27,7 @@ use utils::mdns::discover_service;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
-/// A structure defining arguments implemented via `clap` derive macros.
+/// A command-line tool for interacting with the Serval mesh.
 struct Args {
     #[clap(
         short,
@@ -41,44 +41,101 @@ struct Args {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
-    /// Run the specified WASM binary.
+    /// Store the given WASM task type in the mesh.
     #[clap(display_order = 1)]
+    Store {
+        /// Path to the task manifest file.
+        manifest: PathBuf,
+    },
+    /// Run the specified WASM binary.
+    #[clap(display_order = 2)]
     Run {
-        /// A descriptive name for the job
-        #[clap(long, short)]
-        name: Option<String>,
-        /// A description for the job
-        #[clap(long, short)]
-        description: Option<String>,
-        /// The file containing the wasm binary to run
-        #[clap(value_name = "WASM BINARY")]
-        binary_file: PathBuf,
+        /// The name of the previously-stored job to run.
+        name: String,
         /// Path to a file to pass to the binary; omit to read from stdin (if present)
-        #[clap(value_name = "OPTIONAL INPUT TO WASM BINARY")]
         input_file: Option<PathBuf>,
-        /// Path to write the output of the job. Omit to write to stdout.
+        /// Path to write the output of the job; omit to write to stdout
         output_file: Option<PathBuf>,
     },
     /// Get the status of a job in progress.
-    #[clap(display_order = 2)]
+    #[clap(display_order = 3)]
     Status { id: Uuid },
     /// Get results for a job run, given its ID.
-    #[clap(display_order = 3)]
+    #[clap(display_order = 4)]
     Results { id: Uuid },
     /// Get full job run history from the running process.
-    #[clap(display_order = 4)]
+    #[clap(display_order = 5)]
     History,
+    /// Liveness check: ping at least one node on the mesh.
+    Ping,
 }
 
 static SERVAL_NODE_URL: Mutex<Option<String>> = Mutex::new(None);
 
 /// Convenience function to build urls repeatably.
-fn build_url(path: String) -> String {
+fn build_url(path: String, version: Option<&str>) -> String {
     let baseurl = SERVAL_NODE_URL.lock().unwrap();
     let baseurl = baseurl
         .as_ref()
         .expect("build_url called while SERVAL_NODE_URL is None");
-    format!("{baseurl}/v1/{path}")
+    if let Some(v) = version {
+        format!("{baseurl}/v{v}/{path}")
+    } else {
+        format!("{baseurl}/{path}")
+    }
+}
+
+fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
+    println!("Reading manifest at {}", manifest_path.display());
+    let manifest = Manifest::from_file(&manifest_path)?;
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()?;
+
+    let url = build_url("storage/manifests".to_string(), Some("1"));
+    let response = client.post(url).body(manifest.to_string()).send()?;
+
+    if !response.status().is_success() {
+        println!("Storing the manifest failed!");
+        println!("{} {}", response.status(), response.text()?);
+        return Ok(());
+    }
+
+    let manifest_integrity = response.text()?;
+
+    println!(
+        "Manifest stored; name={}; integrity={manifest_integrity}",
+        manifest.name().blue()
+    );
+
+    println!("Reading WASM executable at {}", manifest.binary().display());
+    let executable = read_file(manifest.binary())?;
+    let vstring = format!(
+        "storage/manifests/{}/executable/{}",
+        manifest.name(),
+        manifest.version()
+    );
+    let url = build_url(vstring, Some("1"));
+    println!("{url}");
+    let response = client.put(url).body(executable).send()?;
+    if response.status().is_success() {
+        let wasm_integrity = response.text()?;
+        println!(
+            "WASM stored; name={}@{}; integrity={wasm_integrity}",
+            manifest.name().blue(),
+            manifest.version().blue()
+        );
+        println!(
+            "To run this WASM executable, run:\npounce run {}",
+            manifest.name()
+        );
+    } else {
+        println!("Storing the executable failed!");
+        println!("{} {}", response.status(), response.text()?);
+    }
+
+    Ok(())
 }
 
 /// Convenience function to read an input wasm binary either from a pathbuf or from stdin.
@@ -109,61 +166,32 @@ fn read_file(path: PathBuf) -> Result<Vec<u8>, anyhow::Error> {
     Ok(buf)
 }
 
-/// Post a WASM executable to a waiting agent to run.
-fn run(
-    name: Option<String>,
-    description: Option<String>,
-    binarypath: PathBuf,
-    maybeinputpath: Option<PathBuf>,
-    maybeoutputpath: Option<PathBuf>,
-) -> Result<()> {
-    let binary_bytes = read_file(binarypath.clone())?;
-    if binary_bytes.is_empty() {
-        return Err(anyhow!("no executable data read!"));
-    }
-
-    let input_bytes = read_file_or_stdin(maybeinputpath)?;
-    let binary_payload_size = binary_bytes.len() + input_bytes.len();
-    let binary_part = reqwest::blocking::multipart::Part::bytes(binary_bytes);
-    let input_part = reqwest::blocking::multipart::Part::bytes(input_bytes);
-
-    let name = name.unwrap_or_else(|| {
-        // use the filename component of binarypath, e.g. /foo/bar.wasm -> bar.wasm
-        binarypath
-            .file_name()
-            .and_then(|name| name.to_str())
-            .map(|z| z.to_string())
-            .unwrap_or_else(|| "unnamed".to_string())
-    });
-    let description = description.unwrap_or_else(|| "posted via command-line".to_string());
+/// Request that an available agent run a stored job, with optional input.
+fn run(name: String, maybe_input: Option<PathBuf>, maybe_output: Option<PathBuf>) -> Result<()> {
+    let input_bytes = read_file_or_stdin(maybe_input)?;
 
     println!(
-        "Sending {} ({} bytes for binary + payload) to serval agent...",
+        "Sending job {} with {} payload to serval agent...",
         name.blue().bold(),
-        binary_payload_size.separate_with_commas(),
+        format_size(input_bytes.len(), BINARY),
     );
-
-    let envelope = serde_json::json!({
-        "id": &Uuid::new_v4().to_string(),
-        "name": &name,
-        "description": &description
-    });
-    let envelope_part = reqwest::blocking::multipart::Part::text(envelope.to_string());
 
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()?;
-    let form = reqwest::blocking::multipart::Form::new()
-        .part("envelope", envelope_part)
-        .part("executable", binary_part)
-        .part("input", input_part);
 
-    let url = build_url("jobs".to_string());
-    let response = client.post(url).multipart(form).send()?;
+    let url = build_url(format!("jobs/{name}/run"), Some("1"));
+    let response = client.post(url).body(input_bytes).send()?;
+
+    if !response.status().is_success() {
+        println!("Running the WASM failed!");
+        println!("{} {}", response.status(), response.text()?);
+        return Ok(());
+    }
 
     let response_body = response.bytes()?;
     log::info!("response body read; length={}", response_body.len());
-    match maybeoutputpath {
+    match maybe_output {
         Some(outputpath) => {
             eprintln!("Writing output to {outputpath:?}");
             let mut f = File::create(&outputpath)?;
@@ -185,7 +213,7 @@ fn run(
 
 /// Get a job's status from a serval agent node.
 fn status(id: Uuid) -> Result<()> {
-    let url = build_url(format!("jobs/{id}/status"));
+    let url = build_url(format!("jobs/{id}/status"), Some("1"));
     let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
@@ -195,7 +223,7 @@ fn status(id: Uuid) -> Result<()> {
 
 /// Get a job's results from a serval agent node.
 fn results(id: Uuid) -> Result<()> {
-    let url = build_url(format!("jobs/{id}/results"));
+    let url = build_url(format!("jobs/{id}/results"), Some("1"));
     let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
@@ -205,10 +233,20 @@ fn results(id: Uuid) -> Result<()> {
 
 /// Get in-memory history from an agent node.
 fn history() -> Result<()> {
-    let url = build_url("monitor/history".to_string());
+    let url = build_url("monitor/history".to_string(), Some("1"));
     let response = reqwest::blocking::get(url)?;
     let body: serde_json::Map<String, serde_json::Value> = response.json()?;
     println!("{}", serde_json::to_string_pretty(&body)?);
+
+    Ok(())
+}
+
+/// Ping whichever node we've discovered.
+fn ping() -> Result<()> {
+    let url = build_url("monitor/ping".to_string(), None);
+    let response = reqwest::blocking::get(url)?;
+    let body = response.text()?;
+    println!("PING: {body}");
 
     Ok(())
 }
@@ -256,21 +294,21 @@ fn main() -> Result<()> {
     SERVAL_NODE_URL.lock().unwrap().replace(baseurl);
 
     match args.cmd {
+        Command::Store { manifest } => upload_manifest(manifest)?,
         Command::Run {
             name,
-            description,
-            binary_file,
             input_file,
             output_file,
         } => {
             // If people provide - as the filename, interpret that as stdin/stdout
             let input_file = input_file.filter(|p| p != &PathBuf::from("-"));
             let output_file = output_file.filter(|p| p != &PathBuf::from("-"));
-            run(name, description, binary_file, input_file, output_file)?;
+            run(name, input_file, output_file)?;
         }
         Command::Results { id } => results(id)?,
         Command::Status { id } => status(id)?,
         Command::History => history()?,
+        Command::Ping => ping()?,
     };
 
     Ok(())

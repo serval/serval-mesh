@@ -33,10 +33,14 @@ help:
     cargo clippy --fix --allow-dirty --allow-staged
     cargo fmt
 
-# Cargo install required tools like `nextest`
+# Install required linting/testing tools via cargo.
 @install-tools:
     cargo install cargo-nextest
     cargo install cargo-deny
+
+# Check for unused dependencies.
+check-unused:
+    cargo +nightly udeps --all
 
 # Everyone loves Lady Gaga, right?
 @dance:
