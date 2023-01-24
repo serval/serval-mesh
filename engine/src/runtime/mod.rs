@@ -29,6 +29,7 @@ pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Erro
     // extern "C" { fn add(a: i32, b: i32) -> i32; }
     // ```
     linker.func_wrap("serval", "add", add)?;
+    linker.func_wrap("serval", "invoke_capability", invoke_capability)?;
 
     // TODO: load custom capabilities and expose them, exact details TBD
 
@@ -41,4 +42,36 @@ pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Erro
 ///
 fn add(a: i32, b: i32) -> i32 {
     a + b
+}
+
+///
+/// Invokes the capability with the given name, passing along the given data payload and returning
+/// the response from the capability.
+///
+fn invoke_capability<T>(
+    mut caller: Caller<'_, T>,
+    capability_name_ptr: u32, // should point to UTF-8 string data
+    capability_name_len: u32,
+    data_ptr: u32, // can point to anything at all
+    data_len: u32,
+) -> u32 {
+    let Ok(memory) = get_memory_from_caller(&mut caller) else {
+        return 0;
+    };
+    let Ok(buf) = read_bytes(&caller, memory, capability_name_ptr, capability_name_len) else {
+        eprintln!("Failed to read from capability_name_len");
+        return 0;
+    };
+    let capability_name = String::from_utf8_lossy(&buf);
+    let Ok(data) = read_bytes(&caller, memory, data_ptr, data_len) else {
+        eprintln!("Failed to read from data_ptr");
+        return 0;
+    };
+
+    let response = format!("Hello there! I can see that you tried to call the {capability_name} capability with {} bytes of data (to wit: {data:?}). Capabilities are not actually implemented yet, but this message did come from the host environment, so that's worth something, right?", data.len());
+    let Ok(ptr) = write_bytes(&mut caller, &memory, response.as_bytes().to_vec()) else {
+        return 0;
+    };
+
+    ptr as u32
 }
