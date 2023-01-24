@@ -37,20 +37,22 @@ pub fn get_func_from_caller<T>(
     caller: &mut Caller<'_, T>,
     export_name: &str,
 ) -> Result<wasmtime::Func, ()> {
-    match caller.get_export(export_name) {
-        Some(Extern::Func(f)) => Ok(f),
-        _ => Err(()),
-    }
+    let Some(Extern::Func(f)) = caller.get_export(export_name) else {
+        return Err(());
+    };
+
+    Ok(f)
 }
 
 ///
 /// Returns a handle to the guest environment's Memory object.
 ///
 pub fn get_memory_from_caller<T>(caller: &mut Caller<'_, T>) -> Result<Memory, ()> {
-    match caller.get_export("memory") {
-        Some(Extern::Memory(mem)) => Ok(mem),
-        _ => Err(()),
-    }
+    let Some(Extern::Memory(mem)) = caller.get_export("memory") else {
+        return Err(());
+    };
+
+    Ok(mem)
 }
 
 ///
