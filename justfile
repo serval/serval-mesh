@@ -10,6 +10,10 @@ help:
 @release:
     cargo build --release --all-targets
 
+# Build documentation for all crates
+@doc *FLAGS:
+    cargo doc --release --no-deps --workspace {{FLAGS}}
+
 # Run the same checks we run in CI
 @ci: test
     cargo clippy
