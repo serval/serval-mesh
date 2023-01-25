@@ -1,6 +1,6 @@
 # serval-mesh
 
-[![Main branch checks](https://github.com/servals/serval-mesh/actions/workflows/main.yaml/badge.svg)](https://github.com/servals/serval-mesh/actions/workflows/main.yaml)
+[![Main branch checks](https://github.com/serval/serval-mesh/actions/workflows/main.yaml/badge.svg)](https://github.com/serval/serval-mesh/actions/workflows/main.yaml)
 
 This monorepo contains the source for the various components of the Serval mesh, intended to run on any host where you want to run WASM payloads. As of December 2022, this project is in very early stages of development and is changing rapidly.
 
