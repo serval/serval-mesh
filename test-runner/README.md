@@ -34,7 +34,7 @@ OPTIONS:
 
 This assumes the existence of a `.wasm` file and an input file with arbitrary content (but usable by the WASM executable).
 
-Compiling our [wasi-hello-world](https://github.com/servals/wasm-samples/tree/main/wasi-hello-world) example and creating a `testinput.txt` file with some text in it works for an initial quick & dirty test.
+Compiling our [wasi-hello-world](https://github.com/serval/wasm-samples/tree/main/wasi-hello-world) example and creating a `testinput.txt` file with some text in it works for an initial quick & dirty test.
 
 Then, this code can be run as follows:
 
