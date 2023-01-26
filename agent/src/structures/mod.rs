@@ -52,8 +52,8 @@ impl JobMetadata {
             id,
             name,
             description,
-            status_url: format!("/v1/jobs/{}/status", id),
-            result_url: format!("/v1/jobs/{}/result", id),
+            status_url: format!("/v1/jobs/{id}/status"),
+            result_url: format!("/v1/jobs/{id}/result"),
         }
     }
 
@@ -73,8 +73,8 @@ impl From<Envelope> for JobMetadata {
             id,
             name: envelope.name.clone(),
             description: envelope.description,
-            status_url: format!("/jobs/{}/status", id),
-            result_url: format!("/jobs/{}/result", id),
+            status_url: format!("/jobs/{id}/status"),
+            result_url: format!("/jobs/{id}/result"),
         }
     }
 }

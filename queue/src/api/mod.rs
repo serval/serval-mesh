@@ -25,7 +25,7 @@ pub async fn init_http(host: &str, port: u16, job_queue_filename: PathBuf) -> an
         .route("/jobs/:job_id/complete", post(v1::complete))
         .with_state(state);
 
-    let addr = format!("{}:{}", host, port);
+    let addr = format!("{host}:{port}");
     log::info!("Job queue service about to listen on http://{addr}");
     let addr: SocketAddr = addr.parse()?;
     match axum::Server::bind(&addr)
