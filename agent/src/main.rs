@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
     let mut port: u16;
     let server: Server<_, _> = loop {
         port = predefined_port.unwrap_or_else(|| find_nearest_port(8100).unwrap());
-        let addr: SocketAddr = format!("{}:{}", host, port).parse().unwrap();
+        let addr: SocketAddr = format!("{host}:{port}").parse().unwrap();
         match axum::Server::try_bind(&addr) {
             Ok(builder) => break builder.serve(app.into_make_service()),
             Err(_) => {

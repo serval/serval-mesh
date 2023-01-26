@@ -31,7 +31,7 @@ fn my_ipv4_interfaces() -> Vec<Ifv4Addr> {
 /// Find the nearest free port to the starting point.
 pub fn find_nearest_port(base_port: u16) -> Result<u16, ServalError> {
     for port in base_port..=u16::MAX {
-        if TcpListener::bind(format!("0.0.0.0:{}", port)).is_ok() {
+        if TcpListener::bind(format!("0.0.0.0:{port}")).is_ok() {
             return Ok(port);
         }
     }
