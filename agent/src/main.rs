@@ -12,14 +12,14 @@ use axum::{
     extract::DefaultBodyLimit,
     middleware::{self},
     routing::{get, head, post, put},
-    Router,
+    Router, Server,
 };
 use dotenvy::dotenv;
 use tokio::sync::Mutex;
 use utils::{mdns::advertise_service, networking::find_nearest_port};
 use uuid::Uuid;
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, process};
 use std::{path::PathBuf, sync::Arc};
 
 mod api;
@@ -41,10 +41,6 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-    let port: u16 = std::env::var("PORT")
-        .map(Ok)
-        .unwrap_or_else(|_| find_nearest_port(8100).map(|port| port.to_string()))?
-        .parse()?;
     let storage_role = match &std::env::var("STORAGE_ROLE").unwrap_or_else(|_| "auto".to_string())[..]
     {
         "always" => StorageRoleConfig::Always,
@@ -92,9 +88,30 @@ async fn main() -> Result<()> {
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
         .with_state(state);
 
-    let addr = format!("{}:{}", host, port);
-    log::info!("serval agent daemon listening on {}", &addr);
+    let predefined_port: Option<u16> = match std::env::var("PORT") {
+        Ok(port_str) => port_str.parse::<u16>().ok(),
+        Err(_) => None,
+    };
 
+    // Start the Axum server; this is in a loop so we can try binding more than once in case our
+    // randomly-selected port number ends up conflicting with something else due to a race condition.
+    let mut port: u16;
+    let server: Server<_, _> = loop {
+        port = predefined_port.unwrap_or_else(|| find_nearest_port(8100).unwrap());
+        let addr: SocketAddr = format!("{}:{}", host, port).parse().unwrap();
+        match axum::Server::try_bind(&addr) {
+            Ok(builder) => break builder.serve(app.into_make_service()),
+            Err(_) => {
+                // Port number in use already, presumably
+                if predefined_port.is_some() {
+                    log::error!("Specified port number ({port}) is already in use; aborting");
+                    process::exit(1);
+                }
+            }
+        }
+    };
+
+    log::info!("serval agent daemon listening on {host}:{port}");
     advertise_service("serval_daemon", port, &instance_id, None)?;
 
     if blob_path.is_some() {
@@ -102,10 +119,6 @@ async fn main() -> Result<()> {
         advertise_service("serval_storage", port, &instance_id, None)?;
     }
 
-    let addr: SocketAddr = addr.parse().unwrap();
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    server.await.unwrap();
     Ok(())
 }
