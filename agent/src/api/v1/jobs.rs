@@ -1,3 +1,5 @@
+use std::{collections::HashMap, path::PathBuf};
+
 use anyhow::Result;
 use axum::{
     extract::{Multipart, Path, State},
@@ -88,7 +90,7 @@ async fn run_job_inner(
         metadata.id(),
         binary.len()
     );
-    match execute_job(binary, input).await {
+    match execute_job(binary, input, &state.extensions).await {
         Ok(result) => {
             // We're not doing anything with stderr here.
             log::info!(
@@ -116,10 +118,14 @@ async fn run_job_inner(
 
 /// Run a job in the wasm engine.
 // Probably can vanish because there's only one caller.
-async fn execute_job(executable: Vec<u8>, input: Option<Vec<u8>>) -> Result<WasmResult> {
+async fn execute_job(
+    executable: Vec<u8>,
+    input: Option<Vec<u8>>,
+    extensions: &HashMap<String, PathBuf>,
+) -> Result<WasmResult> {
     let stdin = input.unwrap_or_default();
 
-    let mut engine = ServalEngine::new()?;
+    let mut engine = ServalEngine::new(extensions.clone())?;
     let result = engine.execute(&executable, &stdin)?;
 
     Ok(result)

@@ -9,6 +9,7 @@
 /// I am just a simple worker staying busy with one WebAssembly program at a time.
 use clap::Parser;
 use owo_colors::OwoColorize;
+use std::collections::HashMap;
 use std::path::Path;
 use std::{ffi::OsStr, fs};
 
@@ -59,7 +60,7 @@ fn main() -> anyhow::Result<()> {
     // [3]: https://petermalmgren.com/serverside-wasm-data/
 
     eprintln!("\n{} {}", "executing:".blue().bold(), exec_path.display());
-    let mut engine = ServalEngine::new()?;
+    let mut engine = ServalEngine::new(HashMap::new())?;
     let result = engine.execute(&binary, &stdin)?;
     eprintln!("{} {}", "exit status:".blue().bold(), result.code);
     eprintln!("\n{}:", "stdout".yellow().bold());

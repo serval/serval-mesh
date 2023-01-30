@@ -7,6 +7,11 @@
     unused_qualifications
 )]
 
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::PathBuf,
+};
 use utils::errors::ServalError;
 use utils::structs::WasmResult;
 use wasi_common::{
@@ -23,13 +28,14 @@ use crate::runtime::register_exports;
 #[derive(Clone)]
 /// Make one of these to get a WASM runner with the Serval glue.
 pub struct ServalEngine {
+    extensions: HashMap<String, PathBuf>,
     engine: Engine,
     linker: Linker<WasiCtx>,
 }
 
 impl ServalEngine {
-    /// Create a new serval engine. There is nothing to configure.
-    pub fn new() -> anyhow::Result<Self> {
+    /// Create a new serval engine.
+    pub fn new(extensions: HashMap<String, PathBuf>) -> anyhow::Result<Self> {
         let engine = Engine::default();
         let mut linker: Linker<WasiCtx> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
@@ -37,7 +43,11 @@ impl ServalEngine {
         // Wire up our host functions (functionality that we want to expose to the jobs we run)
         register_exports(&mut linker)?;
 
-        Ok(Self { engine, linker })
+        Ok(Self {
+            engine,
+            linker,
+            extensions,
+        })
     }
 
     /// Run the passed-in WASM executable on the given input bytes.
@@ -53,12 +63,37 @@ impl ServalEngine {
             .build();
 
         let mut store = Store::new(&self.engine, wasi);
+
         let module = Module::from_binary(&self.engine, binary)?;
 
+        // Load any custom WASM node features that the job requires (...and that we have)
+        let required_modules = module
+            .imports()
+            .map(|import| import.module().to_string())
+            .filter(|import| !import.starts_with("wasi_snapshot_"));
+        let required_modules: HashSet<String> = HashSet::from_iter(required_modules);
+
+        log::info!("Job wants the following extensions: {required_modules:?}");
+
+        for ext_name in required_modules {
+            let Some(filename) = self.extensions.get(&ext_name) else {
+                // We don't have an extension that matches the expected module name, which
+                // means that there is a very good chance that the job will fail when we try to
+                // run it. However, hope springs eternal, so let's keep going.
+                log::warn!("Extension {ext_name} is not available on this node");
+                continue;
+            };
+            let cap_module = Module::from_binary(&self.engine, &fs::read(filename)?[..])?;
+            if let Err(err) = self.linker.module(&mut store, &ext_name, &cap_module) {
+                let filename = filename.to_string_lossy();
+                log::warn!("Error when trying to load extension {ext_name} from {filename}: {err}")
+            };
+        }
+
         // Note: Any functions we want to expose to the module must be registered with the linker
-        // before the module itself. This currently happens up in the `new()` function, but I am
-        // leaving this note for future spelunkers: calling `linker.func_wrap(...)` at any point
-        // after the following line will not work as you expect.
+        // before the module itself, which we are about to do. I am leaving this note for future
+        // spelunkers: calling `linker.func_wrap(...)` etc. at any point after the following line
+        // will not work as you expect.
         self.linker.module(&mut store, "", &module)?;
 
         let executed = self

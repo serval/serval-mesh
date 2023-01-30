@@ -29,8 +29,6 @@ pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Erro
     linker.func_wrap("serval", "add", add)?;
     linker.func_wrap("serval", "invoke_raw", invoke_raw)?;
 
-    // TODO: load custom extensions and expose them, exact details TBD
-
     Ok(())
 }
 
