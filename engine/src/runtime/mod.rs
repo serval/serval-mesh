@@ -27,9 +27,9 @@ pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Erro
     // extern "C" { fn add(a: i32, b: i32) -> i32; }
     // ```
     linker.func_wrap("serval", "add", add)?;
-    linker.func_wrap("serval", "invoke_capability", invoke_capability)?;
+    linker.func_wrap("serval", "invoke_raw", invoke_raw)?;
 
-    // TODO: load custom capabilities and expose them, exact details TBD
+    // TODO: load custom extensions and expose them, exact details TBD
 
     Ok(())
 }
@@ -40,36 +40,36 @@ fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 
-const INVOKE_CAPABILITY_ERROR_FAILED_TO_GET_MEMORY: i32 = -1;
-const INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_CAPABILITY_NAME: i32 = -2;
-const INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_DATA: i32 = -3;
-const INVOKE_CAPABILITY_ERROR_FAILED_TO_WRITE_RESPONSE: i32 = -4;
+const INVOKE_EXTENSION_ERROR_FAILED_TO_GET_MEMORY: i32 = -1;
+const INVOKE_EXTENSION_ERROR_FAILED_TO_READ_EXTENSION_NAME: i32 = -2;
+const INVOKE_EXTENSION_ERROR_FAILED_TO_READ_DATA: i32 = -3;
+const INVOKE_EXTENSION_ERROR_FAILED_TO_WRITE_RESPONSE: i32 = -4;
 
-/// Invokes the capability with the given name, passing along the given data payload and returning
-/// the response from the capability.
-fn invoke_capability<T>(
+/// Invokes the extension with the given name, passing along the given data payload and returning
+/// the response from the extension.
+fn invoke_raw<T>(
     mut caller: Caller<'_, T>,
-    capability_name_ptr: u32, // should point to UTF-8 string data
-    capability_name_len: u32,
+    extension_name_ptr: u32, // should point to UTF-8 string data
+    extension_name_len: u32,
     data_ptr: u32, // can point to anything at all
     data_len: u32,
 ) -> i32 {
     let Ok(memory) = get_memory_from_caller(&mut caller) else {
-        return INVOKE_CAPABILITY_ERROR_FAILED_TO_GET_MEMORY;
+        return INVOKE_EXTENSION_ERROR_FAILED_TO_GET_MEMORY;
     };
-    let Ok(buf) = read_bytes(&caller, memory, capability_name_ptr, capability_name_len) else {
-        eprintln!("Failed to read from capability_name_len");
-        return INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_CAPABILITY_NAME;
+    let Ok(buf) = read_bytes(&caller, memory, extension_name_ptr, extension_name_len) else {
+        eprintln!("Failed to read from extension_name_len");
+        return INVOKE_EXTENSION_ERROR_FAILED_TO_READ_EXTENSION_NAME;
     };
-    let capability_name = String::from_utf8_lossy(&buf);
+    let extension_name = String::from_utf8_lossy(&buf);
     let Ok(data) = read_bytes(&caller, memory, data_ptr, data_len) else {
         eprintln!("Failed to read from data_ptr");
-        return INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_DATA;
+        return INVOKE_EXTENSION_ERROR_FAILED_TO_READ_DATA;
     };
 
-    let response = format!("Hello there! I can see that you tried to call the {capability_name} capability with {} bytes of data (to wit: {data:?}). Capabilities are not actually implemented yet, but this message did come from the host environment, so that's worth something, right?", data.len());
+    let response = format!("Hello there! I can see that you tried to call the {extension_name} extension with {} bytes of data (to wit: {data:?}). Extensions are not actually implemented yet, but this message did come from the host environment, so that's worth something, right?", data.len());
     let Ok(ptr) = write_bytes(&mut caller, &memory, response.as_bytes().to_vec()) else {
-        return INVOKE_CAPABILITY_ERROR_FAILED_TO_WRITE_RESPONSE;
+        return INVOKE_EXTENSION_ERROR_FAILED_TO_WRITE_RESPONSE;
     };
 
     ptr as i32
