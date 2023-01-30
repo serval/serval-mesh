@@ -61,11 +61,13 @@ async fn main() -> Result<()> {
                 .unwrap_or_else(|_| std::env::temp_dir().join("serval_storage")),
         ),
     };
+    let extensions_path = std::env::var("EXTENSIONS_PATH").ok().map(PathBuf::from);
 
     let instance_id = Uuid::new_v4();
     let state = Arc::new(Mutex::new(RunnerState::new(
         instance_id,
         blob_path.clone(),
+        extensions_path.clone(),
     )?));
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
@@ -86,7 +88,7 @@ async fn main() -> Result<()> {
         ))
         .route_layer(middleware::from_fn(clacks))
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
-        .with_state(state);
+        .with_state(state.clone());
 
     let predefined_port: Option<u16> = match std::env::var("PORT") {
         Ok(port_str) => port_str.parse::<u16>().ok(),
@@ -117,6 +119,16 @@ async fn main() -> Result<()> {
     if blob_path.is_some() {
         log::info!("serval agent blob store mounted; path={blob_path:?}");
         advertise_service("serval_storage", port, &instance_id, None)?;
+    }
+    if let Some(extensions_path) = extensions_path {
+        let state = state.lock().await;
+        let extensions = &state.extensions;
+        log::info!(
+            "Found {} extensions at {extensions_path:?}: {:?}",
+            extensions.len(),
+            extensions.keys(),
+        );
+    } else {
     }
 
     server.await.unwrap();
