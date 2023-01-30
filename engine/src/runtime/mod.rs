@@ -44,6 +44,11 @@ fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 
+const INVOKE_CAPABILITY_ERROR_FAILED_TO_GET_MEMORY: i32 = -1;
+const INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_CAPABILITY_NAME: i32 = -2;
+const INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_DATA: i32 = -3;
+const INVOKE_CAPABILITY_ERROR_FAILED_TO_WRITE_RESPONSE: i32 = -4;
+
 ///
 /// Invokes the capability with the given name, passing along the given data payload and returning
 /// the response from the capability.
@@ -54,24 +59,24 @@ fn invoke_capability<T>(
     capability_name_len: u32,
     data_ptr: u32, // can point to anything at all
     data_len: u32,
-) -> u32 {
+) -> i32 {
     let Ok(memory) = get_memory_from_caller(&mut caller) else {
-        return 0;
+        return INVOKE_CAPABILITY_ERROR_FAILED_TO_GET_MEMORY;
     };
     let Ok(buf) = read_bytes(&caller, memory, capability_name_ptr, capability_name_len) else {
         eprintln!("Failed to read from capability_name_len");
-        return 0;
+        return INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_CAPABILITY_NAME;
     };
     let capability_name = String::from_utf8_lossy(&buf);
     let Ok(data) = read_bytes(&caller, memory, data_ptr, data_len) else {
         eprintln!("Failed to read from data_ptr");
-        return 0;
+        return INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_DATA;
     };
 
     let response = format!("Hello there! I can see that you tried to call the {capability_name} capability with {} bytes of data (to wit: {data:?}). Capabilities are not actually implemented yet, but this message did come from the host environment, so that's worth something, right?", data.len());
     let Ok(ptr) = write_bytes(&mut caller, &memory, response.as_bytes().to_vec()) else {
-        return 0;
+        return INVOKE_CAPABILITY_ERROR_FAILED_TO_WRITE_RESPONSE;
     };
 
-    ptr as u32
+    ptr as i32
 }
