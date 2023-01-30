@@ -12,7 +12,7 @@ engine = { path = "../engine" }
 env_logger.workspace = true
 http = "0.2.8"
 hyper = "0.14.23"
-log = "0.4.17"
+log.workspace = true
 mdns-sd.workspace = true
 reqwest.workspace = true
 serde = { version = "1.0.149", features = ["serde_derive"] }
