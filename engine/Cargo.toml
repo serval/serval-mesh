@@ -8,6 +8,7 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow.workspace = true
+log.workspace = true
 utils = { path = "../utils" }
 wasi-common.workspace = true
 wasmtime.workspace = true
