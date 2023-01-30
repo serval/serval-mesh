@@ -3,11 +3,9 @@ use std::mem::size_of;
 use anyhow::anyhow;
 use wasmtime::{Caller, Extern, Memory, Val};
 
-///
 /// Calls into the guest environment to allocate a chunk of memory of the given size. if the guest
 /// does not expose a compatible alloc function, this will fail, and data exchange with the guest
 /// will not be possible. Our SDK automatically provides guest apps with this function.
-///
 pub fn alloc<T>(
     caller: &mut Caller<'_, T>,
     num_bytes_required: usize,
@@ -30,9 +28,7 @@ pub fn alloc<T>(
     Ok(ptr as usize)
 }
 
-///
 /// Returns a handle to the exported guest function with the given name, or an error if none exists.
-///
 pub fn get_func_from_caller<T>(
     caller: &mut Caller<'_, T>,
     export_name: &str,
@@ -44,9 +40,7 @@ pub fn get_func_from_caller<T>(
     Ok(f)
 }
 
-///
 /// Returns a handle to the guest environment's Memory object.
-///
 pub fn get_memory_from_caller<T>(caller: &mut Caller<'_, T>) -> Result<Memory, ()> {
     let Some(Extern::Memory(mem)) = caller.get_export("memory") else {
         return Err(());
@@ -55,9 +49,7 @@ pub fn get_memory_from_caller<T>(caller: &mut Caller<'_, T>) -> Result<Memory, (
     Ok(mem)
 }
 
-///
 /// Reads `len` bytes of data from the guest's memory starting at `ptr`.
-///
 pub fn read_bytes<T>(
     caller: &Caller<'_, T>,
     memory: Memory,
@@ -72,7 +64,6 @@ pub fn read_bytes<T>(
     Ok(buf)
 }
 
-///
 /// Writes the given data into the guest's memory, prefixed with a u32 indicating how many bytes of
 /// data were written. That is, if we want write the bytes [10, 20, 30, 40], this function will
 /// actually allocate 8 bytes total: 4 bytes for a u32 indicating the length of the data, followed by
@@ -80,7 +71,6 @@ pub fn read_bytes<T>(
 /// memory containing the byte sequence [4, 0, 0, 0, 10, 20, 30, 40].
 /// A peer function to this one (to go from a pointer in shared memory to a Vec<u8> containing data)
 /// exists in the SDK as `get_bytes_from_host`.
-///
 pub fn write_bytes<T>(
     caller: &mut Caller<'_, T>,
     memory: &Memory,
