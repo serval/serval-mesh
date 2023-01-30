@@ -5,9 +5,7 @@ use crate::runtime::helpers::{get_memory_from_caller, read_bytes, write_bytes};
 
 mod helpers;
 
-///
 /// Registers all of our Serval-specific functions with the given Linker instance.
-///
 pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Error> {
     // The first parameter to func_wrap is the name of the import namespace and the second is the
     // name of the function. The default namespace for WASM imports is "env". For example, this:
@@ -36,10 +34,8 @@ pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Erro
     Ok(())
 }
 
-///
 /// This solely exists to have a trivial function in the serval namespace that samples can easily
 /// call to verify that things are working properly.
-///
 fn add(a: i32, b: i32) -> i32 {
     a + b
 }
@@ -49,10 +45,8 @@ const INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_CAPABILITY_NAME: i32 = -2;
 const INVOKE_CAPABILITY_ERROR_FAILED_TO_READ_DATA: i32 = -3;
 const INVOKE_CAPABILITY_ERROR_FAILED_TO_WRITE_RESPONSE: i32 = -4;
 
-///
 /// Invokes the capability with the given name, passing along the given data payload and returning
 /// the response from the capability.
-///
 fn invoke_capability<T>(
     mut caller: Caller<'_, T>,
     capability_name_ptr: u32, // should point to UTF-8 string data
