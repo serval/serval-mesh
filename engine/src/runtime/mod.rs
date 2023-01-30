@@ -12,21 +12,21 @@ pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Erro
     // The first parameter to func_wrap is the name of the import namespace and the second is the
     // name of the function. The default namespace for WASM imports is "env". For example, this:
     // ```
-    // linker.func_wrap("env", "add", |a: i32, b: i32| -> i32 { a + b })?;
+    // linker.func_wrap("env", "add", |a: i64, b: i64| -> i64 { a + b })?;
     // ```
     // will define a function at `env::add`, which you can access in your WASM job under the name
     // "add" with the following extern block:
     // ```
-    // extern "C" { fn add(a: i32, b: i32) -> i32; }
+    // extern "C" { fn add(a: i64, b: i64) -> i64; }
     // ```
     // If you'd like your function to be under a different namespace, define it like this...
     // ```
-    // linker.func_wrap("foo", "add", |a: i32, b: i32| -> i32 { a + b })?;
+    // linker.func_wrap("foo", "add", |a: i64, b: i64| -> i64 { a + b })?;
     // ```
     // ...and import like this:
     // ```
     // #[link(wasm_import_module = "foo")]
-    // extern "C" { fn add(a: i32, b: i32) -> i32; }
+    // extern "C" { fn add(a: i64, b: i64) -> i64; }
     // ```
     linker.func_wrap("serval", "add", add)?;
     linker.func_wrap("serval", "invoke_capability", invoke_capability)?;
@@ -40,7 +40,7 @@ pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Erro
 /// This solely exists to have a trivial function in the serval namespace that samples can easily
 /// call to verify that things are working properly.
 ///
-fn add(a: i32, b: i32) -> i32 {
+fn add(a: i64, b: i64) -> i64 {
     a + b
 }
 
@@ -50,20 +50,27 @@ fn add(a: i32, b: i32) -> i32 {
 ///
 fn invoke_capability<T>(
     mut caller: Caller<'_, T>,
-    capability_name_ptr: u32, // should point to UTF-8 string data
-    capability_name_len: u32,
-    data_ptr: u32, // can point to anything at all
-    data_len: u32,
-) -> u32 {
+    capability_name_ptr: i64, // should point to UTF-8 string data
+    capability_name_len: i64,
+    data_ptr: i64, // can point to anything at all
+    data_len: i64,
+) -> i64 {
+    // WASM has no u64 equivalent, so we have to add these checks around pointers/lengths
+    assert!(capability_name_ptr >= 0);
+    assert!(capability_name_len >= 0);
+    assert!(data_ptr >= 0);
+    assert!(data_len >= 0);
+
     let Ok(memory) = get_memory_from_caller(&mut caller) else {
         return 0;
     };
-    let Ok(buf) = read_bytes(&caller, memory, capability_name_ptr, capability_name_len) else {
-        eprintln!("Failed to read from capability_name_len");
+    let Ok(buf) = read_bytes(&caller, memory, capability_name_ptr as usize, capability_name_len as usize) else {
+        eprintln!("Failed to read from capability_name_ptr");
         return 0;
     };
+
     let capability_name = String::from_utf8_lossy(&buf);
-    let Ok(data) = read_bytes(&caller, memory, data_ptr, data_len) else {
+    let Ok(data) = read_bytes(&caller, memory, data_ptr as usize, data_len as usize) else {
         eprintln!("Failed to read from data_ptr");
         return 0;
     };
@@ -73,5 +80,5 @@ fn invoke_capability<T>(
         return 0;
     };
 
-    ptr as u32
+    ptr as i64
 }
