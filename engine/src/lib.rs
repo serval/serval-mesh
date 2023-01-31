@@ -83,8 +83,8 @@ impl ServalEngine {
                 log::warn!("Extension {ext_name} is not available on this node");
                 continue;
             };
-            let cap_module = Module::from_binary(&self.engine, &fs::read(filename)?[..])?;
-            if let Err(err) = self.linker.module(&mut store, &ext_name, &cap_module) {
+            let ext_module = Module::from_binary(&self.engine, &fs::read(filename)?[..])?;
+            if let Err(err) = self.linker.module(&mut store, &ext_name, &ext_module) {
                 let filename = filename.to_string_lossy();
                 log::warn!("Error when trying to load extension {ext_name} from {filename}: {err}")
             };
