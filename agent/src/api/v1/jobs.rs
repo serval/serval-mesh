@@ -7,7 +7,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use engine::ServalEngine;
+use engine::{errors::ServalEngineError, ServalEngine};
 use utils::structs::WasmResult;
 
 use crate::structures::*;
@@ -103,11 +103,18 @@ async fn run_job_inner(
                 // Zero exit status code is a success.
                 (StatusCode::OK, result.stdout).into_response()
             } else {
-                // Now the fun part of http error signaling: the request was successful, but the
-                // result of the operation was bad from the user's point of view. Our behavior here
-                // is yet to be defined but I'm sending back stderr just to show we can.
                 (StatusCode::OK, result.stderr).into_response()
             }
+        }
+        Err(ServalEngineError::ExecutionError {
+            stdout: _,
+            error: _,
+            stderr,
+        }) => {
+            // Now the fun part of http error signaling: the request was successful, but the
+            // result of the operation was bad from the user's point of view. Our behavior here
+            // is yet to be defined but I'm sending back stderr just to show we can.
+            (StatusCode::OK, stderr).into_response()
         }
         Err(e) => {
             state.errors += 1;
@@ -122,7 +129,7 @@ async fn execute_job(
     executable: Vec<u8>,
     input: Option<Vec<u8>>,
     extensions: &HashMap<String, PathBuf>,
-) -> Result<WasmResult> {
+) -> Result<WasmResult, ServalEngineError> {
     let stdin = input.unwrap_or_default();
 
     let mut engine = ServalEngine::new(extensions.clone())?;

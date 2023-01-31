@@ -1,7 +1,8 @@
 use std::mem::size_of;
 
-use anyhow::anyhow;
 use wasmtime::{Caller, Extern, Memory, Val};
+
+use crate::errors::ServalEngineError;
 
 /// Calls into the guest environment to allocate a chunk of memory of the given size. if the guest
 /// does not expose a compatible alloc function, this will fail, and data exchange with the guest
@@ -9,9 +10,9 @@ use wasmtime::{Caller, Extern, Memory, Val};
 pub fn alloc<T>(
     caller: &mut Caller<'_, T>,
     num_bytes_required: usize,
-) -> Result<usize, anyhow::Error> {
+) -> Result<usize, ServalEngineError> {
     let Ok(alloc) = get_func_from_caller(caller, "alloc") else {
-        return Err(anyhow!("Failed to get alloc function from guest"));
+        return Err(ServalEngineError::InteropAllocUnavailable);
     };
 
     // Note: We're casting an unsigned usize into an i32, which means we're losing
@@ -21,10 +22,13 @@ pub fn alloc<T>(
     let params: Vec<Val> = vec![Val::I32(num_bytes_required as i32)];
     let mut results: Vec<Val> = vec![Val::I32(0)];
 
-    alloc.call(caller, &params, &mut results)?;
-    let wasmtime::Val::I32(ptr) = results[0] else {
-        return Err(anyhow!("Alloc call failed"));
+    if alloc.call(caller, &params, &mut results).is_err() {
+        return Err(ServalEngineError::InteropAllocFailed);
     };
+    let wasmtime::Val::I32(ptr) = results[0] else {
+        return Err(ServalEngineError::InteropAllocFailed);
+    };
+
     Ok(ptr as usize)
 }
 
@@ -55,11 +59,10 @@ pub fn read_bytes<T>(
     memory: Memory,
     ptr: u32,
     len: u32,
-) -> Result<Vec<u8>, anyhow::Error> {
+) -> Result<Vec<u8>, ServalEngineError> {
     let mut buf: Vec<u8> = vec![0; len as usize];
     if let Err(err) = memory.read(caller, ptr.to_owned() as usize, &mut buf) {
-        eprintln!("Memory access error: {err:?}");
-        return Err(anyhow!(err));
+        return Err(ServalEngineError::InteropMemoryAccessError(err));
     };
     Ok(buf)
 }
@@ -75,7 +78,7 @@ pub fn write_bytes<T>(
     caller: &mut Caller<'_, T>,
     memory: &Memory,
     bytes: Vec<u8>,
-) -> Result<usize, anyhow::Error> {
+) -> Result<usize, ServalEngineError> {
     // Allocate enough memory to write a u32 + the contents of `bytes`. We'll write
     // the length of bytes as a u32 at the start of the memory range, followed by
     // the contents of `bytes`.
@@ -85,7 +88,9 @@ pub fn write_bytes<T>(
     // Now, copy the data over
     let len_bytes = Vec::from((bytes.len() as u32).to_le_bytes());
     let out_buffer = [len_bytes, bytes].concat();
-    memory.write(caller, ptr, &out_buffer)?;
+    if let Err(err) = memory.write(caller, ptr, &out_buffer) {
+        return Err(ServalEngineError::InteropMemoryAccessError(err));
+    };
 
     Ok(ptr)
 }
