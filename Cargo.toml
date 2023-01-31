@@ -19,6 +19,7 @@ mdns-sd = { version = "0.5.9", default-features = false, features = ["async"] }
 reqwest = { version = "0.11.13",  default-features = false, features = ["brotli", "json", "rustls"] }
 serde = { version = "1.0.149", features = ["derive"] }
 serde_json = "1.0.89"
+thiserror = "1.0.38"
 tokio = { version = "1.22.0", features = ["full"] }
 tokio-util = { version = "0.7.4", features = ["io"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
