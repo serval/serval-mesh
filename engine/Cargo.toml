@@ -10,6 +10,7 @@ license = "BSD-2-Clause-Patent"
 anyhow.workspace = true
 log.workspace = true
 utils = { path = "../utils" }
+thiserror.workspace = true
 wasi-common.workspace = true
 wasmtime.workspace = true
 wasmtime-wasi.workspce = true

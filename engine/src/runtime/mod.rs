@@ -6,7 +6,7 @@ use crate::runtime::helpers::{get_memory_from_caller, read_bytes, write_bytes};
 mod helpers;
 
 /// Registers all of our Serval-specific functions with the given Linker instance.
-pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Error> {
+pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), ()> {
     // The first parameter to func_wrap is the name of the import namespace and the second is the
     // name of the function. The default namespace for WASM imports is "env". For example, this:
     // ```
@@ -26,8 +26,10 @@ pub fn register_exports(linker: &mut Linker<WasiCtx>) -> Result<(), anyhow::Erro
     // #[link(wasm_import_module = "foo")]
     // extern "C" { fn add(a: i32, b: i32) -> i32; }
     // ```
-    linker.func_wrap("serval", "add", add)?;
-    linker.func_wrap("serval", "invoke_raw", invoke_raw)?;
+    linker.func_wrap("serval", "add", add).map_err(|_| ())?;
+    linker
+        .func_wrap("serval", "invoke_raw", invoke_raw)
+        .map_err(|_| ())?;
 
     Ok(())
 }

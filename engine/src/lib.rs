@@ -12,7 +12,8 @@ use std::{
     fs,
     path::PathBuf,
 };
-use utils::errors::ServalError;
+
+use anyhow::anyhow;
 use utils::structs::WasmResult;
 use wasi_common::{
     pipe::{ReadPipe, WritePipe},
@@ -21,8 +22,9 @@ use wasi_common::{
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
+pub mod errors;
 mod runtime;
-use crate::runtime::register_exports;
+use crate::{errors::ServalEngineError, runtime::register_exports};
 
 #[allow(missing_debug_implementations)]
 #[derive(Clone)]
@@ -35,13 +37,16 @@ pub struct ServalEngine {
 
 impl ServalEngine {
     /// Create a new serval engine.
-    pub fn new(extensions: HashMap<String, PathBuf>) -> anyhow::Result<Self> {
+    pub fn new(extensions: HashMap<String, PathBuf>) -> Result<Self, ServalEngineError> {
         let engine = Engine::default();
         let mut linker: Linker<WasiCtx> = Linker::new(&engine);
-        wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
+        wasmtime_wasi::add_to_linker(&mut linker, |s| s)
+            .map_err(ServalEngineError::EngineInitializationError)?;
 
         // Wire up our host functions (functionality that we want to expose to the jobs we run)
-        register_exports(&mut linker)?;
+        register_exports(&mut linker).map_err(|_| {
+            ServalEngineError::EngineInitializationError(anyhow!("Failed to register exports"))
+        })?;
 
         Ok(Self {
             engine,
@@ -51,7 +56,11 @@ impl ServalEngine {
     }
 
     /// Run the passed-in WASM executable on the given input bytes.
-    pub fn execute(&mut self, binary: &[u8], input: &[u8]) -> Result<WasmResult, ServalError> {
+    pub fn execute(
+        &mut self,
+        binary: &[u8],
+        input: &[u8],
+    ) -> Result<WasmResult, ServalEngineError> {
         let stdout = WritePipe::new_in_memory();
         let stderr = WritePipe::new_in_memory();
 
@@ -64,7 +73,8 @@ impl ServalEngine {
 
         let mut store = Store::new(&self.engine, wasi);
 
-        let module = Module::from_binary(&self.engine, binary)?;
+        let module = Module::from_binary(&self.engine, binary)
+            .map_err(ServalEngineError::ModuleLoadError)?;
 
         // Load any custom WASM node features that the job requires (...and that we have)
         let required_modules = module
@@ -88,7 +98,9 @@ impl ServalEngine {
                 log::warn!("Extension {ext_name} is not available on this node");
                 continue;
             };
-            let ext_module = Module::from_binary(&self.engine, &fs::read(filename)?[..])?;
+            let ext_binary = &fs::read(filename)?[..];
+            let ext_module = Module::from_binary(&self.engine, ext_binary)
+                .map_err(ServalEngineError::ModuleLoadError)?;
             if let Err(err) = self.linker.module(&mut store, &ext_name, &ext_module) {
                 let filename = filename.to_string_lossy();
                 log::warn!("Error when trying to load extension {ext_name} from {filename}: {err}")
@@ -99,25 +111,30 @@ impl ServalEngine {
         // before the module itself, which we are about to do. I am leaving this note for future
         // spelunkers: calling `linker.func_wrap(...)` etc. at any point after the following line
         // will not work as you expect.
-        self.linker.module(&mut store, "", &module)?;
+        self.linker
+            .module(&mut store, "", &module)
+            .map_err(ServalEngineError::EngineInitializationError)?;
 
-        let executed = self
+        let default_export = self
             .linker
-            .get_default(&mut store, "")?
-            .typed::<(), ()>(&store)?
-            .call(&mut store, ());
+            .get_default(&mut store, "")
+            .map_err(|_| ServalEngineError::DefaultExportUnavailable)?;
+        let default_func = default_export
+            .typed::<(), ()>(&store)
+            .map_err(|_| ServalEngineError::InvalidDefaultExportFunctionSignature)?;
+        let executed = default_func.call(&mut store, ());
 
         // We have to drop the store here or we'll be unable to consume data from the WritePipe. See wasmtime docs.
         drop(store);
 
         let outbytes: Vec<u8> = stdout
             .try_into_inner()
-            .map_err(|_err| anyhow::Error::msg("failed to read stdout from the engine results"))?
+            .map_err(|_| ServalEngineError::StandardOutputReadError())?
             .into_inner();
 
         let errbytes: Vec<u8> = stderr
             .try_into_inner()
-            .map_err(|_err| anyhow::Error::msg("failed to read stdout from the engine results"))?
+            .map_err(|_| ServalEngineError::StandardErrorReadError())?
             .into_inner();
 
         // Here we run the WASM and trap any errors. We do not consider non-zero exit codes to be
@@ -129,9 +146,12 @@ impl ServalEngine {
                     exit.0
                 } else {
                     // This is a genuine error from the WASM engine, not a non-zero exit code from the
-                    // the WASM executable. We report this as -1. Your improvements to this signaling
-                    // method welcome.
-                    -1
+                    // the WASM executable.
+                    return Err(ServalEngineError::ExecutionError {
+                        error: e,
+                        stdout: outbytes,
+                        stderr: errbytes,
+                    });
                 }
             }
             Ok(_) => 0,
