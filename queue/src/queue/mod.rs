@@ -2,8 +2,8 @@
 use std::{fs, path::PathBuf};
 
 use anyhow::anyhow;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 // TODO: something better than a type alias, per https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
@@ -24,16 +24,16 @@ pub enum JobStatus {
 }
 
 /// Job metadata, including run history.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Job {
     id: Uuid,
     status: JobStatus,
     binary_addr: StorageAddress,
     input_addr: Option<StorageAddress>,
     output_addr: Option<StorageAddress>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    completed_at: Option<DateTime<Utc>>,
+    created_at: OffsetDateTime,
+    updated_at: OffsetDateTime,
+    completed_at: Option<OffsetDateTime>,
     run_attempts: usize,
     runner_id: Option<Uuid>,
 }
@@ -92,7 +92,7 @@ impl JobQueue {
             job.run_attempts += 1;
             job.runner_id = Some(runner_id.to_owned());
             job.status = JobStatus::Active;
-            job.updated_at = Utc::now();
+            job.updated_at = OffsetDateTime::now_utc();
 
             Some(job.clone())
         };
@@ -117,7 +117,7 @@ impl JobQueue {
 
             job.status = JobStatus::Completed;
             job.output_addr = output_addr.to_owned();
-            job.completed_at = Some(Utc::now());
+            job.completed_at = Some(OffsetDateTime::now_utc());
 
             Ok(())
         })
@@ -125,9 +125,9 @@ impl JobQueue {
 
     /// Sweep for abandoned jobs.
     pub fn detect_abandoned_jobs(&mut self) {
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         let is_abandoned = |job: &&mut Job| {
-            let time_since_update = (now - job.updated_at).num_seconds();
+            let time_since_update = (now - job.updated_at).whole_seconds();
             job.status == JobStatus::Active && time_since_update > ABANDONED_AGE_SECS
         };
 
@@ -141,7 +141,7 @@ impl JobQueue {
                 JobStatus::Failed
             };
             job.runner_id = None;
-            job.updated_at = Utc::now();
+            job.updated_at = OffsetDateTime::now_utc();
         }
 
         if needs_persist {
@@ -155,7 +155,7 @@ impl JobQueue {
         binary_addr: StorageAddress,
         input_addr: Option<StorageAddress>,
     ) -> anyhow::Result<Uuid> {
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         let id = Uuid::new_v4();
         let job = Job {
             id,
@@ -163,7 +163,11 @@ impl JobQueue {
             updated_at: now,
             binary_addr,
             input_addr,
-            ..Default::default()
+            status: JobStatus::Pending,
+            completed_at: None,
+            output_addr: None,
+            run_attempts: 0,
+            runner_id: None,
         };
         self.queue.push(job);
 
@@ -185,7 +189,7 @@ impl JobQueue {
 
             job.status = JobStatus::Failed;
             job.output_addr = output_addr.to_owned();
-            job.completed_at = Some(Utc::now());
+            job.completed_at = Some(OffsetDateTime::now_utc());
 
             Ok(())
         })
@@ -224,7 +228,7 @@ impl JobQueue {
                 return Err(anyhow!("Only active jobs may be tickled"));
             }
 
-            job.updated_at = Utc::now();
+            job.updated_at = OffsetDateTime::now_utc();
             Ok(())
         })
     }
@@ -246,6 +250,8 @@ impl JobQueue {
 
 #[cfg(test)]
 mod tests {
+    use time::Duration;
+
     use super::*;
 
     #[test]
@@ -311,7 +317,8 @@ mod tests {
         job_queue
             .with_job(&job1.id, &mut |job| {
                 println!("Making job look old {job:?}");
-                job.updated_at = Utc::now() - chrono::Duration::seconds(ABANDONED_AGE_SECS + 1);
+                job.updated_at =
+                    OffsetDateTime::now_utc() - Duration::seconds(ABANDONED_AGE_SECS + 1);
                 Ok(())
             })
             .unwrap();
@@ -332,7 +339,8 @@ mod tests {
         // test a job that has been abandoned too many times
         job_queue
             .with_job(&job1.id, &mut |job| {
-                job.updated_at = Utc::now() - chrono::Duration::seconds(ABANDONED_AGE_SECS + 1);
+                job.updated_at =
+                    OffsetDateTime::now_utc() - Duration::seconds(ABANDONED_AGE_SECS + 1);
                 job.run_attempts = MAX_ATTEMPTS;
                 Ok(())
             })
@@ -352,7 +360,7 @@ mod tests {
         // test tickling a job
         job_queue
             .with_job(&job2.id, &mut |job| {
-                job.updated_at = Utc::now() - chrono::Duration::seconds(1);
+                job.updated_at = OffsetDateTime::now_utc() - Duration::seconds(1);
                 Ok(())
             })
             .unwrap();
