@@ -72,7 +72,10 @@ impl ServalEngine {
             .map(|import| import.module().to_string())
             // Everything that uses WASI is going to try to import wasi_snapshot_preview_1; that's
             // provided by wasmtime_wasi for us.
-            .filter(|import| !import.starts_with("wasi_snapshot_"));
+            .filter(|import| !import.starts_with("wasi_snapshot_"))
+            // Our SDK functions are exported under the serval namespace; this is set up in the
+            // register_exports function that we call in our constructor, above.
+            .filter(|import| import != "serval");
         let required_modules: HashSet<String> = HashSet::from_iter(required_modules);
 
         log::info!("Job wants the following extensions: {required_modules:?}");
