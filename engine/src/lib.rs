@@ -70,6 +70,8 @@ impl ServalEngine {
         let required_modules = module
             .imports()
             .map(|import| import.module().to_string())
+            // Everything that uses WASI is going to try to import wasi_snapshot_preview_1; that's
+            // provided by wasmtime_wasi for us.
             .filter(|import| !import.starts_with("wasi_snapshot_"));
         let required_modules: HashSet<String> = HashSet::from_iter(required_modules);
 
