@@ -79,6 +79,8 @@ pub fn write_bytes<T>(
     memory: &Memory,
     bytes: Vec<u8>,
 ) -> Result<usize, ServalEngineError> {
+    assert!(bytes.len() < u32::MAX as usize);
+
     // Allocate enough memory to write a u32 + the contents of `bytes`. We'll write
     // the length of bytes as a u32 at the start of the memory range, followed by
     // the contents of `bytes`.
