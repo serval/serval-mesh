@@ -37,7 +37,10 @@ enum StorageRoleConfig {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenv().ok();
+    let did_find_dotenv = dotenv().ok().is_some();
+    if cfg!(debug_assertions) && !did_find_dotenv {
+        println!("Debug-only warning: no .env file found to configure logging; all logging will be disabled. Add RUST_LOG=info to .env to see logging.");
+    }
     env_logger::init();
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
