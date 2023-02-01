@@ -250,7 +250,7 @@ impl JobQueue {
 
 #[cfg(test)]
 mod tests {
-    use time::Duration;
+    use time::ext::NumericalDuration;
 
     use super::*;
 
@@ -317,8 +317,7 @@ mod tests {
         job_queue
             .with_job(&job1.id, &mut |job| {
                 println!("Making job look old {job:?}");
-                job.updated_at =
-                    OffsetDateTime::now_utc() - Duration::seconds(ABANDONED_AGE_SECS + 1);
+                job.updated_at = OffsetDateTime::now_utc() - (ABANDONED_AGE_SECS + 1).seconds();
                 Ok(())
             })
             .unwrap();
@@ -339,8 +338,7 @@ mod tests {
         // test a job that has been abandoned too many times
         job_queue
             .with_job(&job1.id, &mut |job| {
-                job.updated_at =
-                    OffsetDateTime::now_utc() - Duration::seconds(ABANDONED_AGE_SECS + 1);
+                job.updated_at = OffsetDateTime::now_utc() - (ABANDONED_AGE_SECS + 1).seconds();
                 job.run_attempts = MAX_ATTEMPTS;
                 Ok(())
             })
@@ -360,7 +358,7 @@ mod tests {
         // test tickling a job
         job_queue
             .with_job(&job2.id, &mut |job| {
-                job.updated_at = OffsetDateTime::now_utc() - Duration::seconds(1);
+                job.updated_at = OffsetDateTime::now_utc() - 1.seconds();
                 Ok(())
             })
             .unwrap();
