@@ -165,7 +165,14 @@ async fn main() -> Result<()> {
             extensions.len(),
             extensions.keys(),
         );
+    }
+
+    if should_run_jobs {
+        // todo: actually start polling job queue for work to do
+        log::info!("job running enabled");
+        advertise_service("serval_runner", port, &instance_id, None)?;
     } else {
+        log::info!("job running not enabled (or not supported)");
     }
 
     server.await.unwrap();
