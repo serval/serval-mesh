@@ -8,6 +8,7 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow = { workspace = true }
+cranelift-codegen-meta = "0.92.0"
 log = { workspace = true }
 utils = { path = "../utils" }
 thiserror = { workspace = true }
