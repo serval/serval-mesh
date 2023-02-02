@@ -14,6 +14,7 @@ use std::{
 };
 
 use anyhow::anyhow;
+use cranelift_codegen_meta::isa::Isa;
 use utils::structs::WasmResult;
 use wasi_common::{
     pipe::{ReadPipe, WritePipe},
@@ -164,6 +165,13 @@ impl ServalEngine {
         };
 
         Ok(result)
+    }
+
+    pub fn is_available() -> bool {
+        // The cranelift code generator that underpins wasmtime doesn't support every architecture
+        // under the sun; in particular, it doesn't support 32-bit ARM, which is a potentially
+        // viable target for the Serval agent in general.
+        Isa::from_arch(std::env::consts::ARCH).is_some()
     }
 }
 
