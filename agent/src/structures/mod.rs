@@ -17,6 +17,7 @@ pub struct RunnerState {
     pub jobs: HashMap<String, Job>,
     pub total: usize,
     pub errors: usize,
+    pub should_run_jobs: bool,
 }
 
 impl RunnerState {
@@ -24,6 +25,7 @@ impl RunnerState {
         instance_id: Uuid,
         blob_path: Option<PathBuf>,
         extensions_path: Option<PathBuf>,
+        should_run_jobs: bool,
     ) -> Result<Self, ServalError> {
         let storage = match blob_path {
             Some(path) => Some(BlobStore::new(path)?),
@@ -57,6 +59,7 @@ impl RunnerState {
             total: 0,
             errors: 0,
             jobs: HashMap::new(),
+            should_run_jobs,
         })
     }
 }

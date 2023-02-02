@@ -15,6 +15,7 @@ use axum::{
     Router, Server,
 };
 use dotenvy::dotenv;
+use engine::ServalEngine;
 use tokio::sync::Mutex;
 use utils::{mdns::advertise_service, networking::find_nearest_port};
 use uuid::Uuid;
@@ -63,6 +64,24 @@ async fn main() -> Result<()> {
     } else {
         None
     };
+    let should_run_jobs = match &std::env::var("RUNNER_ROLE").unwrap_or_else(|_| "auto".to_string())
+        [..]
+    {
+        "always" => {
+            if !ServalEngine::is_available() {
+                log::error!("RUNNER_ROLE environment variable is set to 'always', but this platform is not supported by our WASM engine.");
+                process::exit(1)
+            }
+            true
+        }
+        "auto" => ServalEngine::is_available(),
+        "never" => false,
+        _ => {
+            log::warn!("Invalid value for RUNNER_ROLE environment variable; defaulting to 'never'");
+            false
+        }
+    };
+
     let extensions_path = std::env::var("EXTENSIONS_PATH").ok().map(PathBuf::from);
 
     let instance_id = Uuid::new_v4();
@@ -70,6 +89,7 @@ async fn main() -> Result<()> {
         instance_id,
         blob_path.clone(),
         extensions_path.clone(),
+        should_run_jobs,
     )?));
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
