@@ -80,7 +80,7 @@ pub async fn store_executable(
         Ok(integrity) => {
             log::info!(
                 "Stored new executable; name={}@{}; executable_hash={}; size={}",
-                &manifest.name(),
+                manifest.fq_name(),
                 version,
                 integrity,
                 bytes.len()
@@ -127,12 +127,12 @@ pub async fn store_manifest(State(state): State<AppState>, body: String) -> impl
 
     match Manifest::from_string(&body) {
         Ok(manifest) => {
-            log::info!("storing manifest for job={}", manifest.name());
+            log::info!("storing manifest for job={}", manifest.fq_name());
             match storage.store_manifest(&manifest).await {
                 Ok(integrity) => {
                     log::info!(
                         "Stored new manifest; name={}; manifest_hash={}",
-                        &manifest.name(),
+                        manifest.fq_name(),
                         integrity.to_string(),
                     );
                     (StatusCode::CREATED, integrity.to_string()).into_response()

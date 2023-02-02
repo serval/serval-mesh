@@ -12,6 +12,7 @@ use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
+use prettytable::{row, Table};
 use tokio::runtime::Runtime;
 use utils::structs::Manifest;
 use uuid::Uuid;
@@ -86,55 +87,56 @@ fn build_url(path: String, version: Option<&str>) -> String {
 }
 
 fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
-    println!("Reading manifest at {}", manifest_path.display());
+    println!("Reading manifest: {}", manifest_path.display());
     let manifest = Manifest::from_file(&manifest_path)?;
+
+    println!("Reading WASM executable:{}", manifest.binary().display());
+    let executable = read_file(manifest.binary().to_path_buf())?;
 
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()?;
 
+    // Start building pretty output now that we're past the most likely errors.
+    println!();
+    let mut table = Table::new();
+    table.set_format(*prettytable::format::consts::FORMAT_CLEAN);
+    table.add_row(row!["WASM task name:", manifest.fq_name()]);
+    table.add_row(row!["Version:", manifest.version()]);
+
     let url = build_url("storage/manifests".to_string(), Some("1"));
     let response = client.post(url).body(manifest.to_string()).send()?;
 
     if !response.status().is_success() {
-        println!("Storing the manifest failed!");
-        println!("{} {}", response.status(), response.text()?);
+        table.add_row(row!["Storing the WASM manifest failed!".bold()]);
+        table.add_row(row![format!("{} {}", response.status(), response.text()?)]);
+        println!("{table}");
         return Ok(());
     }
 
     let manifest_integrity = response.text()?;
+    table.add_row(row!["Manifest integrity:", manifest_integrity]);
 
-    println!(
-        "Manifest stored; name={}; integrity={manifest_integrity}",
-        manifest.name().blue()
-    );
-
-    println!("Reading WASM executable at {}", manifest.binary().display());
-    let executable = read_file(manifest.binary())?;
     let vstring = format!(
         "storage/manifests/{}/executable/{}",
-        manifest.name(),
+        manifest.fq_name(),
         manifest.version()
     );
     let url = build_url(vstring, Some("1"));
-    println!("{url}");
     let response = client.put(url).body(executable).send()?;
     if response.status().is_success() {
         let wasm_integrity = response.text()?;
-        println!(
-            "WASM stored; name={}@{}; integrity={wasm_integrity}",
-            manifest.name().blue(),
-            manifest.version().blue()
-        );
-        println!(
-            "To run this WASM executable, run:\npounce run {}",
-            manifest.name()
-        );
+        table.add_row(row!["WASM integrity:", wasm_integrity]);
+        table.add_row(row![
+            "To run:",
+            format!("cargo run -- {}", manifest.fq_name()).bold().blue()
+        ]);
     } else {
-        println!("Storing the executable failed!");
-        println!("{} {}", response.status(), response.text()?);
+        table.add_row(row!["Storing the WASM executable failed!"]);
+        table.add_row(row![format!("{} {}", response.status(), response.text()?)]);
     }
 
+    println!("{table}");
     Ok(())
 }
 

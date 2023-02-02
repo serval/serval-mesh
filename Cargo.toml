@@ -26,3 +26,4 @@ uuid = { version = "1.2.2", features = ["serde", "v4"] }
 wasi-common = "5.0.0"
 wasmtime = "5.0.0"
 wasmtime-wasi = "5.0.0"
+

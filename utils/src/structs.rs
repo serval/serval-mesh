@@ -19,10 +19,10 @@ pub struct WasmResult {
 /// WASM executable metadata, for human reasons.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Manifest {
-    /// Name fully qualified by namespace.
-    fq_name: String,
-    /// Human-readable name. Case-insensitive. May only contain alphanumerics + underscore.
+    /// Short name of this WASM manifest. Lower-cased alphanumerics plus underscore.
     name: String,
+    /// The namespace this WASM manifest belongs to.
+    namespace: String,
     /// A semver-compatible version string. Semver not yet enforced.
     version: String,
     /// Path to a compiled WASM exectuable.
@@ -30,22 +30,10 @@ pub struct Manifest {
     /// Human-readable description.
     description: String,
     /// Required extensions.
-    required_extensions: Vec<String>, // TODO: version info, etc etc
+    required_extensions: Vec<String>, // TODO: this is a placeholder
 }
 
 impl Manifest {
-    // TODO: just to get going
-    pub fn new(namespace: String, name: String, description: String) -> Self {
-        // TODO: strip and lowercase name
-        let fq_name = format!("{namespace}.{name}");
-        Self {
-            fq_name,
-            name,
-            description,
-            ..Default::default()
-        }
-    }
-
     pub fn from_string(input: &str) -> Result<Self, ServalError> {
         let manifest: Manifest = toml::from_str(input)?;
         Ok(manifest)
@@ -57,17 +45,18 @@ impl Manifest {
         Ok(manifest)
     }
 
-    pub fn binary(&self) -> PathBuf {
-        self.binary.clone()
+    pub fn binary(&self) -> &PathBuf {
+        &self.binary
     }
 
-    pub fn version(&self) -> String {
-        self.version.clone()
+    pub fn version(&self) -> &str {
+        &self.version
     }
 
     /// Get the fully-qualified-by-namespace name for this job type manifest.
-    pub fn name(&self) -> String {
-        self.fq_name.clone()
+    pub fn fq_name(&self) -> String {
+        let name = self.name.to_ascii_lowercase().replace('-', "_");
+        format!("{}.{name}", self.namespace)
     }
 
     /// Given a name but no manifest, build a key.
@@ -77,7 +66,7 @@ impl Manifest {
 
     /// Get the storage key for this manifest.
     pub fn manifest_key(&self) -> String {
-        Manifest::make_manifest_key(&self.fq_name)
+        Manifest::make_manifest_key(&self.fq_name())
     }
 
     /// Given a name and a version but no manifest, build an executable key.
@@ -87,7 +76,7 @@ impl Manifest {
 
     /// Get the key for the executable pointed to by this manifest.
     pub fn executable_key(&self) -> String {
-        Manifest::make_executable_key(&self.fq_name, &self.version)
+        Manifest::make_executable_key(&self.fq_name(), &self.version)
     }
 }
 

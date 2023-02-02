@@ -33,14 +33,14 @@ pub async fn run_job(
         return (StatusCode::NOT_FOUND, "no manifest of that name found").into_response();
     };
 
-    let Ok(executable) = storage.executable_as_bytes(&name, &manifest.version()).await else {
+    let Ok(executable) = storage.executable_as_bytes(&name, manifest.version()).await else {
         return (StatusCode::NOT_FOUND, "no executable found for manifest; key={key}").into_response();
     };
 
     let job = Job::new(manifest, executable, input.to_vec());
     log::info!(
         "received WASM job; name={}; executable length={}; input length={}; id={}",
-        &job.manifest().name(),
+        &job.manifest().fq_name(),
         &job.executable().len(),
         input.len(),
         job.id()
