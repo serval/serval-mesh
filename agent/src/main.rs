@@ -28,13 +28,6 @@ use crate::api::*;
 mod structures;
 use crate::structures::RunnerState;
 
-#[derive(Debug, Clone)]
-enum StorageRoleConfig {
-    Auto,
-    Never,
-    Always,
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let did_find_dotenv = dotenv().ok().is_some();
@@ -46,23 +39,29 @@ async fn main() -> Result<()> {
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let storage_role = match &std::env::var("STORAGE_ROLE").unwrap_or_else(|_| "auto".to_string())[..]
     {
-        "always" => StorageRoleConfig::Always,
-        "auto" => StorageRoleConfig::Auto,
-        "never" => StorageRoleConfig::Never,
+        "always" => true,
+        "auto" => {
+            // todo: add some sort of heuristic to determine whether we should be a storage node
+            // for now, don't be a storage node unless explicitly asked to be; this should change
+            // once we have distributed storage rather than a single-node temporary hack.
+            false
+        }
+        "never" => false,
         _ => {
             log::warn!(
                 "Invalid value for STORAGE_ROLE environment variable; defaulting to 'never'"
             );
-            StorageRoleConfig::Never
+            false
         }
     };
-    let blob_path = match storage_role {
-        StorageRoleConfig::Never => None,
-        _ => Some(
+    let blob_path = if storage_role {
+        Some(
             std::env::var("BLOB_STORE")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| std::env::temp_dir().join("serval_storage")),
-        ),
+        )
+    } else {
+        None
     };
     let extensions_path = std::env::var("EXTENSIONS_PATH").ok().map(PathBuf::from);
 
