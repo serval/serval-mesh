@@ -136,7 +136,7 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         table.add_row(row!["WASM integrity:", wasm_integrity]);
         table.add_row(row![
             "To run:",
-            format!("cargo run -- run {}", manifest.fq_name())
+            format!("cargo run -p serval -- run {}", manifest.fq_name())
                 .bold()
                 .blue()
         ]);
