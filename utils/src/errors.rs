@@ -78,8 +78,6 @@ use axum::response::IntoResponse;
 impl IntoResponse for ServalError {
     fn into_response(self) -> axum::response::Response {
         let status = match &self {
-            ServalError::NoFreePorts(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ServalError::MdnsError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ServalError::AbnormalWasmExit { result: _ } => {
                 // We probably shouldn't be responding with this error directly ever,
                 // but we provide an implementation just in case. The assumption here is
@@ -90,7 +88,6 @@ impl IntoResponse for ServalError {
             ServalError::BlobAddressNotFound(_) => StatusCode::NOT_FOUND,
             ServalError::IoError(_) => StatusCode::NOT_FOUND,
             ServalError::ServiceNotFound => StatusCode::NOT_FOUND,
-            ServalError::AnyhowError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             // Catch-all for anything we don't want to add specific status codes for.
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };

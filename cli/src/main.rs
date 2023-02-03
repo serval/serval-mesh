@@ -129,7 +129,9 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         table.add_row(row!["WASM integrity:", wasm_integrity]);
         table.add_row(row![
             "To run:",
-            format!("cargo run -- run {}", manifest.fq_name()).bold().blue()
+            format!("cargo run -- run {}", manifest.fq_name())
+                .bold()
+                .blue()
         ]);
     } else {
         table.add_row(row!["Storing the WASM executable failed!"]);
