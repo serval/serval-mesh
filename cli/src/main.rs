@@ -20,6 +20,7 @@ use uuid::Uuid;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -90,8 +91,14 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     println!("Reading manifest: {}", manifest_path.display());
     let manifest = Manifest::from_file(&manifest_path)?;
 
-    println!("Reading WASM executable:{}", manifest.binary().display());
-    let executable = read_file(manifest.binary().to_path_buf())?;
+    let mut wasmpath = manifest_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+    wasmpath.push(manifest.binary());
+
+    println!("Reading WASM executable:{}", wasmpath.display());
+    let executable = read_file(wasmpath)?;
 
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(60))
