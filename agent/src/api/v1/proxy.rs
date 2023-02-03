@@ -1,5 +1,6 @@
 use anyhow::Result;
 use axum::{
+    body::{Body, HttpBody},
     extract::State,
     http::{Request, StatusCode},
     middleware::Next,
@@ -15,12 +16,13 @@ use utils::{
 use super::*;
 use crate::structures::AppState;
 
-pub async fn proxy_unavailable_services<B>(
+pub async fn proxy_unavailable_services(
     State(state): State<AppState>,
-    req: Request<B>,
-    next: Next<B>,
+    mut req: Request<Body>,
+    next: Next<Body>,
 ) -> Result<Response, StatusCode> {
     let path = req.uri().path();
+
     if path.starts_with("/v1/storage/") {
         let state = state.lock().await;
         if state.storage.is_none() {
@@ -28,12 +30,10 @@ pub async fn proxy_unavailable_services<B>(
                 "proxy_unavailable_services intercepting request; path={}",
                 path,
             );
-
-            let Ok(resp) = proxy_request_to_service(&req, "_serval_storage", &state.instance_id).await else {
+            let Ok(resp) = proxy_request_to_service(&mut req, "_serval_storage", &state.instance_id).await else {
                 // Welp, not much we can do
                 return Ok((StatusCode::SERVICE_UNAVAILABLE, "Storage not available").into_response());
             };
-
             return Ok(resp);
         }
     }
@@ -45,8 +45,8 @@ pub async fn proxy_unavailable_services<B>(
 // proxies the given request to to the first node that we discover that is advertising the given
 // service. in the future, we may keep a list of known nodes for a given service so we can avoid
 // running the discovery process for every proxy request.
-async fn proxy_request_to_service<B>(
-    req: &Request<B>,
+async fn proxy_request_to_service(
+    req: &mut Request<Body>,
     service_name: &str,
     source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
@@ -62,8 +62,8 @@ async fn proxy_request_to_service<B>(
     })
 }
 
-async fn proxy_request_to_other_node<B>(
-    req: &Request<B>,
+async fn proxy_request_to_other_node(
+    req: &mut Request<Body>,
     info: &ServiceInfo,
     source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
@@ -91,6 +91,20 @@ async fn proxy_request_to_other_node<B>(
         "Serval-Proxied-For",
         HeaderValue::from_str(&source_instance_id.to_string()).map_err(anyhow::Error::from)?,
     );
+
+    // Copy the body over
+    if let Some(req_body_bytes_res) = req.body_mut().data().await {
+        if let Ok(req_body_bytes) = req_body_bytes_res {
+            inner_req = inner_req.body(req_body_bytes);
+        } else {
+            log::warn!("Failed to copy body bytes over; aborting this request");
+            return Ok((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to copy body bytes",
+            )
+                .into_response());
+        }
+    }
 
     // Actually send the request
     let inner_req_res = inner_req.send().await?;
