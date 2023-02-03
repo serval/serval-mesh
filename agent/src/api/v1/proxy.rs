@@ -49,6 +49,8 @@ pub async fn proxy_unavailable_services(
 fn get_proxy_target_service(path: &str, state: &RunnerState) -> Option<String> {
     if path.starts_with("/v1/storage/") && state.storage.is_none() {
         return Some(String::from("_serval_storage"));
+    } else if path.starts_with("/v1/jobs/") && !state.should_run_jobs {
+        return Some(String::from("_serval_runner"));
     }
 
     None

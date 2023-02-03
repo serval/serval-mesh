@@ -96,10 +96,10 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .route("/monitor/ping", get(ping))
         .route("/monitor/status", get(v1::jobs::monitor_status))
-        .route("/v1/jobs", get(v1::jobs::running)) // TODO
-        .route("/v1/jobs/:name/run", post(v1::jobs::run_job)) // has an input payload; TODO options (needs design)
         // begin optional endpoints; these requests will be pre-empted by our
         // proxy_unavailable_services middleware if they aren't implemented by this instance.
+        .route("/v1/jobs", get(v1::jobs::running)) // TODO
+        .route("/v1/jobs/:name/run", post(v1::jobs::run_job)) // has an input payload; TODO options (needs design)
         .route("/v1/storage/manifests", get(v1::storage::list_manifests))
         .route("/v1/storage/manifests", post(v1::storage::store_manifest))
         .route(
