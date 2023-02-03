@@ -76,14 +76,29 @@ async fn main() -> Result<()> {
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
     let app = Router::new()
         .route("/monitor/ping", get(ping))
-        .route("/v1/monitor/history", get(v1::jobs::monitor_history))
-        .route("/v1/jobs", post(v1::jobs::incoming))
-        .route("/v1/run/:addr", get(v1::jobs::run_stored_job))
+        .route("/monitor/status", get(v1::jobs::monitor_status))
+        .route("/v1/jobs", get(v1::jobs::running)) // TODO
+        .route("/v1/jobs/:name/run", post(v1::jobs::run_job)) // has an input payload; TODO options (needs design)
         // begin optional endpoints; these requests will be pre-empted by our
         // proxy_unavailable_services middleware if they aren't implemented by this instance.
-        .route("/v1/storage/blobs", put(v1::storage::store_blob))
-        .route("/v1/storage/blobs/:addr", get(v1::storage::get_blob))
-        .route("/v1/storage/blobs/:addr", head(v1::storage::has_blob))
+        .route("/v1/storage/manifests", get(v1::storage::list_manifests))
+        .route("/v1/storage/manifests", post(v1::storage::store_manifest))
+        .route(
+            "/v1/storage/manifests/:name",
+            get(v1::storage::get_manifest),
+        )
+        .route(
+            "/v1/storage/manifests/:name",
+            head(v1::storage::has_manifest),
+        )
+        .route(
+            "/v1/storage/manifests/:name/executable/:version",
+            put(v1::storage::store_executable),
+        )
+        .route(
+            "/v1/storage/manifests/:name/executable/:version",
+            get(v1::storage::get_executable),
+        )
         // end optional endpoints
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

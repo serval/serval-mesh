@@ -1,25 +1,14 @@
+use cacache::Reader;
 use serde::Serialize;
-use sha2::{Digest, Sha256};
-use tokio::io::AsyncReadExt;
-use tokio::{fs::File, io::AsyncWriteExt};
+use ssri::Integrity;
 use tokio_util::io::ReaderStream;
-use tokio_util::io::StreamReader;
 
 use std::fs;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 
 use crate::errors::ServalError;
-
-fn is_valid_address(addr: &str) -> bool {
-    // this does not seem worth adding a regexp crate for
-    let valid_chars = String::from("0123456789abcdef");
-    addr.len() == 64
-        && addr
-            .to_lowercase()
-            .chars()
-            .all(|ch| valid_chars.contains(ch))
-}
+use crate::structs::Manifest;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct BlobStore {
@@ -47,67 +36,106 @@ impl BlobStore {
         Ok(Self { location })
     }
 
+    /// Fetch a manifest by its fully-qualified name.
+    pub async fn manifest(&self, fq_name: &str) -> Result<Manifest, ServalError> {
+        let bytes = cacache::read(&self.location, Manifest::make_manifest_key(fq_name)).await?;
+        if let Ok(data) = String::from_utf8(bytes) {
+            let manifest: Manifest = toml::from_str(&data)?;
+            Ok(manifest)
+        } else {
+            // TODO: bad data error
+            Err(ServalError::ManifestNotFound(fq_name.to_string()))
+        }
+    }
+
+    /// Store a job type manifest. Returns the integrity checksum.
+    pub async fn store_manifest(&self, manifest: &Manifest) -> Result<Integrity, ServalError> {
+        let toml = toml::to_string(manifest)?;
+        let meta_sri = cacache::write(&self.location, manifest.manifest_key(), &toml).await?;
+        Ok(meta_sri)
+    }
+
+    /// Store a job with metadata and an executable for later use. Returns the integrity checksums for the pair.
+    pub async fn store_manifest_and_executable(
+        &self,
+        manifest: &Manifest,
+        executable: &[u8],
+    ) -> Result<(Integrity, Integrity), ServalError> {
+        let toml = toml::to_string(manifest)?;
+        let meta_sri = cacache::write(&self.location, manifest.manifest_key(), &toml).await?;
+        let exec_sri =
+            cacache::write(&self.location, manifest.executable_key(), executable).await?;
+
+        Ok((meta_sri, exec_sri))
+    }
+
+    /// Store an executable in our blob store by its fully-qualified manifest name and a version string.
+    pub async fn store_executable(
+        &self,
+        name: &str,
+        version: &str,
+        bytes: &[u8],
+    ) -> Result<String, ServalError> {
+        let key = Manifest::make_executable_key(name, version);
+        let sri = cacache::write(&self.location, key, bytes).await?;
+        Ok(sri.to_string())
+    }
+
     /// Given a content address, return a read stream for the object stored there.
     /// Responds with an error if no object is found or if the address is invalid.
-    pub async fn get_stream(&self, address: &str) -> Result<ReaderStream<File>, ServalError> {
-        if !is_valid_address(address) {
-            return Err(ServalError::BlobAddressInvalid(address.to_string()));
-        }
-
-        let filename = self.location.join(address);
-        if !filename.exists() {
-            return Err(ServalError::BlobAddressNotFound(address.to_string()));
-        }
-
-        let file = tokio::fs::File::open(filename).await?;
-        let stream = ReaderStream::new(file);
+    pub async fn executable_by_sri(
+        &self,
+        address: &str,
+    ) -> Result<ReaderStream<Reader>, ServalError> {
+        let integrity: Integrity = address.parse()?;
+        let fd = cacache::Reader::open_hash(&self.location, integrity).await?;
+        let stream = ReaderStream::new(fd);
         Ok(stream)
     }
 
-    // Given a content address, determine whether we have a blob stored there or not.
-    pub async fn has_blob(&self, address: &str) -> Result<bool, ServalError> {
-        match self.get_stream(address).await {
-            Ok(_) => Ok(true),
-            Err(ServalError::BlobAddressNotFound(_)) => Ok(false),
-            Err(err) => Err(err),
-        }
+    /// Fetch an executable by key as a read stream.
+    pub async fn executable_as_stream(
+        &self,
+        name: &str,
+        version: &str,
+    ) -> Result<ReaderStream<Reader>, ServalError> {
+        let key = Manifest::make_executable_key(name, version);
+        let fd = cacache::Reader::open(&self.location, key).await?;
+        let stream = ReaderStream::new(fd);
+        Ok(stream)
     }
 
-    // A non-streaming way to retrieve a stored blob; please use get_stream instead wherever possible.
-    pub async fn get_bytes(&self, address: &str) -> Result<Vec<u8>, ServalError> {
-        let stream = self.get_stream(address).await?;
-        let mut reader = StreamReader::new(stream);
-        let mut binary = Vec::new();
-        let _count = reader.read_to_end(&mut binary).await;
+    /// A non-streaming way to retrieve a stored blob. Prefer executable_as_stream() if you can.
+    pub async fn executable_as_bytes(
+        &self,
+        name: &str,
+        version: &str,
+    ) -> Result<Vec<u8>, ServalError> {
+        let key = Manifest::make_executable_key(name, version);
+        let binary: Vec<u8> = cacache::read(&self.location, key).await?;
         Ok(binary)
     }
 
-    /// Store an object in our blob store.
-    pub async fn store(&self, body: &[u8]) -> Result<(bool, String), ServalError> {
-        let mut hasher = Sha256::new();
-        hasher.update(body);
-        let blob_addr = hex::encode(hasher.finalize());
-        let filename = self.location.join(&blob_addr);
-        if filename.exists() {
-            return Ok((false, blob_addr));
-        }
-
-        let mut file = tokio::fs::File::create(filename).await?;
-        file.write_all(body).await?;
-        Ok((true, blob_addr))
+    /// Checks if the given blob is in the content store, by its SRI string.
+    pub async fn data_exists_by_hash(&self, address: &str) -> Result<bool, ServalError> {
+        let integrity: Integrity = address.parse()?;
+        Ok(cacache::exists(&self.location, &integrity).await)
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use crate::blobs::is_valid_address;
+    /// Checks if the given job type is present in our data store, using the fully-qualified name.
+    pub async fn data_exists_by_key(&self, fq_name: &str) -> Result<bool, ServalError> {
+        let key = Manifest::make_manifest_key(fq_name);
+        match cacache::Reader::open(&self.location, key).await {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false), // TODO: probably should handle errors more granularly
+        }
+    }
 
-    #[test]
-    fn valid_and_invalid_addresses() {
-        assert!(is_valid_address(
-            "25449ceed05926fc81700a3e8b66f66291ba9ed67dea9af88f83647ddb40e2f3"
-        ));
-        assert!(!is_valid_address("deadbeef"));
-        assert!(!is_valid_address("invalid characters"));
+    pub fn manifest_names(&self) -> Result<Vec<String>, ServalError> {
+        let result: Vec<String> = cacache::list_sync(&self.location)
+            .filter(|xs| xs.is_ok())
+            .map(|xs| xs.unwrap().key)
+            .collect();
+        Ok(result)
     }
 }

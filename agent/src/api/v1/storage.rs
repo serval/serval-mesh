@@ -3,21 +3,24 @@ use axum::{
     extract::{Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
+    Json,
 };
 
 use utils::errors::ServalError;
+use utils::structs::Manifest;
 
 use crate::structures::AppState;
 
-pub async fn get_blob(
-    Path(blob_addr): Path<String>,
+/// Fetch an executable by fully-qualified manifest name.
+pub async fn get_executable(
+    Path((name, version)): Path<(String, String)>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     // Yeah, I don't like this.
     let state = state.lock().await;
     let storage = state.storage.as_ref().unwrap();
 
-    match storage.get_stream(&blob_addr).await {
+    match storage.executable_as_stream(&name, &version).await {
         Ok(stream) => {
             let body = StreamBody::new(stream);
             let headers = [(
@@ -25,42 +28,78 @@ pub async fn get_blob(
                 String::from("application/octet-stream"),
             )];
 
-            log::info!("Serving blob; addr={}", &blob_addr);
+            log::info!("Serving job binary; name={}", &name);
             (headers, body).into_response()
         }
         Err(e) => {
-            log::warn!("error reading blob; addr={}; error={}", blob_addr, e);
+            log::warn!("error reading job binary; name={}; error={}", name, e);
             e.into_response()
         }
     }
 }
 
-pub async fn store_blob(State(state): State<AppState>, body: Bytes) -> impl IntoResponse {
+/// Fetch task manifest by name. The manifest is returned as json.
+pub async fn get_manifest(
+    Path(name): Path<String>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
     // Yeah, I don't like this.
-    let state = state.lock().await;
-    let storage = state.storage.as_ref().unwrap();
+    let lock = state.lock().await;
+    let storage = lock.storage.as_ref().unwrap();
 
-    match storage.store(&body).await {
-        Ok((new, address)) => {
-            log::info!("Stored blob; addr={} size={}", &address, body.len());
-            if new {
-                (StatusCode::CREATED, address).into_response()
-            } else {
-                (StatusCode::OK, address).into_response()
-            }
+    match storage.manifest(&name).await {
+        Ok(v) => {
+            log::info!("Serving job manifest; name={}", &name);
+            let stringified = v.to_string();
+            let headers = [(header::CONTENT_TYPE, String::from("application/toml"))];
+            (headers, stringified).into_response()
         }
-        Err(_e) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            log::warn!("error reading job metadata; name={}; error={}", &name, e);
+            e.into_response()
+        }
     }
 }
 
-pub async fn has_blob(Path(blob_addr): Path<String>, State(state): State<AppState>) -> StatusCode {
+/// Store a job with its metadata.
+pub async fn store_executable(
+    State(state): State<AppState>,
+    Path((name, version)): Path<(String, String)>,
+    body: Bytes,
+) -> impl IntoResponse {
+    let lock = state.lock().await;
+    let storage = lock.storage.as_ref().unwrap();
+
+    let Ok(manifest) = storage.manifest(&name).await else {
+        return (StatusCode::NOT_FOUND, format!("no manifest of that name found; name={name}")).into_response();
+    };
+
+    let bytes = body.to_vec();
+
+    match storage.store_executable(&name, &version, &bytes).await {
+        Ok(integrity) => {
+            log::info!(
+                "Stored new executable; name={}@{}; executable_hash={}; size={}",
+                manifest.fq_name(),
+                version,
+                integrity,
+                bytes.len()
+            );
+            (StatusCode::CREATED, integrity).into_response()
+        }
+        Err(e) => e.into_response(),
+    }
+}
+
+/// Returns true if this node has access to the given task type, specified by fully-qualified name.
+pub async fn has_manifest(Path(name): Path<String>, State(state): State<AppState>) -> StatusCode {
     // Yeah, I don't like this.
     let state = state.lock().await;
     let storage = state.storage.as_ref().unwrap();
 
-    match storage.has_blob(&blob_addr).await {
+    match storage.data_exists_by_key(&name).await {
         Ok(exists) => {
-            log::info!("Has blob?; exists={exists} addr={blob_addr}");
+            log::info!("Has manifest?; exists={exists} addr={name}");
             if exists {
                 StatusCode::OK
             } else {
@@ -69,5 +108,38 @@ pub async fn has_blob(Path(blob_addr): Path<String>, State(state): State<AppStat
         }
         Err(ServalError::BlobAddressInvalid(_)) => StatusCode::BAD_REQUEST,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+pub async fn list_manifests(State(state): State<AppState>) -> impl IntoResponse {
+    let lock = state.lock().await;
+    let storage = lock.storage.as_ref().unwrap();
+
+    match storage.manifest_names() {
+        Ok(list) => (StatusCode::OK, Json(list)).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+pub async fn store_manifest(State(state): State<AppState>, body: String) -> impl IntoResponse {
+    let lock = state.lock().await;
+    let storage = lock.storage.as_ref().unwrap();
+
+    match Manifest::from_string(&body) {
+        Ok(manifest) => {
+            log::info!("storing manifest for job={}", manifest.fq_name());
+            match storage.store_manifest(&manifest).await {
+                Ok(integrity) => {
+                    log::info!(
+                        "Stored new manifest; name={}; manifest_hash={}",
+                        manifest.fq_name(),
+                        integrity.to_string(),
+                    );
+                    (StatusCode::CREATED, integrity.to_string()).into_response()
+                }
+                Err(e) => e.into_response(),
+            }
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
     }
 }

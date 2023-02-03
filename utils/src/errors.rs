@@ -39,15 +39,37 @@ pub enum ServalError {
     #[error("no blob found at address `{0}`")]
     BlobAddressNotFound(String),
 
+    /// This job has no metadata
+    #[error("no metadata for job `{0}`")]
+    ManifestNotFound(String),
+
     /// A conversion for std:io:Error
     #[error("std::io::Error: {0}")]
     IoError(#[from] std::io::Error),
 
+    /// The searched-for mdns service could not be found.
     #[error("mdns service was not found before timeout")]
     ServiceNotFound,
 
+    /// Translation for errors from reqwest.
     #[error("reqwest::Error: {0}")]
     ReqwestError(#[from] reqwest::Error),
+
+    /// Translation for errors from cacache
+    #[error("cacache::Error: {0}")]
+    CacacheError(#[from] cacache::Error),
+
+    /// Translation for serialization errors from toml.
+    #[error("toml::ser::Error: {0}")]
+    TomlSerializationError(#[from] toml::ser::Error),
+
+    /// Translation for deserialization errors from toml.
+    #[error("toml::de::Error: {0}")]
+    TomlDeserializationError(#[from] toml::de::Error),
+
+    /// Translation for errors from ssri.
+    #[error("ssri::Error: {0}")]
+    SsriError(#[from] ssri::Error),
 }
 
 use axum::http::StatusCode;
@@ -56,20 +78,18 @@ use axum::response::IntoResponse;
 impl IntoResponse for ServalError {
     fn into_response(self) -> axum::response::Response {
         let status = match &self {
-            ServalError::NoFreePorts(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ServalError::MdnsError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ServalError::AbnormalWasmExit { result: _ } => {
                 // We probably shouldn't be responding with this error directly ever,
                 // but we provide an implementation just in case. The assumption here is
                 // that the WASM executable was bad in some way.
                 StatusCode::BAD_REQUEST
             }
-            ServalError::AnyhowError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ServalError::BlobAddressInvalid(_) => StatusCode::BAD_REQUEST,
             ServalError::BlobAddressNotFound(_) => StatusCode::NOT_FOUND,
             ServalError::IoError(_) => StatusCode::NOT_FOUND,
             ServalError::ServiceNotFound => StatusCode::NOT_FOUND,
-            ServalError::ReqwestError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            // Catch-all for anything we don't want to add specific status codes for.
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         (status, self.to_string()).into_response()
