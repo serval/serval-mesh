@@ -9,16 +9,14 @@ use axum::{
 use utils::errors::ServalError;
 use utils::structs::Manifest;
 
-use crate::structures::AppState;
+use crate::structures::*;
 
 /// Fetch an executable by fully-qualified manifest name.
 pub async fn get_executable(
     Path((name, version)): Path<(String, String)>,
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
 ) -> impl IntoResponse {
-    // Yeah, I don't like this.
-    let state = state.lock().await;
-    let storage = state.storage.as_ref().unwrap();
+    let storage = STORAGE.get().unwrap();
 
     match storage.executable_as_stream(&name, &version).await {
         Ok(stream) => {
@@ -41,11 +39,9 @@ pub async fn get_executable(
 /// Fetch task manifest by name. The manifest is returned as json.
 pub async fn get_manifest(
     Path(name): Path<String>,
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
 ) -> impl IntoResponse {
-    // Yeah, I don't like this.
-    let lock = state.lock().await;
-    let storage = lock.storage.as_ref().unwrap();
+    let storage = STORAGE.get().unwrap();
 
     match storage.manifest(&name).await {
         Ok(v) => {
@@ -63,12 +59,11 @@ pub async fn get_manifest(
 
 /// Store a job with its metadata.
 pub async fn store_executable(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path((name, version)): Path<(String, String)>,
     body: Bytes,
 ) -> impl IntoResponse {
-    let lock = state.lock().await;
-    let storage = lock.storage.as_ref().unwrap();
+    let storage = STORAGE.get().unwrap();
 
     let Ok(manifest) = storage.manifest(&name).await else {
         return (StatusCode::NOT_FOUND, format!("no manifest of that name found; name={name}")).into_response();
@@ -92,10 +87,8 @@ pub async fn store_executable(
 }
 
 /// Returns true if this node has access to the given task type, specified by fully-qualified name.
-pub async fn has_manifest(Path(name): Path<String>, State(state): State<AppState>) -> StatusCode {
-    // Yeah, I don't like this.
-    let state = state.lock().await;
-    let storage = state.storage.as_ref().unwrap();
+pub async fn has_manifest(Path(name): Path<String>, State(_state): State<AppState>) -> StatusCode {
+    let storage = STORAGE.get().unwrap();
 
     match storage.data_exists_by_key(&name).await {
         Ok(exists) => {
@@ -111,9 +104,8 @@ pub async fn has_manifest(Path(name): Path<String>, State(state): State<AppState
     }
 }
 
-pub async fn list_manifests(State(state): State<AppState>) -> impl IntoResponse {
-    let lock = state.lock().await;
-    let storage = lock.storage.as_ref().unwrap();
+pub async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
+    let storage = STORAGE.get().unwrap();
 
     match storage.manifest_names() {
         Ok(list) => (StatusCode::OK, Json(list)).into_response(),
@@ -121,9 +113,8 @@ pub async fn list_manifests(State(state): State<AppState>) -> impl IntoResponse 
     }
 }
 
-pub async fn store_manifest(State(state): State<AppState>, body: String) -> impl IntoResponse {
-    let lock = state.lock().await;
-    let storage = lock.storage.as_ref().unwrap();
+pub async fn store_manifest(State(_state): State<AppState>, body: String) -> impl IntoResponse {
+    let storage = STORAGE.get().unwrap();
 
     match Manifest::from_string(&body) {
         Ok(manifest) => {

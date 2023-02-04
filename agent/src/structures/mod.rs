@@ -1,23 +1,22 @@
 use anyhow::Result;
+use once_cell::sync::OnceCell;
 use serde::Serialize;
-use tokio::sync::Mutex;
-use utils::{blobs::BlobStore, errors::ServalError, structs::Job};
+use utils::{blobs::BlobStore, errors::ServalError};
 use uuid::Uuid;
 
 use std::fs;
 use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf};
 
+pub static STORAGE: OnceCell<BlobStore> = OnceCell::new();
+
 /// Our application state. Fields are public for now but we'll want to fix that.
 #[derive(Debug, Clone, Serialize)]
 pub struct RunnerState {
     pub instance_id: Uuid,
     pub extensions: HashMap<String, PathBuf>,
-    pub storage: Option<BlobStore>,
-    pub jobs: HashMap<String, Job>,
-    pub total: usize,
-    pub errors: usize,
     pub should_run_jobs: bool,
+    pub has_storage: bool,
 }
 
 impl RunnerState {
@@ -27,10 +26,15 @@ impl RunnerState {
         extensions_path: Option<PathBuf>,
         should_run_jobs: bool,
     ) -> Result<Self, ServalError> {
-        let storage = match blob_path {
-            Some(path) => Some(BlobStore::new(path)?),
-            None => None,
+        let has_storage = match blob_path {
+            Some(path) => {
+                let store = BlobStore::new(path)?;
+                STORAGE.set(store).unwrap();
+                true
+            }
+            None => false,
         };
+
         let extensions = if let Some(extensions_path) = extensions_path {
             // Read the contents of the directory at the given path and build a HashMap that maps
             // from the module's name (the filename minus the .wasm extension) to its path on disk.
@@ -54,14 +58,11 @@ impl RunnerState {
 
         Ok(RunnerState {
             instance_id,
-            storage,
             extensions,
-            total: 0,
-            errors: 0,
-            jobs: HashMap::new(),
             should_run_jobs,
+            has_storage,
         })
     }
 }
 
-pub type AppState = Arc<Mutex<RunnerState>>;
+pub type AppState = Arc<RunnerState>;
