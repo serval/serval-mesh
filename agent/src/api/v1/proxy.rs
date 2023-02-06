@@ -37,7 +37,6 @@ pub async fn proxy_unavailable_services(
         };
         return Ok(resp);
     }
-    drop(state); // must explicitly drop before we call `next.run(req)` lest we deadlock
 
     let response = next.run(req).await;
     Ok(response)
