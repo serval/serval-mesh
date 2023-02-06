@@ -16,7 +16,6 @@ use axum::{
 };
 use dotenvy::dotenv;
 use engine::ServalEngine;
-use tokio::sync::Mutex;
 use utils::{mdns::advertise_service, networking::find_nearest_port};
 use uuid::Uuid;
 
@@ -27,7 +26,7 @@ mod api;
 use crate::api::*;
 
 mod structures;
-use crate::structures::RunnerState;
+use crate::structures::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -85,12 +84,17 @@ async fn main() -> Result<()> {
     let extensions_path = std::env::var("EXTENSIONS_PATH").ok().map(PathBuf::from);
 
     let instance_id = Uuid::new_v4();
-    let state = Arc::new(Mutex::new(RunnerState::new(
+    let state = Arc::new(RunnerState::new(
         instance_id,
         blob_path.clone(),
         extensions_path.clone(),
         should_run_jobs,
-    )?));
+    )?);
+    log::info!(
+        "agent configured with storage={} and run-jobs={}",
+        state.has_storage,
+        state.should_run_jobs
+    );
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
     let app = Router::new()
@@ -158,7 +162,6 @@ async fn main() -> Result<()> {
         advertise_service("serval_storage", port, &instance_id, None)?;
     }
     if let Some(extensions_path) = extensions_path {
-        let state = state.lock().await;
         let extensions = &state.extensions;
         log::info!(
             "Found {} extensions at {extensions_path:?}: {:?}",

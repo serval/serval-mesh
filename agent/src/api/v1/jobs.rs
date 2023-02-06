@@ -3,7 +3,6 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use engine::{errors::ServalEngineError, ServalEngine};
 use utils::structs::Job;
@@ -11,9 +10,8 @@ use utils::structs::Job;
 use crate::structures::*;
 
 /// Report on runtime history
-pub async fn monitor_status(state: State<AppState>) -> Json<RunnerState> {
-    let state = state.lock().await;
-    Json(state.clone())
+pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
+    StatusCode::NOT_IMPLEMENTED
 }
 
 /// Get running jobs
@@ -27,8 +25,7 @@ pub async fn run_job(
     state: State<AppState>,
     input: Bytes,
 ) -> impl IntoResponse {
-    let mut lock = state.lock().await;
-    let storage = lock.storage.as_ref().unwrap();
+    let storage = STORAGE.get().expect("Storage not initialized!");
     let Ok(manifest) = storage.manifest(&name).await else {
         return (StatusCode::NOT_FOUND, "no manifest of that name found").into_response();
     };
@@ -46,11 +43,6 @@ pub async fn run_job(
         job.id()
     );
 
-    // Poor human's history tracking here. We'll need to do better at some point.
-    // E.g., handle overflows. That would be some nice uptime.
-    lock.total += 1;
-    lock.jobs.insert(job.id().to_string(), job.clone());
-
     let start = std::time::Instant::now();
 
     // What we'll do later is accept this job for processing and send it to a thread or something.
@@ -63,7 +55,7 @@ pub async fn run_job(
         job.executable().len()
     );
 
-    let extensions = lock.extensions.clone();
+    let extensions = state.extensions.clone();
 
     let Ok(mut engine) = ServalEngine::new(extensions) else {
         return (StatusCode::INTERNAL_SERVER_ERROR, "unable to create wasm engine").into_response();
@@ -96,9 +88,6 @@ pub async fn run_job(
             // is yet to be defined but I'm sending back stderr just to show we can.
             (StatusCode::OK, stderr).into_response()
         }
-        Err(e) => {
-            lock.errors += 1;
-            (StatusCode::BAD_REQUEST, e.to_string()).into_response()
-        }
+        Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
     }
 }

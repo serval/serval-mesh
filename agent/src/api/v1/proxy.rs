@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use anyhow::Result;
 use axum::{
     body::{Body, HttpBody},
@@ -8,14 +10,13 @@ use axum::{
 };
 use http::header::{CONTENT_LENGTH, EXPECT, HOST};
 use mdns_sd::ServiceInfo;
-use std::ops::Deref;
 use utils::{
     errors::ServalError,
     mdns::{discover_service, get_service_instance_id},
 };
 
 use super::*;
-use crate::structures::{AppState, RunnerState};
+use crate::structures::*;
 
 pub async fn proxy_unavailable_services(
     State(state): State<AppState>,
@@ -24,20 +25,18 @@ pub async fn proxy_unavailable_services(
 ) -> Result<Response, StatusCode> {
     let path = req.uri().path();
 
-    let runner_state = state.lock().await;
-    if let Some(target_service) = get_proxy_target_service(path, runner_state.deref()) {
+    if let Some(target_service) = get_proxy_target_service(path, state.deref()) {
         // This node can't handle this request; proxy to a node running the `target_service` service
         log::info!(
             "proxy_unavailable_services intercepting request; target={target_service}; path={path}",
         );
 
-        let Ok(resp) = proxy_request_to_service(&mut req, &target_service, &runner_state.instance_id).await else {
+        let Ok(resp) = proxy_request_to_service(&mut req, &target_service, &state.instance_id).await else {
             // Welp, not much we can do
             return Ok((StatusCode::SERVICE_UNAVAILABLE, format!("{target_service} not available")).into_response());
         };
         return Ok(resp);
     }
-    drop(runner_state); // must explicitly drop before we call `next.run(req)` lest we deadlock
 
     let response = next.run(req).await;
     Ok(response)
@@ -47,7 +46,7 @@ pub async fn proxy_unavailable_services(
 // the name of the required service (e.g. `_service_storage`) that should be used to find a node
 // that actually can handle the request.
 fn get_proxy_target_service(path: &str, state: &RunnerState) -> Option<String> {
-    if path.starts_with("/v1/storage/") && state.storage.is_none() {
+    if path.starts_with("/v1/storage/") && !state.has_storage {
         return Some(String::from("_serval_storage"));
     } else if path.starts_with("/v1/jobs/") && !state.should_run_jobs {
         return Some(String::from("_serval_runner"));
