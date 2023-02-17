@@ -9,9 +9,10 @@
 
 use anyhow::Result;
 use axum::{
+    body::*,
     extract::DefaultBodyLimit,
     middleware::{self},
-    routing::{get, head, post, put},
+    routing::get,
     Router, Server,
 };
 use dotenvy::dotenv;
@@ -97,36 +98,25 @@ async fn main() -> Result<()> {
     );
 
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
-    let app = Router::new()
+
+    let mut router: Router<Arc<RunnerState>, Body> = Router::new()
         .route("/monitor/ping", get(ping))
-        .route("/monitor/status", get(v1::jobs::monitor_status))
-        // begin optional endpoints; these requests will be pre-empted by our
-        // proxy_unavailable_services middleware if they aren't implemented by this instance.
-        .route("/v1/jobs", get(v1::jobs::running)) // TODO
-        .route("/v1/jobs/:name/run", post(v1::jobs::run_job)) // has an input payload; TODO options (needs design)
-        .route("/v1/storage/manifests", get(v1::storage::list_manifests))
-        .route("/v1/storage/manifests", post(v1::storage::store_manifest))
-        .route(
-            "/v1/storage/manifests/:name",
-            get(v1::storage::get_manifest),
-        )
-        .route(
-            "/v1/storage/manifests/:name",
-            head(v1::storage::has_manifest),
-        )
-        .route(
-            "/v1/storage/manifests/:name/executable/:version",
-            put(v1::storage::store_executable),
-        )
-        .route(
-            "/v1/storage/manifests/:name/executable/:version",
-            get(v1::storage::get_executable),
-        )
-        // end optional endpoints
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            v1::proxy::proxy_unavailable_services,
-        ))
+        .route("/monitor/status", get(monitor_status));
+
+    // NOTE: We have two of these now. If we develop a third, generalize this pattern.
+    router = if state.has_storage {
+        v1::storage::mount(router)
+    } else {
+        router.route_layer(middleware::from_fn_with_state(state.clone(), v1::storage::proxy))
+    };
+
+    router = if state.should_run_jobs {
+        v1::jobs::mount(router)
+    } else {
+        router.route_layer(middleware::from_fn_with_state(state.clone(), v1::jobs::proxy))
+    };
+
+    let app = router
         .route_layer(middleware::from_fn(clacks))
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
         .with_state(state.clone());

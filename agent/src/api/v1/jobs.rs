@@ -1,26 +1,55 @@
 use axum::{
-    body::Bytes,
+    body::{Body, Bytes},
     extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
+    http::{Request, StatusCode},
+    middleware::Next,
+    response::{Response, IntoResponse},
+    routing::{get, post },
 };
 use engine::{errors::ServalEngineError, ServalEngine};
 use utils::structs::Job;
 
 use crate::structures::*;
 
-/// Report on runtime history
-pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+/// Mount all jobs endpoint handlers onto the passed-in router.
+pub fn mount(router: ServalRouter) -> ServalRouter {
+    router
+    .route("/v1/jobs", get(running)) // TODO
+    .route("/v1/jobs/:name/run", post(run_job)) // has an input payload; TODO options (needs design)
+}
+/// Instead of mounting routes, mount middleware that relays all job-running requests to another node.
+pub async fn proxy(
+    State(state): State<AppState>,
+    mut req: Request<Body>,
+    next: Next<Body>,
+) -> Result<Response, StatusCode> {
+    let path = req.uri().path();
+    if path.starts_with("/v1/jobs/") {
+        log::info!("relaying a job-runner request; path={path}");
+        if let Ok(resp) =
+            super::proxy::relay_request(&mut req, SERVAL_SERVICE_RUNNER, &state.instance_id).await
+        {
+            Ok(resp)
+        } else {
+            // Welp, not much we can do
+            Ok((
+                StatusCode::SERVICE_UNAVAILABLE,
+                format!("{SERVAL_SERVICE_RUNNER} not available"),
+            )
+                .into_response())
+        }
+    } else {
+        Ok(next.run(req).await)
+    }
 }
 
 /// Get running jobs
-pub async fn running(_state: State<AppState>) -> impl IntoResponse {
+async fn running(_state: State<AppState>) -> impl IntoResponse {
     StatusCode::NOT_IMPLEMENTED
 }
 
 /// This is the main worker endpoint. It accepts incoming jobs and runs them.
-pub async fn run_job(
+async fn run_job(
     Path(name): Path<String>,
     state: State<AppState>,
     input: Bytes,
@@ -91,3 +120,4 @@ pub async fn run_job(
         Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
     }
 }
+

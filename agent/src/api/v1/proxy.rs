@@ -1,64 +1,21 @@
-use std::ops::Deref;
-
-use anyhow::Result;
 use axum::{
     body::{Body, HttpBody},
-    extract::State,
     http::{Request, StatusCode},
-    middleware::Next,
     response::{IntoResponse, Response},
 };
-use http::header::{CONTENT_LENGTH, EXPECT, HOST};
+use http::{header::{CONTENT_LENGTH, EXPECT, HOST}, HeaderValue};
 use mdns_sd::ServiceInfo;
 use utils::{
     errors::ServalError,
     mdns::{discover_service, get_service_instance_id},
 };
+use uuid::Uuid;
 
-use super::*;
-use crate::structures::*;
 
-pub async fn proxy_unavailable_services(
-    State(state): State<AppState>,
-    mut req: Request<Body>,
-    next: Next<Body>,
-) -> Result<Response, StatusCode> {
-    let path = req.uri().path();
-
-    if let Some(target_service) = get_proxy_target_service(path, state.deref()) {
-        // This node can't handle this request; proxy to a node running the `target_service` service
-        log::info!(
-            "proxy_unavailable_services intercepting request; target={target_service}; path={path}",
-        );
-
-        let Ok(resp) = proxy_request_to_service(&mut req, &target_service, &state.instance_id).await else {
-            // Welp, not much we can do
-            return Ok((StatusCode::SERVICE_UNAVAILABLE, format!("{target_service} not available")).into_response());
-        };
-        return Ok(resp);
-    }
-
-    let response = next.run(req).await;
-    Ok(response)
-}
-
-// determines whether this node is able to handle a request to the given path, and if not, returns
-// the name of the required service (e.g. `_service_storage`) that should be used to find a node
-// that actually can handle the request.
-fn get_proxy_target_service(path: &str, state: &RunnerState) -> Option<String> {
-    if path.starts_with("/v1/storage/") && !state.has_storage {
-        return Some(String::from("_serval_storage"));
-    } else if path.starts_with("/v1/jobs/") && !state.should_run_jobs {
-        return Some(String::from("_serval_runner"));
-    }
-
-    None
-}
-
-// proxies the given request to to the first node that we discover that is advertising the given
+// Relay the given request to to the first node that we discover that is advertising the given
 // service. in the future, we may keep a list of known nodes for a given service so we can avoid
 // running the discovery process for every proxy request.
-async fn proxy_request_to_service(
+pub async fn relay_request(
     req: &mut Request<Body>,
     service_name: &str,
     source_instance_id: &Uuid,
@@ -163,7 +120,7 @@ async fn reqwest_response_to_axum_response(
 #[cfg(test)]
 mod tests {
 
-    use anyhow::anyhow;
+    use anyhow::{anyhow, Result};
     use axum::body::Bytes;
     use http::response::Builder;
     use reqwest::Response;
