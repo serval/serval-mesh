@@ -1,8 +1,9 @@
 use anyhow::Result;
 use axum::{
+    extract::State,
     http::{Request, StatusCode},
     middleware::Next,
-    response::{IntoResponse, Response}, extract::State,
+    response::{IntoResponse, Response},
 };
 use http::header::HeaderValue;
 
@@ -33,4 +34,3 @@ pub async fn ping() -> String {
 pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
     StatusCode::NOT_IMPLEMENTED
 }
-

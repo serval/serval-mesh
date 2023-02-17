@@ -2,9 +2,8 @@ use axum::{
     body::{Body, Bytes},
     extract::{Path, State},
     http::{Request, StatusCode},
-    middleware::Next,
-    response::{Response, IntoResponse},
-    routing::{get, post },
+    response::IntoResponse,
+    routing::{any, get, post},
 };
 use engine::{errors::ServalEngineError, ServalEngine};
 use utils::structs::Job;
@@ -14,32 +13,31 @@ use crate::structures::*;
 /// Mount all jobs endpoint handlers onto the passed-in router.
 pub fn mount(router: ServalRouter) -> ServalRouter {
     router
-    .route("/v1/jobs", get(running)) // TODO
-    .route("/v1/jobs/:name/run", post(run_job)) // has an input payload; TODO options (needs design)
+        .route("/v1/jobs", get(running)) // TODO
+        .route("/v1/jobs/:name/run", post(run_job)) // has an input payload; TODO options (needs design)
 }
-/// Instead of mounting routes, mount middleware that relays all job-running requests to another node.
-pub async fn proxy(
-    State(state): State<AppState>,
-    mut req: Request<Body>,
-    next: Next<Body>,
-) -> Result<Response, StatusCode> {
-    let path = req.uri().path();
-    if path.starts_with("/v1/jobs/") {
-        log::info!("relaying a job-runner request; path={path}");
-        if let Ok(resp) =
-            super::proxy::relay_request(&mut req, SERVAL_SERVICE_RUNNER, &state.instance_id).await
-        {
-            Ok(resp)
-        } else {
-            // Welp, not much we can do
-            Ok((
-                StatusCode::SERVICE_UNAVAILABLE,
-                format!("{SERVAL_SERVICE_RUNNER} not available"),
-            )
-                .into_response())
-        }
+
+/// Mount a handler that relays all job-running requests to another node.
+pub fn mount_proxy(router: ServalRouter) -> ServalRouter {
+    router.route("/v1/jobs/*", any(proxy))
+}
+
+/// Relay all storage requests to a node that can handle them.
+async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> impl IntoResponse {
+    let path = request.uri().path();
+    log::info!("relaying a job runner request; path={path}");
+
+    if let Ok(resp) =
+        super::proxy::relay_request(&mut request, SERVAL_SERVICE_RUNNER, &state.instance_id).await
+    {
+        resp
     } else {
-        Ok(next.run(req).await)
+        // Welp, not much we can do
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("{SERVAL_SERVICE_RUNNER} not available"),
+        )
+            .into_response()
     }
 }
 
@@ -120,4 +118,3 @@ async fn run_job(
         Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
     }
 }
-

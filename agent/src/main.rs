@@ -107,13 +107,13 @@ async fn main() -> Result<()> {
     router = if state.has_storage {
         v1::storage::mount(router)
     } else {
-        router.route_layer(middleware::from_fn_with_state(state.clone(), v1::storage::proxy))
+        v1::storage::mount_proxy(router)
     };
 
     router = if state.should_run_jobs {
         v1::jobs::mount(router)
     } else {
-        router.route_layer(middleware::from_fn_with_state(state.clone(), v1::jobs::proxy))
+        v1::jobs::mount_proxy(router)
     };
 
     let app = router

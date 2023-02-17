@@ -3,14 +3,16 @@ use axum::{
     http::{Request, StatusCode},
     response::{IntoResponse, Response},
 };
-use http::{header::{CONTENT_LENGTH, EXPECT, HOST}, HeaderValue};
+use http::{
+    header::{CONTENT_LENGTH, EXPECT, HOST},
+    HeaderValue,
+};
 use mdns_sd::ServiceInfo;
 use utils::{
     errors::ServalError,
     mdns::{discover_service, get_service_instance_id},
 };
 use uuid::Uuid;
-
 
 // Relay the given request to to the first node that we discover that is advertising the given
 // service. in the future, we may keep a list of known nodes for a given service so we can avoid

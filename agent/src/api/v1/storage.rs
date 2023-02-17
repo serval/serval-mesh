@@ -2,9 +2,8 @@ use axum::{
     body::{Body, Bytes, StreamBody},
     extract::{Path, State},
     http::{header, Request, StatusCode},
-    middleware::Next,
-    response::{Response, IntoResponse},
-    routing::{get, head, post, put},
+    response::IntoResponse,
+    routing::{any, get, head, post, put},
     Json,
 };
 
@@ -30,31 +29,27 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
         )
 }
 
-/// Relay all storage requests to a node that can handle them.
-pub async fn proxy(
-    State(state): State<AppState>,
-    mut req: Request<Body>,
-    next: Next<Body>,
-) -> Result<Response, StatusCode> {
-    // TODO: I kinda don't like this as middleware, but maybe it's the cleanest way to do it.
+/// Mount a handler for all storage routes that relays requests to a node that can handle them.
+pub fn mount_proxy(router: ServalRouter) -> ServalRouter {
+    router.route("/v1/storage/*", any(proxy))
+}
 
-    let path = req.uri().path();
-    if path.starts_with("/v1/storage/") {
-        log::info!("relaying a storage request; path={path}");
-        if let Ok(resp) =
-            super::proxy::relay_request(&mut req, SERVAL_SERVICE_STORAGE, &state.instance_id).await
-        {
-            Ok(resp)
-        } else {
-            // Welp, not much we can do
-            Ok((
-                StatusCode::SERVICE_UNAVAILABLE,
-                format!("{SERVAL_SERVICE_STORAGE} not available"),
-            )
-                .into_response())
-        }
+/// Relay all storage requests to a node that can handle them.
+async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> impl IntoResponse {
+    let path = request.uri().path();
+    log::info!("relaying a storage request; path={path}");
+
+    if let Ok(resp) =
+        super::proxy::relay_request(&mut request, SERVAL_SERVICE_STORAGE, &state.instance_id).await
+    {
+        resp
     } else {
-        Ok(next.run(req).await)
+        // Welp, not much we can do
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("{SERVAL_SERVICE_STORAGE} not available"),
+        )
+            .into_response()
     }
 }
 
