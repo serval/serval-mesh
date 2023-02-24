@@ -8,7 +8,12 @@ use std::fs;
 use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf};
 
+pub static SERVAL_SERVICE_STORAGE: &str = "_serval_storage";
+pub static SERVAL_SERVICE_RUNNER: &str = "_serval_runner";
+
 pub static STORAGE: OnceCell<BlobStore> = OnceCell::new();
+
+pub type ServalRouter = axum::Router<Arc<RunnerState>, hyper::Body>;
 
 /// Our application state. Fields are public for now but we'll want to fix that.
 #[derive(Debug, Clone, Serialize)]

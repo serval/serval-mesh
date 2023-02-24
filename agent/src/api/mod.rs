@@ -1,10 +1,13 @@
 use anyhow::Result;
 use axum::{
+    extract::State,
     http::{Request, StatusCode},
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
 };
 use http::header::HeaderValue;
+
+use crate::structures::AppState;
 
 pub mod v1;
 // Follow this pattern for additional major versions. E.g.,
@@ -25,4 +28,9 @@ pub async fn clacks<B>(req: Request<B>, next: Next<B>) -> Result<Response, Statu
 /// Respond to ping. Useful for monitoring.
 pub async fn ping() -> String {
     "pong".to_string()
+}
+
+/// Report on node health.
+pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
+    StatusCode::NOT_IMPLEMENTED
 }

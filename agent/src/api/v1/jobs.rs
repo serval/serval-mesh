@@ -1,26 +1,53 @@
 use axum::{
-    body::Bytes,
+    body::{Body, Bytes},
     extract::{Path, State},
-    http::StatusCode,
+    http::{Request, StatusCode},
     response::IntoResponse,
+    routing::{any, get, post},
 };
 use engine::{errors::ServalEngineError, ServalEngine};
 use utils::structs::Job;
 
 use crate::structures::*;
 
-/// Report on runtime history
-pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+/// Mount all jobs endpoint handlers onto the passed-in router.
+pub fn mount(router: ServalRouter) -> ServalRouter {
+    router
+        .route("/v1/jobs", get(running)) // TODO
+        .route("/v1/jobs/:name/run", post(run_job)) // has an input payload; TODO options (needs design)
+}
+
+/// Mount a handler that relays all job-running requests to another node.
+pub fn mount_proxy(router: ServalRouter) -> ServalRouter {
+    router.route("/v1/jobs/*", any(proxy))
+}
+
+/// Relay all storage requests to a node that can handle them.
+async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> impl IntoResponse {
+    let path = request.uri().path();
+    log::info!("relaying a job runner request; path={path}");
+
+    if let Ok(resp) =
+        super::proxy::relay_request(&mut request, SERVAL_SERVICE_RUNNER, &state.instance_id).await
+    {
+        resp
+    } else {
+        // Welp, not much we can do
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("{SERVAL_SERVICE_RUNNER} not available"),
+        )
+            .into_response()
+    }
 }
 
 /// Get running jobs
-pub async fn running(_state: State<AppState>) -> impl IntoResponse {
+async fn running(_state: State<AppState>) -> impl IntoResponse {
     StatusCode::NOT_IMPLEMENTED
 }
 
 /// This is the main worker endpoint. It accepts incoming jobs and runs them.
-pub async fn run_job(
+async fn run_job(
     Path(name): Path<String>,
     state: State<AppState>,
     input: Bytes,
