@@ -14,6 +14,7 @@ use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use tokio::runtime::Runtime;
+use utils::registry::RegistryPackageSpec;
 use utils::structs::Manifest;
 use uuid::Uuid;
 
@@ -70,6 +71,11 @@ pub enum Command {
     History,
     /// Liveness check: ping at least one node on the mesh.
     Ping,
+    /// Highly experimental: Pull a package from WAPM.io and store it in Serval Mesh
+    Pull {
+        /// The name of the software package, formatted as author/packagename@version
+        identifer: String,
+    },
 }
 
 static SERVAL_NODE_URL: Mutex<Option<String>> = Mutex::new(None);
@@ -286,7 +292,17 @@ fn blocking_maybe_discover_service_url(
     };
 
     let port = info.get_port();
-    return Ok(format!("http://{addr}:{port}"));
+    Ok(format!("http://{addr}:{port}"))
+}
+
+fn pull(registry: &str, identifer: String) -> Result<()> {
+    let package_spec = RegistryPackageSpec::parse(registry, identifer).unwrap();
+    println!("{:#?}", package_spec);
+    let dl_url = package_spec.registry.baseurl_download.to_string();
+    println!("{dl_url}");
+
+    println!("{}", package_spec.fqdn());
+    Ok(())
 }
 
 /// Parse command-line arguments and act.
@@ -320,6 +336,7 @@ fn main() -> Result<()> {
         Command::Status { id } => status(id)?,
         Command::History => history()?,
         Command::Ping => ping()?,
+        Command::Pull { identifer } => pull("wapm", identifer)?,
     };
 
     Ok(())
