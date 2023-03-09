@@ -301,6 +301,8 @@ fn pull(registry: &str, identifer: String) -> Result<()> {
     let dl_url = package_spec.registry.baseurl_download.to_string();
     println!("{dl_url}");
 
+    println!("{}", package_spec.fqtn());
+
     println!("{}", package_spec.fqdn());
     Ok(())
 }
