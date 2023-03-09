@@ -27,10 +27,12 @@ pub async fn clacks<B>(req: Request<B>, next: Next<B>) -> Result<Response, Statu
 
 /// Respond to ping. Useful for monitoring.
 pub async fn ping() -> String {
+    metrics::increment_counter!("monitor:ping");
     "pong".to_string()
 }
 
 /// Report on node health.
 pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
+    metrics::increment_counter!("monitor:status");
     StatusCode::NOT_IMPLEMENTED
 }

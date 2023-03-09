@@ -37,6 +37,7 @@ pub fn mount_proxy(router: ServalRouter) -> ServalRouter {
 /// Relay all storage requests to a node that can handle them.
 async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> impl IntoResponse {
     let path = request.uri().path();
+    metrics::increment_counter!("storage:proxy");
     log::info!("relaying a storage request; path={path}");
 
     if let Ok(resp) =
@@ -58,6 +59,7 @@ async fn get_executable(
     Path((name, version)): Path<(String, String)>,
     State(_state): State<AppState>,
 ) -> impl IntoResponse {
+    metrics::increment_counter!("storage:executable:get");
     let storage = STORAGE.get().unwrap();
 
     match storage.executable_as_stream(&name, &version).await {
@@ -83,6 +85,7 @@ async fn get_manifest(
     Path(name): Path<String>,
     State(_state): State<AppState>,
 ) -> impl IntoResponse {
+    metrics::increment_counter!("storage:manifest:get");
     let storage = STORAGE.get().unwrap();
 
     match storage.manifest(&name).await {
@@ -105,6 +108,7 @@ async fn store_executable(
     Path((name, version)): Path<(String, String)>,
     body: Bytes,
 ) -> impl IntoResponse {
+    metrics::increment_counter!("storage:executable:put");
     let storage = STORAGE.get().unwrap();
 
     let Ok(manifest) = storage.manifest(&name).await else {
@@ -130,6 +134,7 @@ async fn store_executable(
 
 /// Returns true if this node has access to the given task type, specified by fully-qualified name.
 async fn has_manifest(Path(name): Path<String>, State(_state): State<AppState>) -> StatusCode {
+    metrics::increment_counter!("storage:manifest:head");
     let storage = STORAGE.get().unwrap();
 
     match storage.data_exists_by_key(&name).await {
@@ -147,6 +152,7 @@ async fn has_manifest(Path(name): Path<String>, State(_state): State<AppState>) 
 }
 
 async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
+    metrics::increment_counter!("storage:manifest:list");
     let storage = STORAGE.get().unwrap();
 
     match storage.manifest_names() {
@@ -156,6 +162,7 @@ async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
 }
 
 async fn store_manifest(State(_state): State<AppState>, body: String) -> impl IntoResponse {
+    metrics::increment_counter!("storage:manifest:post");
     let storage = STORAGE.get().unwrap();
 
     match Manifest::from_string(&body) {
