@@ -22,9 +22,9 @@ impl FromStr for PackageRegistry {
 
     fn from_str(input: &str) -> Result<PackageRegistry, ServalError> {
         match input {
-            "wapm.io" => return Ok(PackageRegistry::Wapm),
-            "warg" => return Ok(PackageRegistry::Warg),
-            _ => return Err(ServalError::PackageRegistryUnknownError(input.to_string())),
+            "wapm.io" => Ok(PackageRegistry::Wapm),
+            "warg" => Ok(PackageRegistry::Warg),
+            _ => Err(ServalError::PackageRegistryUnknownError(input.to_string())),
         }
     }
 }
