@@ -71,6 +71,10 @@ pub enum ServalError {
     #[error("ssri::Error: {0}")]
     SsriError(#[from] ssri::Error),
 
+    /// The Package Registry is unknown.
+    #[error("unknown package registry`{0}`")]
+    PackageRegistryUnknownError(String),
+
     /// The Package Registry Manifest could not be constructed.
     #[error("failed to parse registry manifest `{0}`")]
     PackageRegistryManifestError(String),

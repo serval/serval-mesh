@@ -25,3 +25,4 @@ tokio = { workspace = true }
 toml = "0.7.0"
 uuid = { workspace = true }
 wasi-common = { workspace = true }
+regex = "1.7.1"

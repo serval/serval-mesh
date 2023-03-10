@@ -2702,6 +2702,7 @@ dependencies = [
  "if-addrs 0.8.0",
  "log",
  "mdns-sd",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

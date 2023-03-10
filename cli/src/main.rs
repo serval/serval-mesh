@@ -14,7 +14,7 @@ use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use tokio::runtime::Runtime;
-use utils::registry::RegistryPackageSpec;
+use utils::registry::PackageSpec;
 use utils::structs::Manifest;
 use uuid::Uuid;
 
@@ -73,7 +73,8 @@ pub enum Command {
     Ping,
     /// Highly experimental: Pull a package from WAPM.io and store it in Serval Mesh
     Pull {
-        /// The name of the software package, formatted as author/packagename@version
+        /// The name of the software package, formatted as
+        /// [[protocol://]registry.tld/]author/packagename[@version]
         identifer: String,
     },
 }
@@ -295,15 +296,10 @@ fn blocking_maybe_discover_service_url(
     Ok(format!("http://{addr}:{port}"))
 }
 
-fn pull(registry: &str, identifer: String) -> Result<()> {
-    let package_spec = RegistryPackageSpec::parse(registry, identifer).unwrap();
-    println!("{:#?}", package_spec);
-    let dl_url = package_spec.registry.baseurl_download.to_string();
-    println!("{dl_url}");
-
-    println!("{}", package_spec.fqtn());
-
-    println!("{}", package_spec.fqdn());
+fn pull(identifer: String) -> Result<()> {
+    let pkg_spec = PackageSpec::try_from(identifer).unwrap();
+    println!("Identified package {}", pkg_spec.profile_url());
+    println!("Attempting to download {}", pkg_spec.download_url());
     Ok(())
 }
 
@@ -338,7 +334,7 @@ fn main() -> Result<()> {
         Command::Status { id } => status(id)?,
         Command::History => history()?,
         Command::Ping => ping()?,
-        Command::Pull { identifer } => pull("wapm", identifer)?,
+        Command::Pull { identifer } => pull(identifer)?,
     };
 
     Ok(())

@@ -1,101 +1,126 @@
+//! Registry Module
+//!
+//! Serval supports downloading WebAssembly executables from package registries.
+//! Downloaded packages are automatically stored to the Serval Mesh and can be
+//! run just like any manually stored WebAssembly executable.
+
 use std::str::FromStr;
+
+use regex::Regex;
 
 use crate::errors::ServalError;
 
 /// Package registry information, used to download executables and construct the Manifest.
-#[derive(Debug, PartialEq)]
-pub struct Registry {
-    pub namespace: String,
-    pub baseurl_summary: &'static str,
-    pub baseurl_download: &'static str,
+#[derive(Debug, PartialEq, Clone)]
+pub enum PackageRegistry {
+    Wapm,
+    Warg,
 }
 
-impl FromStr for Registry {
-    type Err = ();
+impl FromStr for PackageRegistry {
+    type Err = ServalError;
 
-    fn from_str(input: &str) -> Result<Registry, Self::Err> {
-        if let "wapm" = input {
-            Ok(Registry {
-                namespace: String::from("io.wapm"),
-                baseurl_summary: "https://wapm.io/{author}/{name}@{version}",
-                baseurl_download: "https://registry-cdn.wapm.io/contents/{author}/{name}/{version}/target/wasm32-wasi/release/{name}.wasm",
-        })
-        } else {
-            Err(())
+    fn from_str(input: &str) -> Result<PackageRegistry, ServalError> {
+        match input {
+            "wapm.io" => return Ok(PackageRegistry::Wapm),
+            "warg" => return Ok(PackageRegistry::Warg),
+            _ => return Err(ServalError::PackageRegistryUnknownError(input.to_string())),
         }
     }
+}
+
+impl PackageRegistry {
+    pub fn namespace(&self) -> &str {
+        match self {
+            PackageRegistry::Wapm => "io.wapm",
+            PackageRegistry::Warg => "io.warg",
+        }
+    }
+
+    fn profile_url(&self, pkg: &PackageSpec) -> String {
+        match self {
+            PackageRegistry::Wapm => {
+                format!(
+                    "https://wapm.io/{}/{}@{}",
+                    pkg.author, pkg.name, pkg.version
+                )
+            }
+            PackageRegistry::Warg => todo!(),
+        }
+    }
+
+    fn download_url(&self, pkg: &PackageSpec) -> String {
+        match self {
+            PackageRegistry::Wapm => {
+                format!("https://registry-cdn.wapm.io/contents/{}/{}/{}/target/wasm32-wasi/release/{}.wasm", pkg.author, pkg.name, pkg.version, pkg.name)
+            }
+            PackageRegistry::Warg => todo!(),
+        }
+    }
+    // even cooler....
+    //fn download(&self, pkg: &PackageSpec) -> Result<Bytes, ServalError> {
+    //    // do the work of downloading from this kind of registry
+    //}
 }
 
 /// Specification for a registry package
 #[derive(Debug, PartialEq)]
-pub struct RegistryPackageSpec {
-    pub registry: Registry,
+pub struct PackageSpec {
+    pub registry: PackageRegistry,
     pub author: String,
-    pub package: String,
+    pub name: String,
     pub version: String,
 }
 
-impl RegistryPackageSpec {
+impl PackageSpec {
+    // other useful functions here
 
-    /// Parses a registry package using a registry key and a package identifier
-    pub fn parse(registry: &str, identifer: String) -> Result<RegistryPackageSpec, ServalError> {
-        let registry_spec = Registry::from_str(registry).unwrap();
-        // Split the string by "/". We expect the provided identifier to be one of the following:
-        // - author/package/version
-        // - author/package@version
-        let pkg_author_spec: Vec<&str> = identifer.split('/').collect();
-        match pkg_author_spec.len() {
-            // we assume the provided format is author/package@version
-            2 => {
-                let author = pkg_author_spec[0].to_string();
-                // The string after the / should contain package@version
-                let pkg_version_spec: Vec<&str> = pkg_author_spec[1].split('@').collect();
-                match pkg_version_spec.len() {
-                    // we found a package and version
-                    2 => {
-                        let (name, version) = (
-                            pkg_version_spec[0].to_string(),
-                            pkg_version_spec[1].to_string(),
-                        );
-                        Ok(RegistryPackageSpec {
-                            registry: registry_spec,
-                            author,
-                            package: name,
-                            version,
-                        })
-                    }
-                    _ => Err(ServalError::PackageRegistryManifestError(String::from(
-                        "could not parse version.",
-                    ))),
-                }
-            }
-            // we assume the provided format is author/package/version
-            3 => {
-                let (author, name, version) = (
-                    pkg_author_spec[0].to_string(),
-                    pkg_author_spec[1].to_string(),
-                    pkg_author_spec[2].to_string(),
-                );
-                Ok(RegistryPackageSpec {
-                    registry: registry_spec,
-                    author,
-                    package: name,
-                    version,
-                })
-            }
-            // unclear format, we're erroring out
-            _ => Err(ServalError::PackageRegistryManifestError(String::from(
-                "could not parse package identifier.",
-            ))),
-        }
+    pub fn profile_url(&self) -> String {
+        self.registry.profile_url(self)
     }
 
-    /// The fully-qualified task name of the package, composed of the registry
-    /// namespace, author, package name and version.
-    pub fn fqtn(self) -> String {
-        format!(
-            "{}.{}.{}@{}",
-            self.registry.namespace, self.author, self.package, self.version
-        )
+    pub fn download_url(&self) -> String {
+        self.registry.download_url(self)
+    }
+}
+
+impl TryFrom<std::string::String> for PackageSpec {
+    type Error = ServalError;
+    // put your parsing code here
+    fn try_from(value: std::string::String) -> Result<Self, Self::Error> {
+        // This regex matches a package specification. It currently supports any of the following variants:
+        // - http(s)://registry.tld/author/package@version
+        // - registry.tld/author/package@version
+        // - registry.tld/author/package    => defaults to latest version
+        // - author/package@version         => defaults to wapm.io
+        // - author/package                 => defaults to wapm.io and latest version
+        // TODO The wapm.io default should be made configurable
+        let re = Regex::new(
+            r"(?x)
+            (?:[a-z]+/{2})?             # the protocol (optional, non-capturing)
+            (([a-z0-9.]+)(?:/))?        # $1 (optional) package registry domain incl. trailing slash
+                                        # $2 (optional) package registry domain w/o trailing slash
+            ([a-zA-Z0-9-]+)             # $3 package author
+            (?:/)                       # slash (non-capturing)
+            ([a-zA-Z0-9-]+)             # $4 package name
+            ((?:@)([a-zA-Z0-9.-]+))?    # $5 (optional) package version incl. @ prefix
+                                        # $6 (optional) package version w/o @ prefix
+            ",
+        ).unwrap();
+        let cap = re.captures(&value).unwrap();
+        let (pkg_reg, pkg_auth, pkg_name, pkg_version) = (
+            cap.get(2).map_or(PackageRegistry::Wapm, |m| {
+                PackageRegistry::from_str(m.as_str()).unwrap()
+            }),
+            String::from(cap.get(3).map(|m| m.as_str()).unwrap()),
+            String::from(cap.get(4).map(|m| m.as_str()).unwrap()),
+            String::from(cap.get(6).map_or("latest", |m| m.as_str())),
+        );
+        Ok(PackageSpec {
+            author: pkg_auth,
+            name: pkg_name,
+            version: pkg_version,
+            registry: pkg_reg,
+        })
     }
 }
