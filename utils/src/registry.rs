@@ -106,7 +106,8 @@ impl TryFrom<std::string::String> for PackageSpec {
             ((?:@)([a-zA-Z0-9.-]+))?    # $5 (optional) package version incl. @ prefix
                                         # $6 (optional) package version w/o @ prefix
             ",
-        ).unwrap();
+        )
+        .unwrap();
         let cap = re.captures(&value).unwrap();
         let (pkg_reg, pkg_auth, pkg_name, pkg_version) = (
             cap.get(2).map_or(PackageRegistry::Wapm, |m| {
