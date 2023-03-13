@@ -11,7 +11,7 @@ use std::{collections::HashMap, path::PathBuf};
 pub static SERVAL_SERVICE_STORAGE: &str = "_serval_storage";
 pub static SERVAL_SERVICE_RUNNER: &str = "_serval_runner";
 
-pub static STORAGE: OnceCell<dyn BlobStore> = OnceCell::new();
+pub static STORAGE: OnceCell<Box<dyn BlobStore + Send + Sync>> = OnceCell::new();
 
 pub type ServalRouter = axum::Router<Arc<RunnerState>, hyper::Body>;
 
@@ -34,7 +34,7 @@ impl RunnerState {
         let has_storage = match blob_path {
             Some(path) => {
                 let store = CacacheBlobStore::new(path)?;
-                STORAGE.set(store).unwrap();
+                STORAGE.set(Box::new(store)).unwrap();
                 true
             }
             None => false,

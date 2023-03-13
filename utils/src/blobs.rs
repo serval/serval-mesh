@@ -4,6 +4,7 @@ use serde::Serialize;
 use ssri::Integrity;
 use tokio_util::io::ReaderStream;
 
+use std::fmt::Debug;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::PathBuf;
@@ -12,7 +13,7 @@ use crate::errors::ServalError;
 use crate::structs::Manifest;
 
 #[async_trait]
-pub trait BlobStore {
+pub trait BlobStore : Debug {
     /// Fetch a manifest by its fully-qualified name.
     async fn manifest(&self, fq_name: &str) -> Result<Manifest, ServalError>;
 
