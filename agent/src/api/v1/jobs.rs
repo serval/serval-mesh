@@ -19,7 +19,7 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
 
 /// Mount a handler that relays all job-running requests to another node.
 pub fn mount_proxy(router: ServalRouter) -> ServalRouter {
-    router.route("/v1/jobs/*", any(proxy))
+    router.route("/v1/jobs/*rest", any(proxy))
 }
 
 /// Relay all storage requests to a node that can handle them.
