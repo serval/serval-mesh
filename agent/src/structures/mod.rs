@@ -1,7 +1,7 @@
 use anyhow::Result;
 use once_cell::sync::OnceCell;
 use serde::Serialize;
-use utils::{blobs::BlobStore, errors::ServalError};
+use utils::{blobs::BlobStore, blobs::CacacheBlobStore, errors::ServalError};
 use uuid::Uuid;
 
 use std::fs;
@@ -11,7 +11,7 @@ use std::{collections::HashMap, path::PathBuf};
 pub static SERVAL_SERVICE_STORAGE: &str = "_serval_storage";
 pub static SERVAL_SERVICE_RUNNER: &str = "_serval_runner";
 
-pub static STORAGE: OnceCell<BlobStore> = OnceCell::new();
+pub static STORAGE: OnceCell<dyn BlobStore> = OnceCell::new();
 
 pub type ServalRouter = axum::Router<Arc<RunnerState>, hyper::Body>;
 
@@ -33,7 +33,7 @@ impl RunnerState {
     ) -> Result<Self, ServalError> {
         let has_storage = match blob_path {
             Some(path) => {
-                let store = BlobStore::new(path)?;
+                let store = CacacheBlobStore::new(path)?;
                 STORAGE.set(store).unwrap();
                 true
             }

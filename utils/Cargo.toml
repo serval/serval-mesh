@@ -8,6 +8,7 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = "0.1.66"
 axum = { workspace = true }
 cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }
 hex = "0.4.3"
