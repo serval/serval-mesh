@@ -286,7 +286,7 @@ fn blocking_maybe_discover_service_url(
     };
 
     let port = info.get_port();
-    return Ok(format!("http://{addr}:{port}"));
+    Ok(format!("http://{addr}:{port}"))
 }
 
 /// Parse command-line arguments and act.
