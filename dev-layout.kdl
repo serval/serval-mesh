@@ -1,0 +1,19 @@
+layout {
+    pane split_direction="horizontal" {
+        pane {
+            name "Storage node"
+            command "bash"
+            args "-c" "EXTENSIONS_PATH=../wasm-samples/build PORT=8101 RUNNER_ROLE=never STORAGE_ROLE=always cargo run --bin serval-agent"
+        }
+        pane {
+            name "Compute node"
+            command "bash"
+            args "-c" "EXTENSIONS_PATH=../wasm-samples/build PORT=8100 RUNNER_ROLE=auto STORAGE_ROLE=never cargo run --bin serval-agent"
+        }
+        pane {
+            name "Queue"
+            command "cargo"
+            args "run" "--bin" "queue"
+        }
+    }
+}
