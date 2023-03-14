@@ -26,6 +26,7 @@ use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 pub mod errors;
 mod runtime;
 use crate::{errors::ServalEngineError, runtime::register_exports};
+use wasi_experimental_http_wasmtime::{HttpCtx, HttpState};
 
 #[allow(missing_debug_implementations)]
 #[derive(Clone)]
@@ -42,6 +43,15 @@ impl ServalEngine {
         let engine = Engine::default();
         let mut linker: Linker<WasiCtx> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker(&mut linker, |s| s)
+            .map_err(ServalEngineError::EngineInitializationError)?;
+
+        // link the experimental HTTP support
+        let http_state = HttpState::new().map_err(ServalEngineError::EngineInitializationError)?;
+        http_state
+            .add_to_linker(&mut linker, |_| HttpCtx {
+                allowed_hosts: Some(vec!["insecure:allow-all".to_string()]),
+                max_concurrent_requests: Some(42),
+            })
             .map_err(ServalEngineError::EngineInitializationError)?;
 
         // Wire up our host functions (functionality that we want to expose to the jobs we run)
