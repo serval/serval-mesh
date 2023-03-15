@@ -34,7 +34,7 @@ async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> imp
         resp
     } else {
         // Welp, not much we can do
-        metrics::increment_counter!("proxy:{path}:error");
+        metrics::increment_counter!("proxy:error");
         (
             StatusCode::SERVICE_UNAVAILABLE,
             format!("{SERVAL_SERVICE_RUNNER} not available"),
