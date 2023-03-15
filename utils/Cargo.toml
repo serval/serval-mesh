@@ -11,14 +11,14 @@ anyhow = { workspace = true }
 axum = { workspace = true }
 cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }
 hex = "0.4.3"
-if-addrs = "0.8.0"
+if-addrs = "0.10.1"
 log = { workspace = true }
 mdns-sd = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 sha2 = "0.10.6"
-ssri = "7.0.0"
+ssri = "8.0.0"
 thiserror = { workspace = true }
 tokio-util = { workspace = true }
 tokio = { workspace = true }

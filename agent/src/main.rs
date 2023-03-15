@@ -20,6 +20,8 @@ use engine::ServalEngine;
 use utils::{mdns::advertise_service, networking::find_nearest_port};
 use uuid::Uuid;
 
+use metrics_exporter_tcp::TcpBuilder;
+
 use std::{net::SocketAddr, process};
 use std::{path::PathBuf, sync::Arc};
 
@@ -36,6 +38,13 @@ async fn main() -> Result<()> {
         println!("Debug-only warning: no .env file found to configure logging; all logging will be disabled. Add RUST_LOG=info to .env to see logging.");
     }
     env_logger::init();
+
+    // TODO: metrics sink initialization based on env vars or config
+    let addr: SocketAddr = "0.0.0.0:9000".parse().unwrap();
+    let builder = TcpBuilder::new().listen_address(addr);
+
+    builder.install().expect("failed to install TCP recorder");
+    metrics::increment_counter!("process:start", "component" => "agent");
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let storage_role = match &std::env::var("STORAGE_ROLE").unwrap_or_else(|_| "auto".to_string())[..]
