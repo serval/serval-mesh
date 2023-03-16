@@ -14,7 +14,7 @@ use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use tokio::runtime::Runtime;
-use utils::registry::PackageSpec;
+use utils::registry::{download_module, PackageRegistry, PackageSpec};
 use utils::structs::Manifest;
 use uuid::Uuid;
 
@@ -74,7 +74,7 @@ pub enum Command {
     /// Highly experimental: Pull a package from WAPM.io and store it in Serval Mesh
     Pull {
         /// The name of the software package, formatted as
-        /// [[protocol://]registry.tld/]author/packagename[@version]
+        /// [[protocol://]registry.tld/]author/packagename[@version][:module]
         identifer: String,
     },
 }
@@ -296,10 +296,85 @@ fn blocking_maybe_discover_service_url(
     Ok(format!("http://{addr}:{port}"))
 }
 
+/// Pull a Wasm package from a package manager, generate its manifest, and store it.
 fn pull(identifer: String) -> Result<()> {
     let pkg_spec = PackageSpec::try_from(identifer).unwrap();
-    println!("Identified package {}", pkg_spec.profile_url());
-    println!("Attempting to download {}", pkg_spec.download_url());
+    log::debug!("{:#?}", pkg_spec);
+    println!(
+        "📦 Identified package {}",
+        pkg_spec.profile_url().bold().blue()
+    );
+    println!("🏷  Using module {}", pkg_spec.module.bold().blue());
+    if pkg_spec.is_binary_cached() {
+        println!(
+            "✅ Binary for {} ({}) available locally.",
+            pkg_spec.fq_name().bold().green(),
+            pkg_spec.fq_digest()
+        );
+    } else {
+        println!(
+            "⌛️ Binary for {} not available locally, downloading...",
+            pkg_spec.fq_name().blue()
+        );
+        let mod_dl = download_module(&pkg_spec);
+        match mod_dl {
+            // This means the download function did not break. It does not mean that
+            // the executable was downloaded successfully... check HTTP status code.
+            Ok(status_code) => {
+                if status_code.is_success() {
+                    println!(
+                        "✅ Downloaded {} ({}) successfully.",
+                        pkg_spec.fq_name().bold().green(),
+                        pkg_spec.fq_digest()
+                    );
+                } else if status_code.is_server_error() {
+                    println!("🛑 Server error: {}", status_code);
+                    println!("   There may be an issue with this package manager.");
+                } else if status_code.is_client_error() {
+                    println!("🛑 Client error: {}", status_code);
+                    println!("{:#?}", status_code);
+                    if status_code == 404 {
+                        println!("   Failed to download from {:?}", pkg_spec.download_urls());
+                    }
+                    println!();
+                    if pkg_spec.version == "latest" && pkg_spec.registry == PackageRegistry::Wapm {
+                        println!(
+                            "💡 Please note that wapm.io does not properly alias the `{}` version tag.",
+                            "latest".bold().yellow()
+                        );
+                        println!("   You might want to look up the package and explicitly provide its most recent version:");
+                        println!("   \t{}", pkg_spec.profile_url());
+                        println!();
+                    }
+                    // Currently, a 404 is very likely if a package only contains modules that have names other than
+                    // the package name (which the module name defaults to if not provided).
+                    // TODO: retrieve available modules and interactively ask which module should be downloaded
+                    // Quick fix is to point this out to the user:
+                    if pkg_spec.name == pkg_spec.module {
+                        println!(
+                            "💡 Please verify that this package actually contains a `{}` module",
+                            pkg_spec.module.bold().yellow()
+                        );
+                        println!("   by checking the MODULES section on its profile page:");
+                        println!("   \t{}", pkg_spec.profile_url());
+                        println!(
+                            "   If the module name differs from the package name, you need to provide it with"
+                        );
+                        println!(
+                            "   \tserval pull {}:{}",
+                            pkg_spec.profile_url(),
+                            "<module>".bold().yellow()
+                        );
+                    }
+                } else {
+                    println!("😵‍💫 Something else happened. Status: {:?}", status_code);
+                }
+                println!("{:#?}", status_code)
+            }
+            // Something went horribly wrong.
+            Err(err) => println!("{:#?}", err),
+        }
+    }
     Ok(())
 }
 

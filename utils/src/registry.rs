@@ -4,9 +4,11 @@
 //! Downloaded packages are automatically stored to the Serval Mesh and can be
 //! run just like any manually stored WebAssembly executable.
 
-use std::str::FromStr;
+use std::{fs::File, io::Write, path::PathBuf, str::FromStr, time::Duration};
 
 use regex::Regex;
+use reqwest::{blocking::Client, StatusCode};
+use sha256::digest;
 
 use crate::errors::ServalError;
 
@@ -49,10 +51,30 @@ impl PackageRegistry {
         }
     }
 
-    fn download_url(&self, pkg: &PackageSpec) -> String {
+    fn fq_name(&self, pkg: &PackageSpec) -> String {
         match self {
             PackageRegistry::Wapm => {
-                format!("https://registry-cdn.wapm.io/contents/{}/{}/{}/target/wasm32-wasi/release/{}.wasm", pkg.author, pkg.name, pkg.version, pkg.name)
+                format!(
+                    "{}/{}/{}@{}:{}",
+                    self.namespace(),
+                    pkg.author,
+                    pkg.name,
+                    pkg.version,
+                    pkg.module
+                )
+            }
+            PackageRegistry::Warg => todo!(),
+        }
+    }
+
+    fn download_urls(&self, pkg: &PackageSpec) -> Vec<String> {
+        match self {
+            PackageRegistry::Wapm => {
+                vec![
+                    // For some very stupid reason, wasm binaries can sit in multiple locations. Hopefully this is the full list:
+                    format!("https://registry-cdn.wapm.io/contents/{}/{}/{}/{}.wasm", pkg.author, pkg.name, pkg.version, pkg.module),
+                    format!("https://registry-cdn.wapm.io/contents/{}/{}/{}/target/wasm32-wasi/release/{}.wasm", pkg.author, pkg.name, pkg.version, pkg.module)
+                ]
             }
             PackageRegistry::Warg => todo!(),
         }
@@ -64,12 +86,13 @@ impl PackageRegistry {
 }
 
 /// Specification for a registry package
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PackageSpec {
     pub registry: PackageRegistry,
     pub author: String,
     pub name: String,
     pub version: String,
+    pub module: String,
 }
 
 impl PackageSpec {
@@ -79,8 +102,28 @@ impl PackageSpec {
         self.registry.profile_url(self)
     }
 
-    pub fn download_url(&self) -> String {
-        self.registry.download_url(self)
+    pub fn download_urls(&self) -> Vec<String> {
+        self.registry.download_urls(self)
+    }
+
+    pub fn fq_name(&self) -> String {
+        self.registry.fq_name(self)
+    }
+
+    pub fn fq_digest(&self) -> String {
+        digest(self.fq_name())
+    }
+
+    pub fn namespace(&self) -> String {
+        format!("{}/{}", self.registry.namespace(), self.author)
+    }
+
+    pub fn binary_path(&self) -> PathBuf {
+        PathBuf::from(format!("/tmp/{}", self.fq_digest()))
+    }
+
+    pub fn is_binary_cached(&self) -> bool {
+        self.binary_path().exists()
     }
 }
 
@@ -100,6 +143,7 @@ impl TryFrom<std::string::String> for PackageSpec {
     #     author: "author".to_string(),
     #     name: "package".to_string(),
     #     version: "version".to_string(),
+    #     module: "package".to_string(),
     # });
     ```
 
@@ -112,6 +156,7 @@ impl TryFrom<std::string::String> for PackageSpec {
     #     author: "author".to_string(),
     #     name: "package".to_string(),
     #     version: "latest".to_string(),
+    #     module: "package".to_string(),
     # });
     ```
 
@@ -124,6 +169,7 @@ impl TryFrom<std::string::String> for PackageSpec {
     #     author: "author".to_string(),
     #     name: "package".to_string(),
     #     version: "version".to_string(),
+    #     module: "package".to_string(),
     # });
     # let pkg_spec = PackageSpec::try_from(String::from("wapm.io/author/package")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
@@ -131,6 +177,7 @@ impl TryFrom<std::string::String> for PackageSpec {
     #     author: "author".to_string(),
     #     name: "package".to_string(),
     #     version: "latest".to_string(),
+    #     module: "package".to_string(),
     # });
     ```
 
@@ -145,6 +192,7 @@ impl TryFrom<std::string::String> for PackageSpec {
     #     author: "author".to_string(),
     #     name: "package".to_string(),
     #     version: "version".to_string(),
+    #     module: "package".to_string(),
     # });
     // default to latest version:
     let pkg_spec = PackageSpec::try_from(String::from("author/package")).unwrap();
@@ -153,6 +201,33 @@ impl TryFrom<std::string::String> for PackageSpec {
     #     author: "author".to_string(),
     #     name: "package".to_string(),
     #     version: "latest".to_string(),
+    #     module: "package".to_string(),
+    # });
+    ```
+
+    In some cases, the actual Wasm module contained in a package has a different name than the
+    package. This is obviously also relevant if a package contains more than one module.
+    The package identifier defaults to a module name identical to the package name -- if a
+    different module should be used, it can be provided by appending it with a semicolon:
+    ```
+    # use utils::registry::PackageSpec;
+    // provide specific version and module name:
+    let pkg_spec = PackageSpec::try_from(String::from("author/package@version:modname")).unwrap();
+    # assert_eq!(pkg_spec, utils::registry::PackageSpec {
+    #     registry: utils::registry::PackageRegistry::Wapm,
+    #     author: "author".to_string(),
+    #     name: "package".to_string(),
+    #     version: "version".to_string(),
+    #     module: "modname".to_string(),
+    # });
+    // again, a missing version defaults to the latest version:
+    let pkg_spec = PackageSpec::try_from(String::from("author/package:modname")).unwrap();
+    # assert_eq!(pkg_spec, utils::registry::PackageSpec {
+    #     registry: utils::registry::PackageRegistry::Wapm,
+    #     author: "author".to_string(),
+    #     name: "package".to_string(),
+    #     version: "latest".to_string(),
+    #     module: "modname".to_string(),
     # });
     ```
     */
@@ -168,10 +243,18 @@ impl TryFrom<std::string::String> for PackageSpec {
             ([a-zA-Z0-9-]+)             # $4 package name
             ((?:@)([a-zA-Z0-9.-]+))?    # $5 (optional) package version incl. @ prefix
                                         # $6 (optional) package version w/o @ prefix
+            (?::)?                      # (optional) colon (module delimiter)
+            ([a-zA-Z0-9]+)?             # $7 (optional) module name
             ",
         )
         .unwrap();
         let cap = re.captures(&value).unwrap();
+        // We attempt to extract the following capture groups:
+        // - the package registry domain without trailing slash ($2)
+        // - the package author ($3)
+        // - the package name ($4)
+        // - the package version without @ prefix ($6)
+        // - the module name ($7)
         let (pkg_reg, pkg_auth, pkg_name, pkg_version) = (
             cap.get(2).map_or(PackageRegistry::Wapm, |m| {
                 PackageRegistry::from_str(m.as_str()).unwrap()
@@ -180,11 +263,44 @@ impl TryFrom<std::string::String> for PackageSpec {
             String::from(cap.get(4).map(|m| m.as_str()).unwrap()),
             String::from(cap.get(6).map_or("latest", |m| m.as_str())),
         );
+        let mod_name =   cap.get(7)
+                .map_or(pkg_name.clone(), |m| m.as_str().to_owned());
         Ok(PackageSpec {
             author: pkg_auth,
             name: pkg_name,
             version: pkg_version,
             registry: pkg_reg,
+            module: mod_name,
         })
     }
+}
+
+pub fn download_module(pkg_spec: &PackageSpec) -> Result<StatusCode, ServalError> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(360))
+        .build()
+        .unwrap();
+    let mut last_status: StatusCode = StatusCode::IM_A_TEAPOT;
+    for url in pkg_spec.download_urls() {
+        let response = client.get(url).send();
+        match response {
+            Ok(r) => {
+                // println!("Ok: {:#?}", r);
+                let status = r.status();
+                if r.status().is_success() {
+                    let mut f = File::create(pkg_spec.binary_path())?;
+                    f.write_all(&r.bytes().unwrap())?;
+                    return Ok(status);
+                } else {
+                    last_status = status;
+                }
+            }
+            _ => {
+                return Err(ServalError::PackageRegistryDownloadError(
+                    "something went horribly wrong".to_string(),
+                ))
+            }
+        };
+    }
+    Ok(last_status)
 }

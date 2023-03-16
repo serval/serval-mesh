@@ -78,6 +78,10 @@ pub enum ServalError {
     /// The Package Registry Manifest could not be constructed.
     #[error("failed to parse registry manifest `{0}`")]
     PackageRegistryManifestError(String),
+
+    /// The Package Registry Manifest could not be constructed.
+    #[error("failed to download module from registry: {0}")]
+    PackageRegistryDownloadError(String),
 }
 
 use axum::http::StatusCode;

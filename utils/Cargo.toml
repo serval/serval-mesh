@@ -26,3 +26,4 @@ toml = "0.7.0"
 uuid = { workspace = true }
 wasi-common = { workspace = true }
 regex = "1.7.1"
+sha256 = "1.1.2"
