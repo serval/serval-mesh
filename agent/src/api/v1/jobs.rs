@@ -19,13 +19,14 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
 
 /// Mount a handler that relays all job-running requests to another node.
 pub fn mount_proxy(router: ServalRouter) -> ServalRouter {
-    router.route("/v1/jobs/*", any(proxy))
+    router.route("/v1/jobs/*rest", any(proxy))
 }
 
 /// Relay all storage requests to a node that can handle them.
 async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> impl IntoResponse {
     let path = request.uri().path();
     log::info!("relaying a job runner request; path={path}");
+    metrics::increment_counter!("proxy:{path}");
 
     if let Ok(resp) =
         super::proxy::relay_request(&mut request, SERVAL_SERVICE_RUNNER, &state.instance_id).await
@@ -33,6 +34,7 @@ async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> imp
         resp
     } else {
         // Welp, not much we can do
+        metrics::increment_counter!("proxy:error");
         (
             StatusCode::SERVICE_UNAVAILABLE,
             format!("{SERVAL_SERVICE_RUNNER} not available"),
@@ -92,6 +94,8 @@ async fn run_job(
     match result {
         Ok(result) => {
             // We're not doing anything with stderr here.
+            metrics::increment_counter!("run:success");
+            metrics::histogram!("run:latency", start.elapsed().as_millis() as f64);
             log::info!(
                 "job completed; job={}; code={}; elapsed_ms={}",
                 job.id(),
@@ -110,6 +114,7 @@ async fn run_job(
             error: _,
             stderr,
         }) => {
+            metrics::increment_counter!("run:error:execution");
             // Now the fun part of http error signaling: the request was successful, but the
             // result of the operation was bad from the user's point of view. Our behavior here
             // is yet to be defined but I'm sending back stderr just to show we can.

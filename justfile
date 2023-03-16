@@ -46,3 +46,6 @@ check-unused:
 @dance:
     open "https://www.youtube.com/watch?v=2Abk1jAONjw"
 
+
+@run-dev:
+    zellij --layout dev-layout.kdl

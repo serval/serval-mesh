@@ -24,12 +24,14 @@ pub async fn relay_request(
 ) -> Result<Response, ServalError> {
     let node_info = discover_service(service_name).await.map_err(|err| {
         log::warn!("proxy_unavailable_services failed to find a node offering the service; service={service_name}; err={err:?}");
+        metrics::increment_counter!("proxy:no_service");
         err
     })?;
 
     let result = proxy_request_to_other_node(req, &node_info, source_instance_id).await;
     result.map_err(|err| {
         log::warn!("Failed to proxy request to other node; node={node_info:?}; err={err:?}");
+        metrics::increment_counter!("proxy:failure");
         err
     })
 }
