@@ -84,17 +84,80 @@ impl PackageSpec {
     }
 }
 
+/// Converts an identifier string to a `PackageSpec`
 impl TryFrom<std::string::String> for PackageSpec {
     type Error = ServalError;
-    // put your parsing code here
+    /**
+    This function matches a package specification string.
+    It supports a number of variants:
+
+    Full URL to package in a supported registry:
+    ```
+    # use utils::registry::PackageSpec;
+    let pkg_spec = PackageSpec::try_from(String::from("https://wapm.io/author/package@version")).unwrap();
+    # assert_eq!(pkg_spec, utils::registry::PackageSpec {
+    #     registry: utils::registry::PackageRegistry::Wapm,
+    #     author: "author".to_string(),
+    #     name: "package".to_string(),
+    #     version: "version".to_string(),
+    # });
+    ```
+
+    Full URL to package in a supported registry, defaulting to latest version:
+    ```
+    # use utils::registry::PackageSpec;
+    let pkg_spec = PackageSpec::try_from(String::from("https://wapm.io/author/package")).unwrap();
+    # assert_eq!(pkg_spec, utils::registry::PackageSpec {
+    #     registry: utils::registry::PackageRegistry::Wapm,
+    #     author: "author".to_string(),
+    #     name: "package".to_string(),
+    #     version: "latest".to_string(),
+    # });
+    ```
+
+    When providing a URL, the protocol is optional. This is also valid:
+    ```
+    # use utils::registry::PackageSpec;
+    let pkg_spec = PackageSpec::try_from(String::from("wapm.io/author/package@version")).unwrap();
+    # assert_eq!(pkg_spec, utils::registry::PackageSpec {
+    #     registry: utils::registry::PackageRegistry::Wapm,
+    #     author: "author".to_string(),
+    #     name: "package".to_string(),
+    #     version: "version".to_string(),
+    # });
+    # let pkg_spec = PackageSpec::try_from(String::from("wapm.io/author/package")).unwrap();
+    # assert_eq!(pkg_spec, utils::registry::PackageSpec {
+    #     registry: utils::registry::PackageRegistry::Wapm,
+    #     author: "author".to_string(),
+    #     name: "package".to_string(),
+    #     version: "latest".to_string(),
+    # });
+    ```
+
+    When providing a simple author/package-style identifier, the default package
+    manager (currently [wapm.io](https://wapm.io) -- this will be made configurable) is used.
+    ```
+    # use utils::registry::PackageSpec;
+    // provide specific version:
+    let pkg_spec = PackageSpec::try_from(String::from("author/package@version")).unwrap();
+    # assert_eq!(pkg_spec, utils::registry::PackageSpec {
+    #     registry: utils::registry::PackageRegistry::Wapm,
+    #     author: "author".to_string(),
+    #     name: "package".to_string(),
+    #     version: "version".to_string(),
+    # });
+    // default to latest version:
+    let pkg_spec = PackageSpec::try_from(String::from("author/package")).unwrap();
+    # assert_eq!(pkg_spec, utils::registry::PackageSpec {
+    #     registry: utils::registry::PackageRegistry::Wapm,
+    #     author: "author".to_string(),
+    #     name: "package".to_string(),
+    #     version: "latest".to_string(),
+    # });
+    ```
+    */
+    // TODO: The wapm.io package manager is currently the default package manager; this should be made configurable.
     fn try_from(value: std::string::String) -> Result<Self, Self::Error> {
-        // This regex matches a package specification. It currently supports any of the following variants:
-        // - http(s)://registry.tld/author/package@version
-        // - registry.tld/author/package@version
-        // - registry.tld/author/package    => defaults to latest version
-        // - author/package@version         => defaults to wapm.io
-        // - author/package                 => defaults to wapm.io and latest version
-        // TODO The wapm.io default should be made configurable
         let re = Regex::new(
             r"(?x)
             (?:[a-z]+/{2})?             # the protocol (optional, non-capturing)
