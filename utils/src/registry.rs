@@ -10,7 +10,7 @@ use regex::Regex;
 use reqwest::{blocking::Client, StatusCode};
 use sha256::digest;
 
-use crate::errors::ServalError;
+use crate::{errors::ServalError, structs::Manifest};
 
 /// Package registry information, used to download executables and construct the Manifest.
 #[derive(Debug, PartialEq, Clone)]
@@ -96,8 +96,6 @@ pub struct PackageSpec {
 }
 
 impl PackageSpec {
-    // other useful functions here
-
     pub fn profile_url(&self) -> String {
         self.registry.profile_url(self)
     }
@@ -119,7 +117,11 @@ impl PackageSpec {
     }
 
     pub fn binary_path(&self) -> PathBuf {
-        PathBuf::from(format!("/tmp/{}", self.fq_digest()))
+        PathBuf::from(format!("/tmp/{}.wasm", self.fq_digest()))
+    }
+
+    pub fn manifest_path(&self) -> PathBuf {
+        PathBuf::from(format!("/tmp/{}.toml", self.fq_digest()))
     }
 
     pub fn is_binary_cached(&self) -> bool {
@@ -304,4 +306,11 @@ pub fn download_module(pkg_spec: &PackageSpec) -> Result<StatusCode, ServalError
         };
     }
     Ok(last_status)
+}
+
+pub fn gen_manifest(pkg_spec: &PackageSpec) -> Result<PathBuf, ServalError> {
+    let manifest = Manifest::from_packagespec(&pkg_spec)?;
+    let mut f = File::create(pkg_spec.manifest_path())?;
+    f.write_all(toml::to_string(&manifest).unwrap().as_bytes())?;
+    Ok(pkg_spec.manifest_path())
 }

@@ -14,7 +14,7 @@ use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use tokio::runtime::Runtime;
-use utils::registry::{download_module, PackageRegistry, PackageSpec};
+use utils::registry::{download_module, gen_manifest, PackageRegistry, PackageSpec};
 use utils::structs::Manifest;
 use uuid::Uuid;
 
@@ -311,6 +311,10 @@ fn pull(identifer: String) -> Result<()> {
             pkg_spec.fq_name().bold().green(),
             pkg_spec.fq_digest()
         );
+        // Creating a temporary manifest file
+        let manifest_path = gen_manifest(&pkg_spec).unwrap();
+        // Handing over to existing storage logic
+        upload_manifest(manifest_path)?;
     } else {
         println!(
             "⌛️ Binary for {} not available locally, downloading...",
@@ -327,6 +331,10 @@ fn pull(identifer: String) -> Result<()> {
                         pkg_spec.fq_name().bold().green(),
                         pkg_spec.fq_digest()
                     );
+                    // Creating a temporary manifest file
+                    let manifest_path = gen_manifest(&pkg_spec).unwrap();
+                    // Handing over to existing storage logic
+                    upload_manifest(manifest_path)?;
                 } else if status_code.is_server_error() {
                     println!("🛑 Server error: {}", status_code);
                     println!("   There may be an issue with this package manager.");
@@ -369,7 +377,6 @@ fn pull(identifer: String) -> Result<()> {
                 } else {
                     println!("😵‍💫 Something else happened. Status: {:?}", status_code);
                 }
-                println!("{:#?}", status_code)
             }
             // Something went horribly wrong.
             Err(err) => println!("{:#?}", err),
