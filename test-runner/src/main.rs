@@ -64,7 +64,21 @@ fn main() -> anyhow::Result<()> {
 
     eprintln!("\n{} {}", "executing:".blue().bold(), exec_path.display());
     let mut engine = ServalEngine::new(HashMap::new())?;
-    let result = engine.execute(&binary, &stdin)?;
+    let result = match engine.execute(&binary, &stdin) {
+        Ok(result) => result,
+        Err(err) => match err {
+            engine::errors::ServalEngineError::ExecutionError {
+                stdout,
+                stderr,
+                error,
+            } => panic!(
+                "Execution error {error}: stdout={} stderr={}",
+                String::from_utf8_lossy(&stdout),
+                String::from_utf8_lossy(&stderr)
+            ),
+            _ => panic!("Error: {err:?}"),
+        },
+    };
     eprintln!("{} {}", "exit status:".blue().bold(), result.code);
     eprintln!("\n{}:", "stdout".yellow().bold());
     println!("{}", String::from_utf8(result.stdout)?);
