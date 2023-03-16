@@ -10,6 +10,7 @@
 use clap::Parser;
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
+use std::io::{stdin, Read};
 use std::path::Path;
 use std::{ffi::OsStr, fs};
 
@@ -50,7 +51,9 @@ fn main() -> anyhow::Result<()> {
         let input_path = Path::new(&input_file);
         fs::read(input_path)?
     } else {
-        Vec::<u8>::new()
+        let mut buf = vec![];
+        stdin().lock().read_to_end(&mut buf)?;
+        buf
     };
 
     // Are we still running? Great, let's assume executable and input are usable.
