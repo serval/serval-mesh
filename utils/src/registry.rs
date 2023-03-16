@@ -263,8 +263,9 @@ impl TryFrom<std::string::String> for PackageSpec {
             String::from(cap.get(4).map(|m| m.as_str()).unwrap()),
             String::from(cap.get(6).map_or("latest", |m| m.as_str())),
         );
-        let mod_name =   cap.get(7)
-                .map_or(pkg_name.clone(), |m| m.as_str().to_owned());
+        let mod_name = cap
+            .get(7)
+            .map_or(pkg_name.clone(), |m| m.as_str().to_owned());
         Ok(PackageSpec {
             author: pkg_auth,
             name: pkg_name,
