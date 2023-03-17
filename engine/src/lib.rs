@@ -7,14 +7,11 @@
     unused_qualifications
 )]
 
-use std::{
-    collections::{HashMap, HashSet},
-    fs,
-    path::PathBuf,
-};
+use std::collections::{HashMap, HashSet};
 
 use anyhow::anyhow;
 use cranelift_codegen_meta::isa::Isa;
+use extensions::ServalExtension;
 use utils::structs::WasmResult;
 use wasi_common::{
     pipe::{ReadPipe, WritePipe},
@@ -24,6 +21,7 @@ use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 pub mod errors;
+pub mod extensions;
 mod runtime;
 use crate::{errors::ServalEngineError, runtime::register_exports};
 use wasi_experimental_http_wasmtime::{HttpCtx, HttpState};
@@ -32,14 +30,14 @@ use wasi_experimental_http_wasmtime::{HttpCtx, HttpState};
 #[derive(Clone)]
 /// Make one of these to get a WASM runner with the Serval glue.
 pub struct ServalEngine {
-    extensions: HashMap<String, PathBuf>,
+    extensions: HashMap<String, ServalExtension>,
     engine: Engine,
     linker: Linker<WasiCtx>,
 }
 
 impl ServalEngine {
     /// Create a new serval engine.
-    pub fn new(extensions: HashMap<String, PathBuf>) -> Result<Self, ServalEngineError> {
+    pub fn new(extensions: HashMap<String, ServalExtension>) -> Result<Self, ServalEngineError> {
         let engine = Engine::default();
         let mut linker: Linker<WasiCtx> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker(&mut linker, |s| s)
@@ -102,19 +100,21 @@ impl ServalEngine {
         log::info!("Job wants the following extensions: {required_modules:?}");
 
         for ext_name in required_modules {
-            let Some(filename) = self.extensions.get(&ext_name) else {
+            let Some(extension) = self.extensions.get(&ext_name) else {
                 // We don't have an extension that matches the expected module name, which
                 // means that there is a very good chance that the job will fail when we try to
                 // run it. However, hope springs eternal, so let's keep going.
                 log::warn!("Extension {ext_name} is not available on this node");
                 continue;
             };
-            let ext_binary = &fs::read(filename)?[..];
-            let ext_module = Module::from_binary(&self.engine, ext_binary)
-                .map_err(ServalEngineError::ModuleLoadError)?;
-            if let Err(err) = self.linker.module(&mut store, &ext_name, &ext_module) {
-                let filename = filename.to_string_lossy();
-                log::warn!("Error when trying to load extension {ext_name} from {filename}: {err}")
+
+            // TODO: implement permissions checking here at some point
+
+            if let Err(err) = extension
+                .module_for_engine(&self.engine)
+                .map(|ext_module| self.linker.module(&mut store, &ext_name, &ext_module))
+            {
+                log::warn!("Error when trying to load extension {ext_name}: {err}")
             };
         }
 
