@@ -11,7 +11,7 @@ use clap::Parser;
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
 use std::io::{stdin, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, fs};
 
 use engine::ServalEngine;
@@ -24,11 +24,12 @@ struct CLIArgs {
     // TODO: Check for the WASM binary magic bytes [1] or even evaluate file grammar [2].
     // [1]: Example: https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format#the_simplest_module
     // [2]: Specification: https://webassembly.github.io/spec/core/index.html
-    exec_path: String,
+    exec_path: PathBuf,
     /// Optional path to a file containing input for the executable
     // Naive initial approach: We don't check file content and assume the executable knows what to do with it.
     // TODO: How would we validate that an input file is "correct" without running the job and seeing if it fails? TBD.
-    input_path: Option<String>,
+    #[clap(long)]
+    input_path: Option<PathBuf>,
 }
 
 fn main() -> anyhow::Result<()> {
