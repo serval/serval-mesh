@@ -46,14 +46,14 @@ impl Manifest {
     }
 
     pub fn from_packagespec(pkg_spec: &PackageSpec) -> Result<Self, ServalError> {
-        let mut name = String::from(pkg_spec.name.clone());
+        let mut name = pkg_spec.name.clone();
         // If the module name differs from the package name, surface the module name
         // in the manifest to support installing multiple modules from the same package.
         if pkg_spec.name != pkg_spec.module {
             name = format!("{}.{}", name, pkg_spec.module);
         }
         let manifest = Manifest {
-            name: name,
+            name,
             namespace: pkg_spec.namespace(),
             version: pkg_spec.version.clone(),
             binary: pkg_spec.binary_path(),
