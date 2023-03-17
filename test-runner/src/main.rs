@@ -35,16 +35,7 @@ fn main() -> anyhow::Result<()> {
     let args = CLIArgs::parse();
 
     let exec_path = Path::new(&args.exec_path);
-    let extension = exec_path.extension().and_then(OsStr::to_str);
-
-    // TODO: check if it is *actually* valid WebAssembly (rather than just a valid extension).
-    if extension != Some("wasm") {
-        println!(
-            "\t⚠️ {}: file extension should be `wasm` but is instead `{}`.",
-            "Warning".red(),
-            extension.unwrap_or_default().blue()
-        );
-    }
+    assert!(is_wasm_executable(exec_path));
     let binary = fs::read(exec_path)?;
 
     let stdin = if let Some(input_file) = args.input_path {
@@ -88,4 +79,21 @@ fn main() -> anyhow::Result<()> {
     println!("{}", String::from_utf8(result.stderr)?);
 
     Ok(())
+}
+
+fn is_wasm_executable(path: &Path) -> bool {
+    let extension = path.extension().and_then(OsStr::to_str);
+
+    // TODO: check if it is *actually* valid WebAssembly (rather than just a valid extension).
+    if extension == Some("wasm") {
+        return true;
+    }
+
+    eprintln!(
+        "\t⚠️ {}: file extension should be `wasm` but is instead `{}`.",
+        "Warning".red(),
+        extension.unwrap_or_default().blue()
+    );
+
+    false
 }
