@@ -3,7 +3,7 @@ use std::{fmt::Display, path::PathBuf};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::errors::ServalError;
+use crate::{errors::ServalError, registry::PackageSpec};
 
 /// The results of running a WASM executable.
 #[derive(Debug)]
@@ -42,6 +42,24 @@ impl Manifest {
     pub fn from_file(path: &PathBuf) -> Result<Self, ServalError> {
         let buf = std::fs::read_to_string(path)?;
         let manifest: Manifest = toml::from_str(&buf)?;
+        Ok(manifest)
+    }
+
+    pub fn from_packagespec(pkg_spec: &PackageSpec) -> Result<Self, ServalError> {
+        let mut name = pkg_spec.name.clone();
+        // If the module name differs from the package name, surface the module name
+        // in the manifest to support installing multiple modules from the same package.
+        if pkg_spec.name != pkg_spec.module {
+            name = format!("{}.{}", name, pkg_spec.module);
+        }
+        let manifest = Manifest {
+            name,
+            namespace: pkg_spec.namespace(),
+            version: pkg_spec.version.clone(),
+            binary: pkg_spec.binary_path(),
+            description: pkg_spec.profile_url(),
+            required_extensions: Vec::new(),
+        };
         Ok(manifest)
     }
 

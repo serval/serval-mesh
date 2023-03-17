@@ -1,0 +1,6 @@
+name = "serval-facts"
+namespace = "sh.serval"
+version = "0.1"
+binary = "serval-facts.wasm"
+description = "Enjoy a selection of serval facts. Brought to you by https://github.com/serval/wasm-samples/tree/main/serval-facts"
+required_extensions = []

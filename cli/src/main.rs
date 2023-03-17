@@ -14,6 +14,7 @@ use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use tokio::runtime::Runtime;
+use utils::registry::{download_module, gen_manifest, PackageRegistry, PackageSpec};
 use utils::structs::Manifest;
 use uuid::Uuid;
 
@@ -70,6 +71,13 @@ pub enum Command {
     History,
     /// Liveness check: ping at least one node on the mesh.
     Ping,
+    /// Highly experimental: Pull a package from WAPM.io and store it in Serval Mesh
+    Pull {
+        /// The name of the software package, formatted as
+        /// [[protocol://]registry.tld/]author/packagename[.module][@version]
+        // TODO: parse directly via clap, see https://github.com/serval/serval-mesh/pull/43/files#r1139430044
+        identifer: String,
+    },
 }
 
 static SERVAL_NODE_URL: Mutex<Option<String>> = Mutex::new(None);
@@ -142,7 +150,6 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         ]);
     } else {
         table.add_row(row!["Storing the WASM executable failed!"]);
-        table.add_row(row![format!("{} {}", response.status(), response.text()?)]);
     }
 
     println!("{table}");
@@ -289,6 +296,115 @@ fn blocking_maybe_discover_service_url(
     Ok(format!("http://{addr}:{port}"))
 }
 
+/// Pull a Wasm package from a package manager, generate its manifest, and store it.
+fn pull(identifier: String) -> Result<()> {
+    let Ok(pkg_spec) = PackageSpec::try_from(identifier.clone()) else {
+        return Err(anyhow!(format!(
+            "Failed to parse identifier `{}` into a package specification",
+            identifier.bold().blue()
+        )));
+    };
+    dbg!(&pkg_spec);
+    println!(
+        "📦 Identified package {}",
+        pkg_spec.profile_url().bold().blue()
+    );
+    println!("🏷  Using module {}", pkg_spec.module.bold().blue());
+    if pkg_spec.is_binary_cached() {
+        println!(
+            "✅ Binary for {} ({}) available locally.",
+            pkg_spec.fq_name().bold().green(),
+            pkg_spec.fq_digest()
+        );
+        // Creating a temporary manifest file
+        let Ok(manifest_path) = gen_manifest(&pkg_spec) else {
+            return Err(anyhow!(format!(
+                "Failed to parse package specification `{}` into a manifest",
+                pkg_spec.fq_name().bold().blue()
+            )));
+        };
+        // Handing over to existing storage logic
+        upload_manifest(manifest_path)?;
+    } else {
+        println!(
+            "⌛️ Binary for {} not available locally, downloading...",
+            pkg_spec.fq_name().bold().blue()
+        );
+        let mod_dl = download_module(&pkg_spec);
+        match mod_dl {
+            // This means the download function did not break. It does not mean that
+            // the executable was downloaded successfully... check HTTP status code.
+            Ok(status_code) => {
+                if status_code.is_success() {
+                    println!(
+                        "✅ Downloaded {} ({}) successfully.",
+                        pkg_spec.fq_name().bold().green(),
+                        pkg_spec.fq_digest()
+                    );
+                    // Creating a temporary manifest file
+                    let Ok(manifest_path) = gen_manifest(&pkg_spec) else {
+                        return Err(anyhow!(format!(
+                            "Failed to create a temporafy manifest for `{}`",
+                            pkg_spec.fq_name().bold().blue()
+                        )));
+                    };
+                    // Handing over to existing storage logic
+                    upload_manifest(manifest_path)?;
+                } else if status_code.is_server_error() {
+                    println!("🛑 Server error: {}", status_code);
+                    println!("   There may be an issue with this package manager.");
+                } else if status_code.is_client_error() {
+                    println!("🛑 Client error: {}", status_code);
+                    if status_code == 404 {
+                        println!("   Failed to download from {:?}", pkg_spec.download_urls());
+                    }
+                    println!();
+                    // wapm.io does not aliast the "latest" tag, so the download will fail if latest is used.
+                    // TODO: retrieve the latest version from wapm.io and insert it explicitly before
+                    // downloading when the user specifies "latest".
+                    if pkg_spec.version == "latest" && pkg_spec.registry == PackageRegistry::Wapm {
+                        println!(
+                            "💡 Please note that wapm.io does not properly alias the `{}` version tag.",
+                            "latest".bold().yellow()
+                        );
+                        println!("   You might want to look up the package and explicitly provide its most recent version:");
+                        println!("   \t{}", pkg_spec.profile_url());
+                        println!();
+                    }
+                    // Currently, a 404 is very likely if a package only contains modules that have names other than
+                    // the package name (which the module name defaults to if not provided).
+                    // TODO: retrieve available modules and interactively ask which module should be downloaded
+                    // Quick fix is to point this out to the user:
+                    if pkg_spec.name == pkg_spec.module {
+                        println!(
+                            "💡 Please verify that this package actually contains a `{}` module",
+                            pkg_spec.module.bold().yellow()
+                        );
+                        println!("   by checking the MODULES section on its profile page:");
+                        println!("   \t{}", pkg_spec.profile_url());
+                        println!(
+                            "   If the module name differs from the package name, you can provide it as follows:"
+                        );
+                        println!(
+                            "   \tcargo run -p serval -- pull {}/{}/{}.{}@{}",
+                            pkg_spec.registry.domain(),
+                            pkg_spec.author,
+                            pkg_spec.name,
+                            "<module>".bold().yellow(),
+                            pkg_spec.version,
+                        );
+                    }
+                } else {
+                    println!("😵‍💫 Something else happened. Status: {:?}", status_code);
+                }
+            }
+            // Something went horribly wrong.
+            Err(err) => println!("{:#?}", err),
+        }
+    }
+    Ok(())
+}
+
 /// Parse command-line arguments and act.
 fn main() -> Result<()> {
     let args = Args::parse();
@@ -320,6 +436,7 @@ fn main() -> Result<()> {
         Command::Status { id } => status(id)?,
         Command::History => history()?,
         Command::Ping => ping()?,
+        Command::Pull { identifer } => pull(identifer)?,
     };
 
     Ok(())
