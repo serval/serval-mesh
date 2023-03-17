@@ -1,6 +1,6 @@
 use anyhow::Result;
+use engine::extensions::ServalExtension;
 use once_cell::sync::OnceCell;
-use serde::Serialize;
 use utils::{blobs::BlobStore, errors::ServalError};
 use uuid::Uuid;
 
@@ -16,10 +16,10 @@ pub static STORAGE: OnceCell<BlobStore> = OnceCell::new();
 pub type ServalRouter = axum::Router<Arc<RunnerState>, hyper::Body>;
 
 /// Our application state. Fields are public for now but we'll want to fix that.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct RunnerState {
     pub instance_id: Uuid,
-    pub extensions: HashMap<String, PathBuf>,
+    pub extensions: HashMap<String, ServalExtension>,
     pub should_run_jobs: bool,
     pub has_storage: bool,
 }
@@ -44,7 +44,7 @@ impl RunnerState {
             // Read the contents of the directory at the given path and build a HashMap that maps
             // from the module's name (the filename minus the .wasm extension) to its path on disk.
 
-            let mut extensions: HashMap<String, PathBuf> = HashMap::new();
+            let mut extensions: HashMap<String, ServalExtension> = HashMap::new();
             let dir_entries = fs::read_dir(&extensions_path)?;
             for entry in dir_entries {
                 let Ok(entry) = entry else { continue };
@@ -54,7 +54,7 @@ impl RunnerState {
                     continue;
                 }
                 let module_name = &filename[0..filename.len() - ".wasm".len()];
-                extensions.insert(module_name.to_string(), entry.path());
+                extensions.insert(module_name.to_string(), ServalExtension::new(entry.path()));
             }
             extensions
         } else {
