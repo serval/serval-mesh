@@ -339,11 +339,13 @@ fn pull(identifer: String) -> Result<()> {
                     println!("   There may be an issue with this package manager.");
                 } else if status_code.is_client_error() {
                     println!("🛑 Client error: {}", status_code);
-                    println!("{:#?}", status_code);
                     if status_code == 404 {
                         println!("   Failed to download from {:?}", pkg_spec.download_urls());
                     }
                     println!();
+                    // wapm.io does not aliast the "latest" tag, so the download will fail if latest is used.
+                    // TODO: retrieve the latest version from wapm.io and insert it explicitly before
+                    // downloading when the user specifies "latest".
                     if pkg_spec.version == "latest" && pkg_spec.registry == PackageRegistry::Wapm {
                         println!(
                             "💡 Please note that wapm.io does not properly alias the `{}` version tag.",
@@ -365,12 +367,15 @@ fn pull(identifer: String) -> Result<()> {
                         println!("   by checking the MODULES section on its profile page:");
                         println!("   \t{}", pkg_spec.profile_url());
                         println!(
-                            "   If the module name differs from the package name, you need to provide it with"
+                            "   If the module name differs from the package name, you can provide it as follows:"
                         );
                         println!(
-                            "   \tserval pull {}:{}",
-                            pkg_spec.profile_url(),
-                            "<module>".bold().yellow()
+                            "   \tcargo run -p serval -- pull {}/{}/{}.{}@{}",
+                            pkg_spec.registry.domain(),
+                            pkg_spec.author,
+                            pkg_spec.name,
+                            "<module>".bold().yellow(),
+                            pkg_spec.version,
                         );
                     }
                 } else {

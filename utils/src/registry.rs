@@ -39,6 +39,13 @@ impl PackageRegistry {
         }
     }
 
+    pub fn domain(&self) -> &str {
+        match self {
+            PackageRegistry::Wapm => "wapm.io",
+            PackageRegistry::Warg => "warg.io",
+        }
+    }
+
     fn profile_url(&self, pkg: &PackageSpec) -> String {
         match self {
             PackageRegistry::Wapm => {
