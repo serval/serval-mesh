@@ -43,7 +43,9 @@ async fn main() -> Result<()> {
     let addr: SocketAddr = "0.0.0.0:9000".parse().unwrap();
     let builder = TcpBuilder::new().listen_address(addr);
 
-    builder.install().expect("failed to install TCP recorder");
+    if let Err(err) = builder.install() {
+        log::warn!("failed to install TCP recorder: {err:?}");
+    };
     metrics::increment_counter!("process:start", "component" => "agent");
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
