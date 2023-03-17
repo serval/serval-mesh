@@ -8,8 +8,8 @@
 )]
 /// I am just a simple worker staying busy with one WebAssembly program at a time.
 use clap::Parser;
+use engine::extensions::load_extensions;
 use owo_colors::OwoColorize;
-use std::collections::HashMap;
 use std::io::{stdin, Read};
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, fs};
@@ -30,6 +30,9 @@ struct CLIArgs {
     // TODO: How would we validate that an input file is "correct" without running the job and seeing if it fails? TBD.
     #[clap(long)]
     input_path: Option<PathBuf>,
+    /// Optional path to a directory full of Serval extensions
+    #[clap(long)]
+    extensions_path: Option<PathBuf>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -50,14 +53,30 @@ fn main() -> anyhow::Result<()> {
         vec![]
     };
 
+    let extensions = args
+        .extensions_path
+        .map(|extensions_path| {
+            load_extensions(&extensions_path).expect("Failed to load extensions")
+        })
+        .unwrap_or_default();
+    eprintln!(
+        "{} {}",
+        "extensions:".blue().bold(),
+        extensions
+            .keys()
+            .map(|str| str.to_owned())
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+
     // Are we still running? Great, let's assume executable and input are usable.
     // The following section is highly inspired by "Approach 1" in [3]. Its "Approach 2" is potentially
     // a lot more powerful and may be the way to go, but I had too many question marks in my eyes when
     // initially reading it to pursue it for a first draft.
     // [3]: https://petermalmgren.com/serverside-wasm-data/
 
-    eprintln!("\n{} {}", "executing:".blue().bold(), exec_path.display());
-    let mut engine = ServalEngine::new(HashMap::new())?;
+    eprintln!("{} {}", "executing:".blue().bold(), exec_path.display());
+    let mut engine = ServalEngine::new(extensions)?;
     let result = match engine.execute(&binary, &stdin) {
         Ok(result) => result,
         Err(err) => match err {
