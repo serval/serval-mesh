@@ -75,6 +75,7 @@ pub enum Command {
     Pull {
         /// The name of the software package, formatted as
         /// [[protocol://]registry.tld/]author/packagename[.module][@version]
+        // TODO: parse directly via clap, see https://github.com/serval/serval-mesh/pull/43/files#r1139430044
         identifer: String,
     },
 }
@@ -296,9 +297,14 @@ fn blocking_maybe_discover_service_url(
 }
 
 /// Pull a Wasm package from a package manager, generate its manifest, and store it.
-fn pull(identifer: String) -> Result<()> {
-    let pkg_spec = PackageSpec::try_from(identifer).unwrap();
-    log::debug!("{:#?}", pkg_spec);
+fn pull(identifier: String) -> Result<()> {
+    let Ok(pkg_spec) = PackageSpec::try_from(identifier.clone()) else {
+        return Err(anyhow!(format!(
+            "Failed to parse identifier `{}` into a package specification",
+            identifier.bold().blue()
+        )));
+    };
+    dbg!(&pkg_spec);
     println!(
         "📦 Identified package {}",
         pkg_spec.profile_url().bold().blue()
@@ -311,13 +317,18 @@ fn pull(identifer: String) -> Result<()> {
             pkg_spec.fq_digest()
         );
         // Creating a temporary manifest file
-        let manifest_path = gen_manifest(&pkg_spec).unwrap();
+        let Ok(manifest_path) = gen_manifest(&pkg_spec) else {
+            return Err(anyhow!(format!(
+                "Failed to parse package specification `{}` into a manifest",
+                pkg_spec.fq_name().bold().blue()
+            )));
+        };
         // Handing over to existing storage logic
         upload_manifest(manifest_path)?;
     } else {
         println!(
             "⌛️ Binary for {} not available locally, downloading...",
-            pkg_spec.fq_name().blue()
+            pkg_spec.fq_name().bold().blue()
         );
         let mod_dl = download_module(&pkg_spec);
         match mod_dl {
@@ -331,7 +342,12 @@ fn pull(identifer: String) -> Result<()> {
                         pkg_spec.fq_digest()
                     );
                     // Creating a temporary manifest file
-                    let manifest_path = gen_manifest(&pkg_spec).unwrap();
+                    let Ok(manifest_path) = gen_manifest(&pkg_spec) else {
+                        return Err(anyhow!(format!(
+                            "Failed to create a temporafy manifest for `{}`",
+                            pkg_spec.fq_name().bold().blue()
+                        )));
+                    };
                     // Handing over to existing storage logic
                     upload_manifest(manifest_path)?;
                 } else if status_code.is_server_error() {
