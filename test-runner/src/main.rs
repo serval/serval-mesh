@@ -50,10 +50,12 @@ fn main() -> anyhow::Result<()> {
     let stdin = if let Some(input_file) = args.input_path {
         let input_path = Path::new(&input_file);
         fs::read(input_path)?
-    } else {
+    } else if !atty::is(atty::Stream::Stdin) {
         let mut buf = vec![];
         stdin().lock().read_to_end(&mut buf)?;
         buf
+    } else {
+        vec![]
     };
 
     // Are we still running? Great, let's assume executable and input are usable.

@@ -6,6 +6,7 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow.workspace = true
+atty.workspace = true
 clap.workspace = true
 engine = { path = "../engine" }
 owo-colors = "3.5.0"

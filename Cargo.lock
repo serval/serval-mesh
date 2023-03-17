@@ -2570,6 +2570,7 @@ name = "test-runner"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atty",
  "clap",
  "engine",
  "owo-colors",
