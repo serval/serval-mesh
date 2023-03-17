@@ -250,7 +250,7 @@ impl TryFrom<std::string::String> for PackageSpec {
             ([a-zA-Z0-9-]+)             # $3 package author
             (?:/)                       # slash (non-capturing)
             ([a-zA-Z0-9-]+)             # $4 package name
-            (?:(?:\.)([a-zA-Z0-9]+))?   # $5 module name (optional)
+            (?:(?:\.)([a-zA-Z0-9_]+))?  # $5 module name (optional)
             (?:(?:@)([a-zA-Z0-9.-]+))?  # $6 package version (optional)
             ",
         )
