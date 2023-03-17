@@ -1,5 +1,6 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
+use utils::errors::ServalError;
 use wasmtime::{Engine, Module};
 
 use crate::errors::ServalEngineError;
@@ -31,16 +32,19 @@ pub fn load_extensions(path: &PathBuf) -> Result<HashMap<String, ServalExtension
     // Read the contents of the directory at the given path and build a HashMap that maps
     // from the module's name (the filename minus the .wasm extension) to its path on disk.
 
-    let extensions: HashMap<String, ServalExtension> = fs::read_dir(&path)?
+    let extensions: HashMap<String, ServalExtension> = fs::read_dir(path)?
         .filter_map(|entry| {
             entry.ok().and_then(|entry| {
-                let filename = entry.file_name();
-                let filename = filename.to_string_lossy();
-                if !filename.to_lowercase().ends_with(".wasm") {
+                if Some(String::from("wasm"))
+                    != entry
+                        .path()
+                        .extension()
+                        .map(|ext| ext.to_string_lossy().to_lowercase())
+                {
                     return None;
                 }
-                let module_name = &filename[0..filename.len() - ".wasm".len()];
-                Some((module_name.to_string(), ServalExtension::new(entry.path())))
+                let extension = ServalExtension::new(entry.path());
+                Some((extension.name.to_owned(), extension))
             })
         })
         .collect();

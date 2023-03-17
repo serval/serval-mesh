@@ -94,8 +94,8 @@ impl ServalEngine {
             .filter(|import| !import.starts_with("wasi_snapshot_"))
             // Our SDK functions are exported under the serval namespace; this is set up in the
             // register_exports function that we call in our constructor, above.
-            .filter(|import| import != "serval");
-        let required_modules: HashSet<String> = HashSet::from_iter(required_modules);
+            .filter(|import| import != "serval")
+            .collect::<HashSet<String>>();
 
         log::info!("Job wants the following extensions: {required_modules:?}");
 
