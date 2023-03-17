@@ -55,12 +55,12 @@ impl PackageRegistry {
         match self {
             PackageRegistry::Wapm => {
                 format!(
-                    "{}/{}/{}@{}:{}",
+                    "{}.{}.{}.{}@{}",
                     self.namespace(),
                     pkg.author,
                     pkg.name,
+                    pkg.module,
                     pkg.version,
-                    pkg.module
                 )
             }
             PackageRegistry::Warg => todo!(),
@@ -113,7 +113,7 @@ impl PackageSpec {
     }
 
     pub fn namespace(&self) -> String {
-        format!("{}/{}", self.registry.namespace(), self.author)
+        format!("{}.{}", self.registry.namespace(), self.author)
     }
 
     pub fn binary_path(&self) -> PathBuf {
@@ -139,47 +139,47 @@ impl TryFrom<std::string::String> for PackageSpec {
     Full URL to package in a supported registry:
     ```
     # use utils::registry::PackageSpec;
-    let pkg_spec = PackageSpec::try_from(String::from("https://wapm.io/author/package@version")).unwrap();
+    let pkg_spec = PackageSpec::try_from(String::from("https://wapm.io/author/serval@version")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
     #     registry: utils::registry::PackageRegistry::Wapm,
     #     author: "author".to_string(),
-    #     name: "package".to_string(),
+    #     name: "serval".to_string(),
     #     version: "version".to_string(),
-    #     module: "package".to_string(),
+    #     module: "serval".to_string(),
     # });
     ```
 
     Full URL to package in a supported registry, defaulting to latest version:
     ```
     # use utils::registry::PackageSpec;
-    let pkg_spec = PackageSpec::try_from(String::from("https://wapm.io/author/package")).unwrap();
+    let pkg_spec = PackageSpec::try_from(String::from("https://wapm.io/author/tiger")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
     #     registry: utils::registry::PackageRegistry::Wapm,
     #     author: "author".to_string(),
-    #     name: "package".to_string(),
+    #     name: "tiger".to_string(),
     #     version: "latest".to_string(),
-    #     module: "package".to_string(),
+    #     module: "tiger".to_string(),
     # });
     ```
 
     When providing a URL, the protocol is optional. This is also valid:
     ```
     # use utils::registry::PackageSpec;
-    let pkg_spec = PackageSpec::try_from(String::from("wapm.io/author/package@version")).unwrap();
+    let pkg_spec = PackageSpec::try_from(String::from("wapm.io/author/lion@version")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
     #     registry: utils::registry::PackageRegistry::Wapm,
     #     author: "author".to_string(),
-    #     name: "package".to_string(),
+    #     name: "lion".to_string(),
     #     version: "version".to_string(),
-    #     module: "package".to_string(),
+    #     module: "lion".to_string(),
     # });
-    # let pkg_spec = PackageSpec::try_from(String::from("wapm.io/author/package")).unwrap();
+    # let pkg_spec = PackageSpec::try_from(String::from("wapm.io/author/cheetah")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
     #     registry: utils::registry::PackageRegistry::Wapm,
     #     author: "author".to_string(),
-    #     name: "package".to_string(),
+    #     name: "cheetah".to_string(),
     #     version: "latest".to_string(),
-    #     module: "package".to_string(),
+    #     module: "cheetah".to_string(),
     # });
     ```
 
@@ -188,48 +188,48 @@ impl TryFrom<std::string::String> for PackageSpec {
     ```
     # use utils::registry::PackageSpec;
     // provide specific version:
-    let pkg_spec = PackageSpec::try_from(String::from("author/package@version")).unwrap();
+    let pkg_spec = PackageSpec::try_from(String::from("author/panther@version")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
     #     registry: utils::registry::PackageRegistry::Wapm,
     #     author: "author".to_string(),
-    #     name: "package".to_string(),
+    #     name: "panther".to_string(),
     #     version: "version".to_string(),
-    #     module: "package".to_string(),
+    #     module: "panther".to_string(),
     # });
     // default to latest version:
-    let pkg_spec = PackageSpec::try_from(String::from("author/package")).unwrap();
+    let pkg_spec = PackageSpec::try_from(String::from("author/leopard")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
     #     registry: utils::registry::PackageRegistry::Wapm,
     #     author: "author".to_string(),
-    #     name: "package".to_string(),
+    #     name: "leopard".to_string(),
     #     version: "latest".to_string(),
-    #     module: "package".to_string(),
+    #     module: "leopard".to_string(),
     # });
     ```
 
     In some cases, the actual Wasm module contained in a package has a different name than the
-    package. This is obviously also relevant if a package contains more than one module.
+    package, or a package may contain more than one module.
     The package identifier defaults to a module name identical to the package name -- if a
-    different module should be used, it can be provided by appending it with a semicolon:
+    different module should be used, it can be provided by appending it with a dot:
     ```
     # use utils::registry::PackageSpec;
     // provide specific version and module name:
-    let pkg_spec = PackageSpec::try_from(String::from("author/package@version:modname")).unwrap();
+    let pkg_spec = PackageSpec::try_from(String::from("author/felis.catus@version")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
     #     registry: utils::registry::PackageRegistry::Wapm,
     #     author: "author".to_string(),
-    #     name: "package".to_string(),
+    #     name: "felis".to_string(),
     #     version: "version".to_string(),
-    #     module: "modname".to_string(),
+    #     module: "catus".to_string(),
     # });
     // again, a missing version defaults to the latest version:
-    let pkg_spec = PackageSpec::try_from(String::from("author/package:modname")).unwrap();
+    let pkg_spec = PackageSpec::try_from(String::from("author/felis.lybica")).unwrap();
     # assert_eq!(pkg_spec, utils::registry::PackageSpec {
     #     registry: utils::registry::PackageRegistry::Wapm,
     #     author: "author".to_string(),
-    #     name: "package".to_string(),
+    #     name: "felis".to_string(),
     #     version: "latest".to_string(),
-    #     module: "modname".to_string(),
+    #     module: "lybica".to_string(),
     # });
     ```
     */
@@ -238,15 +238,13 @@ impl TryFrom<std::string::String> for PackageSpec {
         let re = Regex::new(
             r"(?x)
             (?:[a-z]+/{2})?             # the protocol (optional, non-capturing)
-            (([a-z0-9.]+)(?:/))?        # $1 (optional) package registry domain incl. trailing slash
-                                        # $2 (optional) package registry domain w/o trailing slash
+            (([a-z0-9.]+)(?:/))?        # $1 package registry domain incl. trailing slash (optional, not used) 
+                                        # $2 package registry domain w/o trailing slash (optional)
             ([a-zA-Z0-9-]+)             # $3 package author
             (?:/)                       # slash (non-capturing)
             ([a-zA-Z0-9-]+)             # $4 package name
-            ((?:@)([a-zA-Z0-9.-]+))?    # $5 (optional) package version incl. @ prefix
-                                        # $6 (optional) package version w/o @ prefix
-            (?::)?                      # (optional) colon (module delimiter)
-            ([a-zA-Z0-9]+)?             # $7 (optional) module name
+            (?:(?:\.)([a-zA-Z0-9]+))?   # $5 module name (optional)
+            (?:(?:@)([a-zA-Z0-9.-]+))?  # $6 package version (optional)
             ",
         )
         .unwrap();
@@ -255,8 +253,7 @@ impl TryFrom<std::string::String> for PackageSpec {
         // - the package registry domain without trailing slash ($2)
         // - the package author ($3)
         // - the package name ($4)
-        // - the package version without @ prefix ($6)
-        // - the module name ($7)
+        // - the package version ($6)
         let (pkg_reg, pkg_auth, pkg_name, pkg_version) = (
             cap.get(2).map_or(PackageRegistry::Wapm, |m| {
                 PackageRegistry::from_str(m.as_str()).unwrap()
@@ -265,8 +262,10 @@ impl TryFrom<std::string::String> for PackageSpec {
             String::from(cap.get(4).map(|m| m.as_str()).unwrap()),
             String::from(cap.get(6).map_or("latest", |m| m.as_str())),
         );
+        // Collecting the module name ($5) separately as it needs to default to the package name
+        // if not provided.
         let mod_name = cap
-            .get(7)
+            .get(5)
             .map_or(pkg_name.clone(), |m| m.as_str().to_owned());
         Ok(PackageSpec {
             author: pkg_auth,

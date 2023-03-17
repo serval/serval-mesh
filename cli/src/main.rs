@@ -74,7 +74,7 @@ pub enum Command {
     /// Highly experimental: Pull a package from WAPM.io and store it in Serval Mesh
     Pull {
         /// The name of the software package, formatted as
-        /// [[protocol://]registry.tld/]author/packagename[@version][:module]
+        /// [[protocol://]registry.tld/]author/packagename[.module][@version]
         identifer: String,
     },
 }
@@ -97,12 +97,14 @@ fn build_url(path: String, version: Option<&str>) -> String {
 fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     println!("Reading manifest: {}", manifest_path.display());
     let manifest = Manifest::from_file(&manifest_path)?;
+    println!("manifest: {:#?}", manifest);
 
     let mut wasmpath = manifest_path
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
     wasmpath.push(manifest.binary());
+    println!("wasmpath: {:#?}", wasmpath);
 
     println!("Reading WASM executable:{}", wasmpath.display());
     let executable = read_file(wasmpath)?;
@@ -149,7 +151,7 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         ]);
     } else {
         table.add_row(row!["Storing the WASM executable failed!"]);
-        table.add_row(row![format!("{} {}", response.status(), response.text()?)]);
+        table.add_row(row![format!("{} {:#?}", response.status(), response)]);
     }
 
     println!("{table}");
