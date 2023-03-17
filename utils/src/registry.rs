@@ -309,7 +309,7 @@ pub fn download_module(pkg_spec: &PackageSpec) -> Result<StatusCode, ServalError
 }
 
 pub fn gen_manifest(pkg_spec: &PackageSpec) -> Result<PathBuf, ServalError> {
-    let manifest = Manifest::from_packagespec(&pkg_spec)?;
+    let manifest = Manifest::from_packagespec(pkg_spec)?;
     let mut f = File::create(pkg_spec.manifest_path())?;
     f.write_all(toml::to_string(&manifest).unwrap().as_bytes())?;
     Ok(pkg_spec.manifest_path())
