@@ -66,8 +66,8 @@ async fn run_job(
     let job = Job::new(manifest, executable, input.to_vec());
     log::info!(
         "received WASM job; name={}; executable length={}; input length={}; id={}",
-        &job.manifest().fq_name(),
-        &job.executable().len(),
+        job.manifest().fq_name(),
+        job.executable().len(),
         input.len(),
         job.id()
     );
@@ -77,9 +77,9 @@ async fn run_job(
     // What we'll do later is accept this job for processing and send it to a thread or something.
     // But for now we do it right here, in our handler.
     // The correct response by design is a 202 Accepted plus the metadata object.
-    // TODO: SER-38 - capture exit code for failed jobs
     log::info!(
-        "about to run job name=TODO; id={}; executable size={}",
+        "about to run job name={}; id={}; executable size={}",
+        job.manifest().fq_name(),
         job.id(),
         job.executable().len()
     );
