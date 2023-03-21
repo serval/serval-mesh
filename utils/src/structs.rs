@@ -1,6 +1,6 @@
-use std::{fmt::Display, path::PathBuf};
+use std::{fmt::Display, fs, path::PathBuf, str::FromStr};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use uuid::Uuid;
 
 use crate::errors::ServalError;
@@ -31,22 +31,55 @@ pub struct Manifest {
     description: String,
     /// Required extensions.
     required_extensions: Vec<String>, // TODO: this is a placeholder
+    /// Required permissions; it is up to the agent to ensure that the submitter of this job is
+    /// actually authorized to run a job with said permissions.
+    required_permissions: Vec<Permission>,
 }
 
 impl Manifest {
+    pub fn new(path: &PathBuf) -> Manifest {
+        Manifest {
+            name: path.file_stem().unwrap().to_string_lossy().to_string(),
+            namespace: String::from(""),
+            binary: path.to_owned(),
+            version: String::from("0.0.0"),
+            description: String::from(""),
+            required_extensions: vec![],
+            required_permissions: vec![],
+        }
+    }
+
     pub fn from_string(input: &str) -> Result<Self, ServalError> {
         let manifest: Manifest = toml::from_str(input)?;
+        if manifest.binary.is_relative() {
+            return Err(ServalError::RelativeBinaryPathInManifestError);
+        }
         Ok(manifest)
     }
 
     pub fn from_file(path: &PathBuf) -> Result<Self, ServalError> {
         let buf = std::fs::read_to_string(path)?;
-        let manifest: Manifest = toml::from_str(&buf)?;
+        let mut manifest = toml::from_str::<Manifest>(&buf)?;
+        if manifest.binary.is_relative() {
+            // If the binary file actually exists, replace its relative path with absolute path. (If
+            // it doesn't exist, well, that's a problem for another piece of code somewhere.)
+            let path = path.parent().unwrap().join(&manifest.binary);
+            if path.exists() {
+                manifest.binary = fs::canonicalize(path)?;
+            }
+        }
         Ok(manifest)
     }
 
     pub fn binary(&self) -> &PathBuf {
         &self.binary
+    }
+
+    /// Get the list of permissions that this manifest is requesting. Note that this list needs to
+    /// be validated elsewhere to ensure that the running user is authorized to assign said
+    /// permissions.
+    pub fn required_permissions(&self) -> &Vec<Permission> {
+        &self.required_permissions
     }
 
     pub fn version(&self) -> &str {
@@ -128,5 +161,66 @@ impl Job {
 
     pub fn input(&self) -> &Vec<u8> {
         &self.input
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum Permission {
+    ProcRead,
+    AllExtensions,
+    Extension(String),
+    AllHttpHosts,
+    HttpHost(String),
+}
+
+impl FromStr for Permission {
+    type Err = ();
+
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        match str {
+            "extension:*" => Ok(Permission::AllExtensions),
+            "http:*" => Ok(Permission::AllHttpHosts),
+            "proc:read:*" => Ok(Permission::ProcRead),
+            str => {
+                if str.starts_with("extension:") {
+                    if let Some((_, ext_name)) = str.split_once(':') {
+                        return Ok(Permission::Extension(ext_name.to_string()));
+                    }
+                } else if str.starts_with("http:") {
+                    if let Some((_, host)) = str.split_once(':') {
+                        return Ok(Permission::HttpHost(host.to_string()));
+                    }
+                }
+
+                Err(())
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Permission {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw_perm = String::deserialize(deserializer)?;
+        Permission::from_str(raw_perm.as_str())
+            .map_err(|_| serde::de::Error::custom(format!("Invalid permission: {raw_perm}")))
+    }
+}
+
+impl Serialize for Permission {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let str = match self {
+            Permission::ProcRead => String::from("proc:read:*"),
+            Permission::AllExtensions => String::from("extension:*"),
+            Permission::Extension(name) => format!("extension:{name}"),
+            Permission::AllHttpHosts => String::from("http:*"),
+            Permission::HttpHost(host) => format!("http:{host}"),
+        };
+        serializer.serialize_str(&str)
     }
 }

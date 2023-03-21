@@ -70,6 +70,9 @@ pub enum ServalError {
     /// Translation for errors from ssri.
     #[error("ssri::Error: {0}")]
     SsriError(#[from] ssri::Error),
+
+    #[error("Manifest with a relative binary path was passed to Manifest::from_string; only absolute paths are supported here")]
+    RelativeBinaryPathInManifestError,
 }
 
 use axum::http::StatusCode;
