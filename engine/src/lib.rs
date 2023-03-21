@@ -7,18 +7,22 @@
     unused_qualifications
 )]
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    path::PathBuf,
+};
 
 use anyhow::anyhow;
 use cranelift_codegen_meta::isa::Isa;
 use extensions::ServalExtension;
-use utils::structs::WasmResult;
+use utils::structs::{Permission, WasmResult};
 use wasi_common::{
     pipe::{ReadPipe, WritePipe},
     I32Exit,
 };
 use wasmtime::{Engine, Linker, Module, Store};
-use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
+use wasmtime_wasi::{Dir, WasiCtx, WasiCtxBuilder};
 
 pub mod errors;
 pub mod extensions;
@@ -43,15 +47,6 @@ impl ServalEngine {
         wasmtime_wasi::add_to_linker(&mut linker, |s| s)
             .map_err(ServalEngineError::EngineInitializationError)?;
 
-        // link the experimental HTTP support
-        let http_state = HttpState::new().map_err(ServalEngineError::EngineInitializationError)?;
-        http_state
-            .add_to_linker(&mut linker, |_| HttpCtx {
-                allowed_hosts: Some(vec!["insecure:allow-all".to_string()]),
-                max_concurrent_requests: Some(42),
-            })
-            .map_err(ServalEngineError::EngineInitializationError)?;
-
         // Wire up our host functions (functionality that we want to expose to the jobs we run)
         register_exports(&mut linker).map_err(|_| {
             ServalEngineError::EngineInitializationError(anyhow!("Failed to register exports"))
@@ -67,20 +62,66 @@ impl ServalEngine {
     /// Run the passed-in WASM executable on the given input bytes.
     pub fn execute(
         &mut self,
+        // WebAssembly binary to execute
         binary: &[u8],
+        // Data to pass to WebAssembly as stdin
         input: &[u8],
+        // List of elevated permissions for this binary
+        permissions: &[Permission],
     ) -> Result<WasmResult, ServalEngineError> {
         let stdout = WritePipe::new_in_memory();
         let stderr = WritePipe::new_in_memory();
 
+        // Link the experimental HTTP support
+        let allowed_http_hosts = if permissions.contains(&Permission::AllHttpHosts) {
+            // todo: unclear whether we should actually support a wildcard like this
+            vec!["insecure:allow-all".to_string()]
+        } else {
+            permissions
+                .iter()
+                .filter_map(|perm| match perm {
+                    Permission::HttpHost(origin) => Some(origin.to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+
+        if !allowed_http_hosts.is_empty() {
+            let http_state =
+                HttpState::new().map_err(ServalEngineError::EngineInitializationError)?;
+            http_state
+                .add_to_linker(&mut self.linker, move |_| HttpCtx {
+                    // todo: there's some confusion around whether
+                    allowed_hosts: Some(allowed_http_hosts.clone()),
+                    max_concurrent_requests: Some(42),
+                })
+                .map_err(ServalEngineError::EngineInitializationError)?;
+        }
+
         let stdin = ReadPipe::from(input);
-        let wasi = WasiCtxBuilder::new()
+        let mut wasi_builder = WasiCtxBuilder::new()
             .stdin(Box::new(stdin))
             .stdout(Box::new(stdout.clone()))
-            .stderr(Box::new(stderr.clone()))
-            .build();
+            .stderr(Box::new(stderr.clone()));
 
-        let mut store = Store::new(&self.engine, wasi);
+        // Give the engine access to whichever parts of the file system are required
+        // TODO: this list should be pulled from the job's manifest, and permissions should be
+        // checked against the owner of the job in question and the configuration of this node (that
+        // is, the list of file system locations that any job by any user can access should be
+        // defined at the node level, and then the subset of those that any job by a specific user
+        // can access should exist in our configuration store, and then the subset of those that a
+        // specific job by that specific user should exist in the manifest for that job. Phew!
+        if permissions.contains(&Permission::ProcRead) {
+            let path = PathBuf::from("/proc");
+            if !path.exists() {
+                return Err(ServalEngineError::UnsupportedFeatureError);
+            }
+
+            let dir = Dir::from_std_file(File::open(&path)?);
+            wasi_builder = wasi_builder.preopened_dir(dir, path).unwrap();
+        }
+
+        let mut store = Store::new(&self.engine, wasi_builder.build());
 
         let module = Module::from_binary(&self.engine, binary)
             .map_err(ServalEngineError::ModuleLoadError)?;
@@ -99,6 +140,7 @@ impl ServalEngine {
 
         log::info!("Job wants the following extensions: {required_modules:?}");
 
+        let allow_all_extensions = permissions.contains(&Permission::AllExtensions);
         for ext_name in required_modules {
             let Some(extension) = self.extensions.get(&ext_name) else {
                 // We don't have an extension that matches the expected module name, which
@@ -107,6 +149,12 @@ impl ServalEngine {
                 log::warn!("Extension {ext_name} is not available on this node");
                 continue;
             };
+
+            if !allow_all_extensions
+                && !permissions.contains(&Permission::Extension(ext_name.to_owned()))
+            {
+                return Err(ServalEngineError::ExtensionPermissionDenied(ext_name));
+            }
 
             // TODO: implement permissions checking here at some point
 

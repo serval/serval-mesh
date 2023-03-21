@@ -89,7 +89,14 @@ async fn run_job(
     let Ok(mut engine) = ServalEngine::new(extensions) else {
         return (StatusCode::INTERNAL_SERVER_ERROR, "unable to create wasm engine").into_response();
     };
-    let result = engine.execute(job.executable(), job.input());
+
+    // todo: verify that the user who submitted the job is actually authorized for all of the
+    // permissions that are listed in the manifest. If not, return a 403 error.
+    let result = engine.execute(
+        job.executable(),
+        job.input(),
+        job.manifest().required_permissions(),
+    );
 
     match result {
         Ok(result) => {

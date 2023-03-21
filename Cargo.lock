@@ -2574,6 +2574,10 @@ dependencies = [
  "clap",
  "engine",
  "owo-colors",
+ "serde",
+ "serde_json",
+ "toml 0.7.3",
+ "utils",
  "wasi-common",
  "wasmtime-wasi",
 ]
