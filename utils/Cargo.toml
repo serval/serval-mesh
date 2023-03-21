@@ -8,20 +8,23 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = "0.1.67"
 axum = { workspace = true }
+bincode = "2.0.0-rc.2"
 cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }
 hex = "0.4.3"
 if-addrs = "0.10.1"
+kaboodle = "0.1.2"
 log = { workspace = true }
 mdns-sd = { workspace = true }
 reqwest = { workspace = true }
-serde_json = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 sha2 = "0.10.6"
 ssri = "8.0.0"
 thiserror = { workspace = true }
-tokio-util = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 toml = { workspace = true }
 uuid = { workspace = true }
 wasi-common = { workspace = true }
