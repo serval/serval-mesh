@@ -39,4 +39,10 @@ pub enum ServalEngineError {
 
     #[error("Error reading bytes from stdout pipe")]
     StandardOutputReadError(),
+
+    #[error("Host platform does not support a required feature")]
+    UnsupportedFeatureError,
+
+    #[error("Job does not have permission to use extension '{0}'")]
+    ExtensionPermissionDenied(String),
 }

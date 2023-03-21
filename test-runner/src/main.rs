@@ -6,13 +6,16 @@
     trivial_casts,
     unused_qualifications
 )]
-/// I am just a simple worker staying busy with one WebAssembly program at a time.
 use clap::Parser;
 use engine::extensions::load_extensions;
 use owo_colors::OwoColorize;
+
 use std::io::{stdin, Read};
 use std::path::{Path, PathBuf};
+use std::process::exit;
+use std::str::FromStr;
 use std::{ffi::OsStr, fs};
+use utils::structs::{Manifest, Permission};
 
 use engine::ServalEngine;
 
@@ -20,7 +23,7 @@ use engine::ServalEngine;
 /// The real worker will pick up executables and inputs from an API endpoint.
 #[derive(Parser, Debug)]
 struct CLIArgs {
-    /// Path to the WASM executable to run
+    /// Path to the WASM executable or Serval manifest to run
     // TODO: Check for the WASM binary magic bytes [1] or even evaluate file grammar [2].
     // [1]: Example: https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format#the_simplest_module
     // [2]: Specification: https://webassembly.github.io/spec/core/index.html
@@ -33,14 +36,59 @@ struct CLIArgs {
     /// Optional path to a directory full of Serval extensions
     #[clap(long)]
     extensions_path: Option<PathBuf>,
+    #[clap(long)]
+    permissions: Option<String>,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = CLIArgs::parse();
 
-    let exec_path = Path::new(&args.exec_path);
-    assert!(is_wasm_executable(exec_path));
-    let binary = fs::read(exec_path)?;
+    let manifest = match args
+        .exec_path
+        .extension()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .as_ref()
+    {
+        "toml" => {
+            let manifest = Manifest::from_file(&args.exec_path)?;
+
+            eprintln!(
+                "{} {}",
+                "manifest:".blue().bold(),
+                toml::to_string(&manifest)
+                    .unwrap()
+                    .replace('\n', "\n          ")
+            );
+
+            manifest
+        }
+        _ => Manifest::new(&args.exec_path),
+    };
+
+    let permissions_override = args.permissions.map(|raw_perms| {
+        raw_perms
+            .split(',')
+            .map(|raw_perm| {
+                Permission::from_str(raw_perm).unwrap_or_else(|_| {
+                    eprintln!("Error: Invalid permission '{raw_perm}'");
+                    exit(1);
+                })
+            })
+            .collect::<Vec<_>>()
+    });
+
+    let Ok(binary) = fs::read(manifest.binary()) else {
+        eprintln!("error: failed to read binary '{}'", manifest.binary().to_string_lossy());
+        exit(1);
+    };
+    if !is_wasm_executable(manifest.binary()) {
+        eprintln!(
+            "error: binary '{}' is not a wasm executable",
+            manifest.binary().to_string_lossy()
+        );
+        exit(1);
+    }
 
     let stdin = if let Some(input_file) = args.input_path {
         let input_path = Path::new(&input_file);
@@ -59,15 +107,18 @@ fn main() -> anyhow::Result<()> {
             load_extensions(&extensions_path).expect("Failed to load extensions")
         })
         .unwrap_or_default();
-    eprintln!(
-        "{} {}",
-        "extensions:".blue().bold(),
-        extensions
-            .keys()
-            .map(|str| str.to_owned())
-            .collect::<Vec<_>>()
-            .join(",")
-    );
+    {
+        let extensions_readable = if extensions.is_empty() {
+            String::from("none")
+        } else {
+            extensions
+                .keys()
+                .map(|str| str.to_owned())
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        eprintln!("{} {}", "extensions:".blue().bold(), extensions_readable);
+    }
 
     // Are we still running? Great, let's assume executable and input are usable.
     // The following section is highly inspired by "Approach 1" in [3]. Its "Approach 2" is potentially
@@ -75,21 +126,34 @@ fn main() -> anyhow::Result<()> {
     // initially reading it to pursue it for a first draft.
     // [3]: https://petermalmgren.com/serverside-wasm-data/
 
-    eprintln!("{} {}", "executing:".blue().bold(), exec_path.display());
+    let permissions =
+        permissions_override.unwrap_or_else(|| manifest.required_permissions().to_owned());
+    eprintln!("{} {:?}", "permissions:".blue().bold(), permissions);
+    eprintln!(
+        "{} {}",
+        "executing:".blue().bold(),
+        manifest.binary().display()
+    );
     let mut engine = ServalEngine::new(extensions)?;
-    let result = match engine.execute(&binary, &stdin) {
+    let result = match engine.execute(&binary, &stdin, &permissions) {
         Ok(result) => result,
         Err(err) => match err {
             engine::errors::ServalEngineError::ExecutionError {
                 stdout,
                 stderr,
                 error,
-            } => panic!(
-                "Execution error {error}: stdout={} stderr={}",
-                String::from_utf8_lossy(&stdout),
-                String::from_utf8_lossy(&stderr)
-            ),
-            _ => panic!("Error: {err:?}"),
+            } => {
+                eprintln!(
+                    "execution error {error}: stdout={} stderr={}",
+                    String::from_utf8_lossy(&stdout),
+                    String::from_utf8_lossy(&stderr)
+                );
+                exit(1);
+            }
+            _ => {
+                eprintln!("error: {err:?}");
+                exit(1);
+            }
         },
     };
     eprintln!("{} {}", "exit status:".blue().bold(), result.code);
@@ -110,8 +174,8 @@ fn is_wasm_executable(path: &Path) -> bool {
     }
 
     eprintln!(
-        "\t⚠️ {}: file extension should be `wasm` but is instead `{}`.",
-        "Warning".red(),
+        "⚠️ {}: file extension should be `wasm` but is instead `{}`.",
+        "error".red(),
         extension.unwrap_or_default().blue()
     );
 

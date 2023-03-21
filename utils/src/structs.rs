@@ -173,6 +173,20 @@ pub enum Permission {
     HttpHost(String),
 }
 
+impl Display for Permission {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Permission::ProcRead => String::from("proc:read"),
+            Permission::AllExtensions => String::from("extension:*"),
+            Permission::Extension(name) => format!("extension:{name}"),
+            Permission::AllHttpHosts => String::from("http:*"),
+            Permission::HttpHost(host) => format!("http:{host}"),
+        };
+        let _ = write!(f, "{}", str);
+        Ok(())
+    }
+}
+
 impl FromStr for Permission {
     type Err = ();
 
@@ -214,13 +228,6 @@ impl Serialize for Permission {
     where
         S: Serializer,
     {
-        let str = match self {
-            Permission::ProcRead => String::from("proc:read:*"),
-            Permission::AllExtensions => String::from("extension:*"),
-            Permission::Extension(name) => format!("extension:{name}"),
-            Permission::AllHttpHosts => String::from("http:*"),
-            Permission::HttpHost(host) => format!("http:{host}"),
-        };
-        serializer.serialize_str(&str)
+        serializer.serialize_str(&self.to_string())
     }
 }
