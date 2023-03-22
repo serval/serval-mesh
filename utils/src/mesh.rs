@@ -86,11 +86,10 @@ impl KaboodlePeer for PeerMetadata {
     }
 
     fn identity(&self) -> Vec<u8> {
-        // TODO: this is actually fallible; when might it fail?
         let config = bincode::config::standard();
-        let rest: Vec<u8> = bincode::encode_to_vec(self.inner.clone(), config).unwrap();
+        let rest: Vec<u8> = bincode::encode_to_vec(self.inner.clone(), config).unwrap_or_default();
         let envelope = VersionEnvelope { version: 1, rest };
-        let identity: Vec<u8> = bincode::encode_to_vec(envelope, config).unwrap();
+        let identity: Vec<u8> = bincode::encode_to_vec(envelope, config).unwrap_or_default();
         identity
     }
 
@@ -136,8 +135,7 @@ impl KaboodleMesh for ServalMesh {
     }
 
     async fn peers(&self) -> Vec<Self::A> {
-        // No caching or smarts at all in the initial implementation.
-        let peers = self.kaboodle.peers().await; // this isn't fallible? really? okay
+        let peers = self.kaboodle.peers().await;
         peers
             .into_iter()
             .map(|(addr, identity)| PeerMetadata::from_identity(addr, identity.to_vec()))
