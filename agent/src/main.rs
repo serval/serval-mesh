@@ -17,9 +17,11 @@ use axum::{
 };
 use dotenvy::dotenv;
 use engine::ServalEngine;
-use utils::{mdns::advertise_service, networking::find_nearest_port};
+use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh};
+use utils::networking::find_nearest_port;
 use uuid::Uuid;
 
+// TODO: should switch on feature.
 use metrics_exporter_tcp::TcpBuilder;
 
 use std::{net::SocketAddr, process};
@@ -156,12 +158,7 @@ async fn main() -> Result<()> {
     };
 
     log::info!("serval agent daemon listening on {host}:{port}");
-    advertise_service("serval_daemon", port, &instance_id, None)?;
 
-    if blob_path.is_some() {
-        log::info!("serval agent blob store mounted; path={blob_path:?}");
-        advertise_service("serval_storage", port, &instance_id, None)?;
-    }
     if let Some(extensions_path) = extensions_path {
         let extensions = &state.extensions;
         log::info!(
@@ -171,14 +168,20 @@ async fn main() -> Result<()> {
         );
     }
 
+    let mut roles: Vec<String> = Vec::new();
+    if blob_path.is_some() {
+        log::info!("serval agent blob store mounted; path={blob_path:?}");
+        roles.push("serval_storage".to_string());
+    }
     if should_run_jobs {
-        // todo: actually start polling job queue for work to do
         log::info!("job running enabled");
-        advertise_service("serval_runner", port, &instance_id, None)?;
+        roles.push("serval_runner".to_string());
     } else {
         log::info!("job running not enabled (or not supported)");
     }
-
+    let metadata = PeerMetadata::new("I have a name".to_string(), roles, None);
+    let mut agent = ServalMesh::new(metadata, port, None).await?;
+    agent.start().await?;
     server.await.unwrap();
     Ok(())
 }
