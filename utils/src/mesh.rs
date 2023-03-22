@@ -35,7 +35,7 @@ pub trait KaboodlePeer {
 #[derive(Debug, Clone, Decode, Encode)]
 struct VersionEnvelope {
     version: u8,
-    rest: Vec<u8>
+    rest: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -49,15 +49,13 @@ pub struct PeerMetadata {
 #[derive(Debug, Clone, Decode, Encode)]
 struct MetadataInner {
     name: String,
-    roles: Vec<String>
+    roles: Vec<String>,
 }
 
 impl PeerMetadata {
     pub fn new(name: String, roles: Vec<String>, address: Option<SocketAddr>) -> Self {
         let inner = MetadataInner { name, roles };
-        Self {
-            address, inner
-        }
+        Self { address, inner }
     }
 
     pub fn name(&self) -> &str {
@@ -73,10 +71,15 @@ impl KaboodlePeer for PeerMetadata {
     fn from_identity(address: SocketAddr, encoded: Vec<u8>) -> Self {
         // TODO: this is actually fallible; when might it fail?
         let config = bincode::config::standard();
-        let (envelope, _len): (VersionEnvelope, usize) = bincode::decode_from_slice(&encoded[..], config).unwrap();
+        let (envelope, _len): (VersionEnvelope, usize) =
+            bincode::decode_from_slice(&encoded[..], config).unwrap();
         // In the future, switch on version in the envelope and decode into variants.
-        let (inner, _len): (MetadataInner, usize) = bincode::decode_from_slice(&envelope.rest[..], config).unwrap();
-        PeerMetadata { address: Some(address), inner }
+        let (inner, _len): (MetadataInner, usize) =
+            bincode::decode_from_slice(&envelope.rest[..], config).unwrap();
+        PeerMetadata {
+            address: Some(address),
+            inner,
+        }
     }
 
     fn identity(&self) -> Vec<u8> {
@@ -117,9 +120,7 @@ impl ServalMesh {
     pub async fn find_role(&self, role: &String) -> Option<PeerMetadata> {
         let peers = self.peers().await;
         // A naive implementation, to understate the matter, but it gets us going.
-        peers.into_iter().find(|xs| {
-            xs.roles().contains(role)
-        })
+        peers.into_iter().find(|xs| xs.roles().contains(role))
     }
 }
 
@@ -133,8 +134,9 @@ impl KaboodleMesh for ServalMesh {
 
     async fn peers(&self) -> Vec<Self::A> {
         let peers = self.kaboodle.peers().await; // this isn't fallible? really? okay
-        peers.into_iter().map(|(addr, identity)| {
-            PeerMetadata::from_identity(addr, identity.to_vec())
-        }).collect()
+        peers
+            .into_iter()
+            .map(|(addr, identity)| PeerMetadata::from_identity(addr, identity.to_vec()))
+            .collect()
     }
 }

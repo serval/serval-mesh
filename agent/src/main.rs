@@ -171,17 +171,20 @@ async fn main() -> Result<()> {
     let mut roles: Vec<String> = Vec::new();
     if blob_path.is_some() {
         log::info!("serval agent blob store mounted; path={blob_path:?}");
-        roles.push("serval_storage".to_string());
+        roles.push(SERVAL_SERVICE_STORAGE.to_string());
     }
     if should_run_jobs {
         log::info!("job running enabled");
-        roles.push("serval_runner".to_string());
+        roles.push(SERVAL_SERVICE_RUNNER.to_string());
     } else {
         log::info!("job running not enabled (or not supported)");
     }
     let metadata = PeerMetadata::new("I have a name".to_string(), roles, None);
-    let mut agent = ServalMesh::new(metadata, port, None).await?;
-    agent.start().await?;
+    let mut mesh = ServalMesh::new(metadata, port, None).await?;
+    mesh.start().await?;
+    MESH.set(mesh).unwrap();
+
+    // And finally, listen on HTTP.
     server.await.unwrap();
     Ok(())
 }
