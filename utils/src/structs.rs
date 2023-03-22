@@ -30,7 +30,12 @@ pub struct Manifest {
     /// Human-readable description.
     description: String,
     /// Required extensions.
-    required_extensions: Vec<String>, // TODO: this is a placeholder
+    required_extensions: Vec<String>,
+    // TODO: this is a placeholder and requires more thought; the WASM binary itself contains the
+    // info we need to enumerate the required extensions it is looking for. However, for job
+    // routing, it would be great for this information to be available without having the binary
+    // on-hand locally. The right answer here is probably to make this field be optional in manifest
+    // files, and to derive the value automatically at binary/manifest storage time.
     /// Required permissions; it is up to the agent to ensure that the submitter of this job is
     /// actually authorized to run a job with said permissions.
     required_permissions: Vec<Permission>,
