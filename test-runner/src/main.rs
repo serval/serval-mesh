@@ -151,7 +151,7 @@ fn main() -> anyhow::Result<()> {
                 exit(1);
             }
             _ => {
-                eprintln!("error: {err:?}");
+                eprintln!("error: {err}");
                 exit(1);
             }
         },
