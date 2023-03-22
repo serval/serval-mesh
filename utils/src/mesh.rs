@@ -48,20 +48,23 @@ pub struct PeerMetadata {
 // type to get the derive. There'll be another way to do this, I'm sure.
 #[derive(Debug, Clone, Decode, Encode)]
 struct MetadataInner {
-    name: String,
+    instance_id: String,
     roles: Vec<String>,
 }
 
 impl PeerMetadata {
-    pub fn new(name: String, roles: Vec<String>, address: Option<SocketAddr>) -> Self {
-        let inner = MetadataInner { name, roles };
+    /// Create a new metadata node from useful information.
+    pub fn new(instance_id: String, roles: Vec<String>, address: Option<SocketAddr>) -> Self {
+        let inner = MetadataInner { instance_id, roles };
         Self { address, inner }
     }
 
-    pub fn name(&self) -> &str {
-        &self.inner.name
+    /// Get the instance_id for this peer.
+    pub fn instance_id(&self) -> &str {
+        &self.inner.instance_id
     }
 
+    /// Get the roles this peer has chosen to advertise.
     pub fn roles(&self) -> Vec<String> {
         self.inner.roles.clone()
     }
@@ -101,11 +104,11 @@ impl KaboodlePeer for PeerMetadata {
 #[derive(Debug)]
 pub struct ServalMesh {
     kaboodle: Kaboodle,
-    metadata: PeerMetadata,
+    metadata: PeerMetadata,  // TODO: do I need this?
 }
 
 impl ServalMesh {
-    /// Create a new node and join it to the mesh.
+    /// Create a new node, with a kaboodle instance ready to run but not yet joined.
     pub async fn new(
         metadata: PeerMetadata,
         port: u16,
@@ -133,6 +136,7 @@ impl KaboodleMesh for ServalMesh {
     }
 
     async fn peers(&self) -> Vec<Self::A> {
+        // No caching or smarts at all in the initial implementation.
         let peers = self.kaboodle.peers().await; // this isn't fallible? really? okay
         peers
             .into_iter()

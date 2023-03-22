@@ -43,9 +43,9 @@ async fn proxy_request_to_other_node(
     peer: &PeerMetadata,
     source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
-    let target_instance_id = peer.name();
+    let target_instance_id = peer.instance_id();
     let Some(socket_addr) = peer.address() else {
-        log::warn!("got a peer without an address; peer={}", peer.name());
+        log::warn!("got a peer without an address; peer={}", peer.instance_id());
         metrics::increment_counter!("proxy:failure");
         return Err(ServalError::ServiceNotFound);
     };
