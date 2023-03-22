@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 /// the identity payload.
 #[async_trait]
 pub trait KaboodleMesh {
-    type A;
+    type A: KaboodlePeer;
 
     /// Create a new entry for a Kaboodle peer network and add ourselves to the mesh.
     async fn start(&mut self) -> Result<(), KaboodleError>;
