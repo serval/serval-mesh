@@ -10,11 +10,12 @@ use clap::Parser;
 use engine::extensions::load_extensions;
 use owo_colors::OwoColorize;
 
+use std::fs;
+use std::fs::File;
 use std::io::{stdin, Read};
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::str::FromStr;
-use std::{ffi::OsStr, fs};
 use utils::structs::{Manifest, Permission};
 
 use engine::ServalEngine;
@@ -166,18 +167,11 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn is_wasm_executable(path: &Path) -> bool {
-    let extension = path.extension().and_then(OsStr::to_str);
-
-    // TODO: check if it is *actually* valid WebAssembly (rather than just a valid extension).
-    if extension == Some("wasm") {
-        return true;
-    }
-
-    eprintln!(
-        "⚠️ {}: file extension should be `wasm` but is instead `{}`.",
-        "error".red(),
-        extension.unwrap_or_default().blue()
-    );
-
-    false
+    File::open(path)
+        .and_then(|mut file| {
+            let mut buf = [0u8; 4];
+            file.read_exact(&mut buf)?;
+            Ok(buf == *b"\0asm")
+        })
+        .unwrap_or(false)
 }
