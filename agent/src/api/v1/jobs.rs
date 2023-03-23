@@ -6,7 +6,7 @@ use axum::{
     routing::{any, get, post},
 };
 use engine::{errors::ServalEngineError, ServalEngine};
-use utils::structs::Job;
+use utils::{mesh::ServalRole, structs::Job};
 
 use crate::structures::*;
 
@@ -29,7 +29,7 @@ async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> imp
     metrics::increment_counter!("proxy:{path}");
 
     if let Ok(resp) =
-        super::proxy::relay_request(&mut request, SERVAL_SERVICE_RUNNER, &state.instance_id).await
+        super::proxy::relay_request(&mut request, &ServalRole::Runner, &state.instance_id).await
     {
         resp
     } else {
@@ -37,7 +37,7 @@ async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> imp
         metrics::increment_counter!("proxy:error");
         (
             StatusCode::SERVICE_UNAVAILABLE,
-            format!("{SERVAL_SERVICE_RUNNER} not available"),
+            "Peer with the job runner role not available",
         )
             .into_response()
     }
@@ -65,7 +65,7 @@ async fn run_job(
 
     let job = Job::new(manifest, executable, input.to_vec());
     log::info!(
-        "received WASM job; name={}; executable length={}; input length={}; id={}",
+        "received Wasm job; name={}; executable length={}; input length={}; id={}",
         job.manifest().fq_name(),
         job.executable().len(),
         input.len(),

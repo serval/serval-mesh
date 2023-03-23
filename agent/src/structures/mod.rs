@@ -8,9 +8,6 @@ use uuid::Uuid;
 use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf};
 
-pub static SERVAL_SERVICE_STORAGE: &str = "_serval_storage";
-pub static SERVAL_SERVICE_RUNNER: &str = "_serval_runner";
-
 pub static STORAGE: OnceCell<BlobStore> = OnceCell::new();
 pub static MESH: OnceCell<ServalMesh> = OnceCell::new();
 

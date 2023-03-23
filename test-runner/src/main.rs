@@ -24,8 +24,8 @@ use engine::ServalEngine;
 /// The real worker will pick up executables and inputs from an API endpoint.
 #[derive(Parser, Debug)]
 struct CLIArgs {
-    /// Path to the WASM executable or Serval manifest to run
-    // TODO: Check for the WASM binary magic bytes [1] or even evaluate file grammar [2].
+    /// Path to the Wasm executable to run
+    // TODO: Check for the Wasm binary magic bytes [1] or even evaluate file grammar [2].
     // [1]: Example: https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format#the_simplest_module
     // [2]: Specification: https://webassembly.github.io/spec/core/index.html
     exec_path: PathBuf,

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use if_addrs::Interface;
 use kaboodle::{errors::KaboodleError, Kaboodle};
+use strum::{Display, EnumString};
 
 use std::net::SocketAddr;
 
@@ -13,6 +14,8 @@ pub trait KaboodleMesh {
 
     /// Create a new entry for a Kaboodle peer network and add ourselves to the mesh.
     async fn start(&mut self) -> Result<(), KaboodleError>;
+    /// Remove this peer from the mesh.
+    async fn stop(&mut self) -> Result<(), KaboodleError>;
     /// Get a list of peers. It's the implementer's responsibility to decide if this is fresh or cached somehow.
     async fn peers(&self) -> Vec<Self::A>;
 }
@@ -28,6 +31,15 @@ pub trait KaboodlePeer {
 }
 
 // End of tiny wrapper around Kaboodle.
+
+/// These are the roles we allow peers to advertise on the mesh
+#[derive(Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode)]
+#[strum(serialize_all = "lowercase")]
+pub enum ServalRole {
+    Runner,
+    Storage,
+    Client,
+}
 
 // An envelope that holds a version number. A little bit of future-proofing
 // to allow agents with higher version numbers to decode payloads from older agents.
@@ -49,12 +61,12 @@ pub struct PeerMetadata {
 #[derive(Debug, Clone, Decode, Encode)]
 struct MetadataInner {
     instance_id: String,
-    roles: Vec<String>,
+    roles: Vec<ServalRole>,
 }
 
 impl PeerMetadata {
     /// Create a new metadata node from useful information.
-    pub fn new(instance_id: String, roles: Vec<String>, address: Option<SocketAddr>) -> Self {
+    pub fn new(instance_id: String, roles: Vec<ServalRole>, address: Option<SocketAddr>) -> Self {
         let inner = MetadataInner { instance_id, roles };
         Self { address, inner }
     }
@@ -65,7 +77,7 @@ impl PeerMetadata {
     }
 
     /// Get the roles this peer has chosen to advertise.
-    pub fn roles(&self) -> Vec<String> {
+    pub fn roles(&self) -> Vec<ServalRole> {
         self.inner.roles.clone()
     }
 }
@@ -103,7 +115,7 @@ impl KaboodlePeer for PeerMetadata {
 #[derive(Debug)]
 pub struct ServalMesh {
     kaboodle: Kaboodle,
-    metadata: PeerMetadata,  // TODO: do I need this?
+    _metadata: PeerMetadata, // TODO: do I need this?
 }
 
 impl ServalMesh {
@@ -115,14 +127,20 @@ impl ServalMesh {
     ) -> Result<Self, KaboodleError> {
         let identity = metadata.identity();
         let kaboodle = Kaboodle::new(port, interface, identity)?;
-        Ok(Self { kaboodle, metadata })
+        Ok(Self {
+            kaboodle,
+            _metadata: metadata,
+        })
     }
 
     /// Given a specific role, look for a peer that advertises the role.
-    pub async fn find_role(&self, role: &String) -> Option<PeerMetadata> {
+    pub async fn find_role(&self, role: &ServalRole) -> Option<PeerMetadata> {
         let peers = self.peers().await;
         // A naive implementation, to understate the matter, but it gets us going.
-        peers.into_iter().find(|xs| xs.roles().contains(role))
+        peers.into_iter().find(|xs| {
+            eprintln!("{:?}", xs.roles());
+            xs.roles().contains(role)
+        })
     }
 }
 
@@ -132,6 +150,10 @@ impl KaboodleMesh for ServalMesh {
 
     async fn start(&mut self) -> Result<(), KaboodleError> {
         self.kaboodle.start().await
+    }
+
+    async fn stop(&mut self) -> Result<(), KaboodleError> {
+        self.kaboodle.stop().await
     }
 
     async fn peers(&self) -> Vec<Self::A> {

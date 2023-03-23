@@ -61,7 +61,7 @@ Enqueues a new job, which will be created with the status of `pending`.
 
 Parameters:
 
-- `binary_addr`: a CAS address pointing to a WASM binary on the Storage Server
+- `binary_addr`: a CAS address pointing to a Wasm binary on the Storage Server
 - `input_addr`: optionally, a CAS address pointing to a blob on the Storage Server
 
 Example output:

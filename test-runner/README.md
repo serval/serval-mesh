@@ -6,7 +6,7 @@ A wasm-automatic-iterative-travailleur. Simple-minded, entirely focused on crunc
 
 The current state of this code base is far from where it will eventually be. Right now, this
 
-* Is a simple command-line application that runs a WASM program provided to it
+* Is a simple command-line application that runs a Wasm program provided to it
 * Will perform some simple checks to test if the relevant files exist or not, but is not very thorough at it
 ## Issues
 
@@ -23,7 +23,7 @@ USAGE:
     test-runner <EXEC_PATH> [INPUT_PATH]
 
 ARGS:
-    <EXEC_PATH>     Path to the WASM executable to run
+    <EXEC_PATH>     Path to the Wasm executable to run
     <INPUT_PATH>    Optional path to a file containing input for the executable
 
 OPTIONS:
@@ -32,7 +32,7 @@ OPTIONS:
 
 ## Example
 
-This assumes the existence of a `.wasm` file and an input file with arbitrary content (but usable by the WASM executable).
+This assumes the existence of a `.wasm` file and an input file with arbitrary content (but usable by the Wasm executable).
 
 Compiling our [wasi-hello-world](https://github.com/serval/wasm-samples/tree/main/wasi-hello-world) example and creating a `testinput.txt` file with some text in it works for an initial quick & dirty test.
 

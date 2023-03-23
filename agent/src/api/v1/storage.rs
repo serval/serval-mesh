@@ -7,8 +7,8 @@ use axum::{
     Json,
 };
 
-use utils::errors::ServalError;
 use utils::structs::Manifest;
+use utils::{errors::ServalError, mesh::ServalRole};
 
 use crate::structures::*;
 
@@ -41,14 +41,14 @@ async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> imp
     log::info!("relaying a storage request; path={path}");
 
     if let Ok(resp) =
-        super::proxy::relay_request(&mut request, SERVAL_SERVICE_STORAGE, &state.instance_id).await
+        super::proxy::relay_request(&mut request, &ServalRole::Storage, &state.instance_id).await
     {
         resp
     } else {
         // Welp, not much we can do
         (
             StatusCode::SERVICE_UNAVAILABLE,
-            format!("{SERVAL_SERVICE_STORAGE} not available"),
+            "Peer with the storage role not available",
         )
             .into_response()
     }

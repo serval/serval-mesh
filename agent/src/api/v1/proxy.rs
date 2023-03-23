@@ -9,7 +9,7 @@ use http::{
 };
 use utils::{
     errors::ServalError,
-    mesh::{KaboodlePeer, PeerMetadata},
+    mesh::{KaboodlePeer, PeerMetadata, ServalRole},
 };
 use uuid::Uuid;
 
@@ -20,12 +20,12 @@ use crate::structures::MESH;
 // running the discovery process for every proxy request.
 pub async fn relay_request(
     req: &mut Request<Body>,
-    service_name: &str,
+    role: &ServalRole,
     source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
     let mesh = MESH.get().expect("Peer network not initialized!");
-    let Some(peer) = mesh.find_role(&service_name.to_string()).await else {
-        log::warn!("proxy_unavailable_services failed to find a node offering the service; service={service_name}");
+    let Some(peer) = mesh.find_role(role).await else {
+        log::warn!("proxy_unavailable_services failed to find a node offering the service; service={role}");
         metrics::increment_counter!("proxy:no_service");
         return Err(ServalError::ServiceNotFound);
     };

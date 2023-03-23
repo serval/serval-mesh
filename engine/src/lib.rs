@@ -32,7 +32,7 @@ use wasi_experimental_http_wasmtime::{HttpCtx, HttpState};
 
 #[allow(missing_debug_implementations)]
 #[derive(Clone)]
-/// Make one of these to get a WASM runner with the Serval glue.
+/// Make one of these to get a Wasm runner with the Serval glue.
 pub struct ServalEngine {
     extensions: HashMap<String, ServalExtension>,
     engine: Engine,
@@ -67,7 +67,7 @@ impl ServalEngine {
         })
     }
 
-    /// Run the passed-in WASM executable on the given input bytes.
+    /// Run the passed-in Wasm executable on the given input bytes.
     pub fn execute(
         &mut self,
         // WebAssembly module to execute
@@ -134,7 +134,7 @@ impl ServalEngine {
         let module = Module::from_binary(&self.engine, wasm_module_bytes)
             .map_err(ServalEngineError::ModuleLoadError)?;
 
-        // Load any custom WASM node features that the job requires (...and that we have)
+        // Load any custom Wasm node features that the job requires (...and that we have)
         let required_modules = module
             .imports()
             .map(|import| import.module().to_string())
@@ -204,16 +204,16 @@ impl ServalEngine {
             .map_err(|_| ServalEngineError::StandardErrorReadError())?
             .into_inner();
 
-        // Here we run the WASM and trap any errors. We do not consider non-zero exit codes to be
-        // an error in *executing* the WASM, but instead to be information to be returned to the
+        // Here we run the Wasm and trap any errors. We do not consider non-zero exit codes to be
+        // an error in *executing* the Wasm, but instead to be information to be returned to the
         // caller.
         let code = match executed {
             Err(e) => {
                 if let Some(exit) = e.downcast_ref::<I32Exit>() {
                     exit.0
                 } else {
-                    // This is a genuine error from the WASM engine, not a non-zero exit code from the
-                    // the WASM executable.
+                    // This is a genuine error from the Wasm engine, not a non-zero exit code from the
+                    // the Wasm executable.
                     return Err(ServalEngineError::ExecutionError {
                         error: e,
                         stdout: outbytes,

@@ -13,7 +13,13 @@ use clap::{Parser, Subcommand};
 use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
-use tokio::runtime::Runtime;
+use tokio::time::sleep;
+use utils::mesh::KaboodleMesh;
+use utils::mesh::KaboodlePeer;
+use utils::mesh::PeerMetadata;
+use utils::mesh::ServalMesh;
+use utils::mesh::ServalRole;
+use utils::networking::find_nearest_port;
 use utils::structs::Manifest;
 use uuid::Uuid;
 
@@ -24,8 +30,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
-
-use utils::mdns::discover_service;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
@@ -43,13 +47,13 @@ struct Args {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
-    /// Store the given WASM task type in the mesh.
+    /// Store the given Wasm task type in the mesh.
     #[clap(display_order = 1)]
     Store {
         /// Path to the task manifest file.
         manifest: PathBuf,
     },
-    /// Run the specified WASM binary.
+    /// Run the specified Wasm binary.
     #[clap(display_order = 2)]
     Run {
         /// The name of the previously-stored job to run.
@@ -97,7 +101,7 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         .to_path_buf();
     wasmpath.push(manifest.binary());
 
-    println!("Reading WASM executable:{}", wasmpath.display());
+    println!("Reading Wasm executable:{}", wasmpath.display());
     let executable = read_file(wasmpath)?;
 
     let client = reqwest::blocking::Client::builder()
@@ -108,14 +112,14 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     println!();
     let mut table = Table::new();
     table.set_format(*prettytable::format::consts::FORMAT_CLEAN);
-    table.add_row(row!["WASM task name:", manifest.fq_name()]);
+    table.add_row(row!["Wasm task name:", manifest.fq_name()]);
     table.add_row(row!["Version:", manifest.version()]);
 
     let url = build_url("storage/manifests".to_string(), Some("1"));
     let response = client.post(url).body(manifest.to_string()).send()?;
 
     if !response.status().is_success() {
-        table.add_row(row!["Storing the WASM manifest failed!".bold()]);
+        table.add_row(row!["Storing the Wasm manifest failed!".bold()]);
         table.add_row(row![format!("{} {}", response.status(), response.text()?)]);
         println!("{table}");
         return Ok(());
@@ -133,7 +137,7 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     let response = client.put(url).body(executable).send()?;
     if response.status().is_success() {
         let wasm_integrity = response.text()?;
-        table.add_row(row!["WASM integrity:", wasm_integrity]);
+        table.add_row(row!["Wasm integrity:", wasm_integrity]);
         table.add_row(row![
             "To run:",
             format!("cargo run -p serval -- run {}", manifest.fq_name())
@@ -141,7 +145,7 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
                 .blue()
         ]);
     } else {
-        table.add_row(row!["Storing the WASM executable failed!"]);
+        table.add_row(row!["Storing the Wasm executable failed!"]);
         table.add_row(row![format!("{} {}", response.status(), response.text()?)]);
     }
 
@@ -195,7 +199,7 @@ fn run(name: String, maybe_input: Option<PathBuf>, maybe_output: Option<PathBuf>
     let response = client.post(url).body(input_bytes).send()?;
 
     if !response.status().is_success() {
-        println!("Running the WASM failed!");
+        println!("Running the Wasm failed!");
         println!("{} {}", response.status(), response.text()?);
         return Ok(());
     }
@@ -262,35 +266,46 @@ fn ping() -> Result<()> {
     Ok(())
 }
 
-fn blocking_maybe_discover_service_url(
-    service_type: &str,
-    env_var_override_name: &str,
-) -> Result<String> {
-    if let Ok(override_url) = std::env::var(env_var_override_name) {
+async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<String> {
+    if let Ok(override_url) = std::env::var(override_var) {
         return Ok(override_url);
     }
 
-    log::info!("Looking for {service_type} node on the local network...");
-
-    let Ok(info) = Runtime::new().unwrap().block_on(discover_service(service_type)) else {
-        return Err(anyhow!(format!(
-            "Failed to discover {service_type} node on the local network"
-        )));
+    log::info!("Looking for {role} node on the peer network...");
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let mesh_port: u16 = match std::env::var("MESH_PORT") {
+        Ok(port_str) => port_str.parse::<u16>().unwrap_or(8181),
+        Err(_) => 8181,
     };
 
-    let Some(addr) = info.get_addresses().iter().next() else {
-        // this should not ever happen, but computers
-        return Err(anyhow!(format!(
-            "Discovered a node that has no addresses",
-        )));
+    let metadata = PeerMetadata::new(format!("client@{host}"), vec![ServalRole::Client], None);
+    let mut mesh = ServalMesh::new(metadata, mesh_port, None).await?;
+    mesh.start().await?;
+
+    // There has to be a better way.
+    sleep(Duration::from_secs(5)).await;
+
+    let result = if let Some(target) = mesh.find_role(role).await {
+        if let Some(addr) = target.address() {
+            Ok(format!("http://{addr}"))
+        } else {
+            Err(anyhow!(
+                "found a peer without an address somehow: {:?}",
+                target
+            ))
+        }
+    } else {
+        Err(anyhow!("Unable to locate a peer with the {role} role"))
     };
 
-    let port = info.get_port();
-    Ok(format!("http://{addr}:{port}"))
+    mesh.stop().await?;
+
+    result
 }
 
 /// Parse command-line arguments and act.
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     loggerv::Logger::new()
@@ -301,7 +316,7 @@ fn main() -> Result<()> {
         .init()
         .unwrap();
 
-    let baseurl = blocking_maybe_discover_service_url("_serval_daemon", "SERVAL_NODE_URL")?;
+    let baseurl = maybe_find_peer(&ServalRole::Runner, "SERVAL_NODE_URL").await?;
     SERVAL_NODE_URL.lock().unwrap().replace(baseurl);
 
     match args.cmd {

@@ -22,6 +22,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = "0.10.6"
 ssri = "8.0.0"
+strum = { version="0.24.1", features = ["derive"] }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }

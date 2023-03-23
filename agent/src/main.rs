@@ -17,7 +17,7 @@ use axum::{
 };
 use dotenvy::dotenv;
 use engine::ServalEngine;
-use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh};
+use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 use utils::networking::find_nearest_port;
 use uuid::Uuid;
 
@@ -42,7 +42,8 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     // TODO: metrics sink initialization based on env vars or config
-    let addr: SocketAddr = "0.0.0.0:9000".parse().unwrap();
+    let metrics_port = std::env::var("METRICS_PORT").unwrap_or_else(|_| "9000".to_string());
+    let addr: SocketAddr = format!("0.0.0.0:{metrics_port}").parse().unwrap();
     let builder = TcpBuilder::new().listen_address(addr);
 
     if let Err(err) = builder.install() {
@@ -50,7 +51,6 @@ async fn main() -> Result<()> {
     };
     metrics::increment_counter!("process:start", "component" => "agent");
 
-    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let storage_role = match &std::env::var("STORAGE_ROLE").unwrap_or_else(|_| "auto".to_string())[..]
     {
         "always" => true,
@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
     {
         "always" => {
             if !ServalEngine::is_available() {
-                log::error!("RUNNER_ROLE environment variable is set to 'always', but this platform is not supported by our WASM engine.");
+                log::error!("RUNNER_ROLE environment variable is set to 'always', but this platform is not supported by our Wasm engine.");
                 process::exit(1)
             }
             true
@@ -139,6 +139,8 @@ async fn main() -> Result<()> {
         Err(_) => None,
     };
 
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+
     // Start the Axum server; this is in a loop so we can try binding more than once in case our
     // randomly-selected port number ends up conflicting with something else due to a race condition.
     let mut port: u16;
@@ -157,7 +159,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    log::info!("serval agent daemon listening on {host}:{port}");
+    log::info!("serval agent http will listen on {host}:{port}");
 
     if let Some(extensions_path) = extensions_path {
         let extensions = &state.extensions;
@@ -168,19 +170,25 @@ async fn main() -> Result<()> {
         );
     }
 
-    let mut roles: Vec<String> = Vec::new();
+    let mut roles: Vec<ServalRole> = Vec::new();
     if blob_path.is_some() {
         log::info!("serval agent blob store mounted; path={blob_path:?}");
-        roles.push(SERVAL_SERVICE_STORAGE.to_string());
+        roles.push(ServalRole::Storage);
     }
     if should_run_jobs {
         log::info!("job running enabled");
-        roles.push(SERVAL_SERVICE_RUNNER.to_string());
+        roles.push(ServalRole::Runner);
     } else {
         log::info!("job running not enabled (or not supported)");
     }
-    let metadata = PeerMetadata::new("I have a name".to_string(), roles, None);
-    let mut mesh = ServalMesh::new(metadata, port, None).await?;
+
+    let mesh_port: u16 = match std::env::var("MESH_PORT") {
+        Ok(port_str) => port_str.parse::<u16>().unwrap_or(8181),
+        Err(_) => 8181,
+    };
+
+    let metadata = PeerMetadata::new(format!("{}:{}", host, port), roles, None);
+    let mut mesh = ServalMesh::new(metadata, mesh_port, None).await?;
     mesh.start().await?;
     MESH.set(mesh).unwrap();
 
