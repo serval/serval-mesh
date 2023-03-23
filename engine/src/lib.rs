@@ -21,7 +21,7 @@ use wasi_common::{
     pipe::{ReadPipe, WritePipe},
     I32Exit,
 };
-use wasmtime::{Engine, Linker, Module, Store};
+use wasmtime::{Config, Engine, Linker, Module, Store};
 use wasmtime_wasi::{Dir, WasiCtx, WasiCtxBuilder};
 
 pub mod errors;
@@ -42,7 +42,15 @@ pub struct ServalEngine {
 impl ServalEngine {
     /// Create a new serval engine.
     pub fn new(extensions: HashMap<String, ServalExtension>) -> Result<Self, ServalEngineError> {
-        let engine = Engine::default();
+        let mut config = Config::default();
+        config.cache_config_load_default().map_err(|_| {
+            ServalEngineError::EngineInitializationError(anyhow!(
+                "Failed to load default cache config"
+            ))
+        })?;
+        let engine = Engine::new(&config).map_err(|_| {
+            ServalEngineError::EngineInitializationError(anyhow!("Failed to instantiate engine"))
+        })?;
         let mut linker: Linker<WasiCtx> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker(&mut linker, |s| s)
             .map_err(ServalEngineError::EngineInitializationError)?;
