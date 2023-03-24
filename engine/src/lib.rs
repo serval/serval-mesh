@@ -70,11 +70,11 @@ impl ServalEngine {
     /// Run the passed-in WASM executable on the given input bytes.
     pub fn execute(
         &mut self,
-        // WebAssembly binary to execute
-        binary: &[u8],
+        // WebAssembly module to execute
+        wasm_module_bytes: &[u8],
         // Data to pass to WebAssembly as stdin
-        input: &[u8],
-        // List of elevated permissions for this binary
+        stdin_bytes: &[u8],
+        // List of elevated permissions for this execution run
         permissions: &[Permission],
     ) -> Result<WasmResult, ServalEngineError> {
         let stdout = WritePipe::new_in_memory();
@@ -106,7 +106,7 @@ impl ServalEngine {
                 .map_err(ServalEngineError::EngineInitializationError)?;
         }
 
-        let stdin = ReadPipe::from(input);
+        let stdin = ReadPipe::from(stdin_bytes);
         let mut wasi_builder = WasiCtxBuilder::new()
             .stdin(Box::new(stdin))
             .stdout(Box::new(stdout.clone()))
@@ -131,7 +131,7 @@ impl ServalEngine {
 
         let mut store = Store::new(&self.engine, wasi_builder.build());
 
-        let module = Module::from_binary(&self.engine, binary)
+        let module = Module::from_binary(&self.engine, wasm_module_bytes)
             .map_err(ServalEngineError::ModuleLoadError)?;
 
         // Load any custom WASM node features that the job requires (...and that we have)
