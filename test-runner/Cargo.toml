@@ -12,7 +12,7 @@ engine = { path = "../engine" }
 owo-colors = "3.5.0"
 serde.workspace = true
 serde_json.workspace = true
-toml = "0.7.3"
+toml.workspace = true
 utils = { path = "../utils" }
 wasi-common.workspace = true
 wasmtime-wasi.workspace = true
