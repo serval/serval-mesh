@@ -14,11 +14,7 @@ use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use tokio::time::sleep;
-use utils::mesh::KaboodleMesh;
-use utils::mesh::KaboodlePeer;
-use utils::mesh::PeerMetadata;
-use utils::mesh::ServalMesh;
-use utils::mesh::ServalRole;
+use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 use utils::structs::Manifest;
 use uuid::Uuid;
 
@@ -119,7 +115,11 @@ async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
 
     if !response.status().is_success() {
         table.add_row(row!["Storing the Wasm manifest failed!".bold()]);
-        table.add_row(row![format!("{} {}", response.status(), response.text().await?)]);
+        table.add_row(row![format!(
+            "{} {}",
+            response.status(),
+            response.text().await?
+        )]);
         println!("{table}");
         return Ok(());
     }
@@ -145,7 +145,11 @@ async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         ]);
     } else {
         table.add_row(row!["Storing the Wasm executable failed!"]);
-        table.add_row(row![format!("{} {}", response.status(), response.text().await?)]);
+        table.add_row(row![format!(
+            "{} {}",
+            response.status(),
+            response.text().await?
+        )]);
     }
 
     println!("{table}");
@@ -181,7 +185,11 @@ fn read_file(path: PathBuf) -> Result<Vec<u8>, anyhow::Error> {
 }
 
 /// Request that an available agent run a stored job, with optional input.
-async fn run(name: String, maybe_input: Option<PathBuf>, maybe_output: Option<PathBuf>) -> Result<()> {
+async fn run(
+    name: String,
+    maybe_input: Option<PathBuf>,
+    maybe_output: Option<PathBuf>,
+) -> Result<()> {
     let input_bytes = read_file_or_stdin(maybe_input)?;
 
     println!(
@@ -277,27 +285,26 @@ async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<String
         Err(_) => 8181,
     };
 
-    let metadata = PeerMetadata::new(format!("client@{host}"), vec![ServalRole::Client], None);
+    let metadata = PeerMetadata::new(
+        format!("client@{host}"),
+        "None".to_string(),
+        vec![ServalRole::Client],
+        None,
+    );
     let mut mesh = ServalMesh::new(metadata, mesh_port, None).await?;
     mesh.start().await?;
 
     // There has to be a better way.
     sleep(Duration::from_secs(20)).await;
 
-    let result = if let Some(target) = mesh.find_role(role).await {
-        if let Some(addr) = target.address() {
-            Ok(format!("http://{addr}"))
-        } else {
-            Err(anyhow!(
-                "found a peer without an address somehow: {:?}",
-                target
-            ))
-        }
+    let candidates = mesh.find_role(role).await;
+    let result = if let Some(target) = candidates.first() {
+        Ok(target.http_address().to_string())
     } else {
         Err(anyhow!("Unable to locate a peer with the {role} role"))
     };
 
-   mesh.stop().await?;
+    mesh.stop().await?;
 
     result
 }

@@ -187,7 +187,12 @@ async fn main() -> Result<()> {
         Err(_) => 8181,
     };
 
-    let metadata = PeerMetadata::new(format!("{}:{}", host, port), roles, None);
+    let metadata = PeerMetadata::new(
+        Uuid::new_v4().to_string(),
+        format!("http://{}:{}", host, port),
+        roles,
+        None,
+    );
     let mut mesh = ServalMesh::new(metadata, mesh_port, None).await?;
     mesh.start().await?;
     MESH.set(mesh).unwrap();

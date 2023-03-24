@@ -61,13 +61,23 @@ pub struct PeerMetadata {
 #[derive(Debug, Clone, Decode, Encode)]
 struct MetadataInner {
     instance_id: String,
+    http_address: String,
     roles: Vec<ServalRole>,
 }
 
 impl PeerMetadata {
     /// Create a new metadata node from useful information.
-    pub fn new(instance_id: String, roles: Vec<ServalRole>, address: Option<SocketAddr>) -> Self {
-        let inner = MetadataInner { instance_id, roles };
+    pub fn new(
+        instance_id: String,
+        http_address: String,
+        roles: Vec<ServalRole>,
+        address: Option<SocketAddr>,
+    ) -> Self {
+        let inner = MetadataInner {
+            instance_id,
+            http_address,
+            roles,
+        };
         Self { address, inner }
     }
 
@@ -79,6 +89,11 @@ impl PeerMetadata {
     /// Get the roles this peer has chosen to advertise.
     pub fn roles(&self) -> Vec<ServalRole> {
         self.inner.roles.clone()
+    }
+
+    /// Get the advertised http address of this peer.
+    pub fn http_address(&self) -> &str {
+        &self.inner.http_address
     }
 }
 
@@ -133,14 +148,14 @@ impl ServalMesh {
         })
     }
 
-    /// Given a specific role, look for a peer that advertises the role.
-    pub async fn find_role(&self, role: &ServalRole) -> Option<PeerMetadata> {
+    /// Given a specific role, look for all peers that advertise the role.
+    pub async fn find_role(&self, role: &ServalRole) -> Vec<PeerMetadata> {
         let peers = self.peers().await;
         // A naive implementation, to understate the matter, but it gets us going.
-        peers.into_iter().find(|xs| {
-            eprintln!("{:?}", xs.roles());
-            xs.roles().contains(role)
-        })
+        peers
+            .into_iter()
+            .filter(|xs| xs.roles().contains(role))
+            .collect()
     }
 }
 

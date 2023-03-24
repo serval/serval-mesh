@@ -9,7 +9,7 @@ use http::{
 };
 use utils::{
     errors::ServalError,
-    mesh::{KaboodlePeer, PeerMetadata, ServalRole},
+    mesh::{PeerMetadata, ServalRole},
 };
 use uuid::Uuid;
 
@@ -24,13 +24,15 @@ pub async fn relay_request(
     source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
     let mesh = MESH.get().expect("Peer network not initialized!");
-    let Some(peer) = mesh.find_role(role).await else {
+
+    let candidates = mesh.find_role(role).await;
+    let Some(peer) = candidates.first() else {
         log::warn!("proxy_unavailable_services failed to find a node offering the service; service={role}");
         metrics::increment_counter!("proxy:no_service");
         return Err(ServalError::ServiceNotFound);
     };
 
-    let result = proxy_request_to_other_node(req, &peer, source_instance_id).await;
+    let result = proxy_request_to_other_node(req, peer, source_instance_id).await;
     result.map_err(|err| {
         log::warn!("Failed to proxy request to peer; peer={peer:?}; err={err:?}");
         metrics::increment_counter!("proxy:failure");
@@ -44,11 +46,7 @@ async fn proxy_request_to_other_node(
     source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
     let target_instance_id = peer.instance_id();
-    let Some(socket_addr) = peer.address() else {
-        log::warn!("got a peer without an address; peer={}", peer.instance_id());
-        metrics::increment_counter!("proxy:failure");
-        return Err(ServalError::ServiceNotFound);
-    };
+    let http_address = peer.http_address();
 
     let path = req.uri().path();
     let query = req
@@ -56,7 +54,7 @@ async fn proxy_request_to_other_node(
         .query()
         .map(|qs| format!("?{qs}"))
         .unwrap_or_else(|| "".to_string());
-    let url = format!("http://{socket_addr}{path}{query}");
+    let url = format!("{http_address}{path}{query}");
     let mut inner_req = reqwest::Client::new().request(req.method().clone(), url);
 
     // Copy over the headers, modulo a few that are only relevant to the original request
