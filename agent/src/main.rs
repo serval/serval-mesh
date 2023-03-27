@@ -172,7 +172,10 @@ async fn main() -> Result<()> {
 
     let mut roles: Vec<ServalRole> = Vec::new();
     if let Some(storage_path) = blob_path {
-        log::info!("serval agent blob store mounted; path={}", storage_path.display());
+        log::info!(
+            "serval agent blob store mounted; path={}",
+            storage_path.display()
+        );
         roles.push(ServalRole::Storage);
     }
     if should_run_jobs {
@@ -190,12 +193,7 @@ async fn main() -> Result<()> {
     let host_ip = host.parse()?;
     let http_addr = SocketAddr::new(host_ip, port);
 
-    let metadata = PeerMetadata::new(
-        Uuid::new_v4().to_string(),
-        Some(http_addr),
-        roles,
-        None,
-    );
+    let metadata = PeerMetadata::new(Uuid::new_v4().to_string(), Some(http_addr), roles, None);
     let mut mesh = ServalMesh::new(metadata, mesh_port, None).await?;
     mesh.start().await?;
     MESH.set(mesh).unwrap();
