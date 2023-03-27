@@ -21,6 +21,7 @@ use uuid::Uuid;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -71,18 +72,18 @@ pub enum Command {
     Ping,
 }
 
-static SERVAL_NODE_URL: Mutex<Option<String>> = Mutex::new(None);
+static SERVAL_NODE_ADDR: Mutex<Option<SocketAddr>> = Mutex::new(None);
 
 /// Convenience function to build urls repeatably.
 fn build_url(path: String, version: Option<&str>) -> String {
-    let baseurl = SERVAL_NODE_URL.lock().unwrap();
+    let baseurl = SERVAL_NODE_ADDR.lock().unwrap();
     let baseurl = baseurl
         .as_ref()
         .expect("build_url called while SERVAL_NODE_URL is None");
     if let Some(v) = version {
-        format!("{baseurl}/v{v}/{path}")
+        format!("http://{baseurl}/v{v}/{path}")
     } else {
-        format!("{baseurl}/{path}")
+        format!("http://{baseurl}/{path}")
     }
 }
 
@@ -273,9 +274,11 @@ async fn ping() -> Result<()> {
     Ok(())
 }
 
-async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<String> {
+async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<SocketAddr> {
     if let Ok(override_url) = std::env::var(override_var) {
-        return Ok(override_url);
+        if let Ok(override_addr) = override_url.parse::<SocketAddr>() {
+            return Ok(override_addr);
+        }
     }
 
     log::info!("Looking for {role} node on the peer network...");
@@ -287,7 +290,7 @@ async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<String
 
     let metadata = PeerMetadata::new(
         format!("client@{host}"),
-        "None".to_string(),
+        None,
         vec![ServalRole::Client],
         None,
     );
@@ -295,11 +298,14 @@ async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<String
     mesh.start().await?;
 
     // There has to be a better way.
+    log::info!("TO SLEEP PERCHANCE TO DREAM -----------");
     sleep(Duration::from_secs(20)).await;
+    log::info!("F THAT. LET'S TAKE ARMS AGAINST OUR SEA OF TROUBLES. ----------");
 
-    let candidates = mesh.find_role(role).await;
+    let candidates = mesh.peers_with_role(role).await;
     let result = if let Some(target) = candidates.first() {
-        Ok(target.http_address().to_string())
+        // we know that peers_with_role filters out candidates without http addresses
+        Ok(target.http_address().unwrap())
     } else {
         Err(anyhow!("Unable to locate a peer with the {role} role"))
     };
@@ -323,7 +329,7 @@ async fn main() -> Result<()> {
         .unwrap();
 
     let baseurl = maybe_find_peer(&ServalRole::Runner, "SERVAL_NODE_URL").await?;
-    SERVAL_NODE_URL.lock().unwrap().replace(baseurl);
+    SERVAL_NODE_ADDR.lock().unwrap().replace(baseurl);
 
     match args.cmd {
         Command::Store { manifest } => upload_manifest(manifest).await?,

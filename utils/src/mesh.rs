@@ -61,7 +61,7 @@ pub struct PeerMetadata {
 #[derive(Debug, Clone, Decode, Encode)]
 struct MetadataInner {
     instance_id: String,
-    http_address: String,
+    http_address: Option<SocketAddr>, // this is an option because CLIs don't have one
     roles: Vec<ServalRole>,
 }
 
@@ -69,7 +69,7 @@ impl PeerMetadata {
     /// Create a new metadata node from useful information.
     pub fn new(
         instance_id: String,
-        http_address: String,
+        http_address: Option<SocketAddr>,
         roles: Vec<ServalRole>,
         address: Option<SocketAddr>,
     ) -> Self {
@@ -92,8 +92,8 @@ impl PeerMetadata {
     }
 
     /// Get the advertised http address of this peer.
-    pub fn http_address(&self) -> &str {
-        &self.inner.http_address
+    pub fn http_address(&self) -> Option<SocketAddr> {
+        self.inner.http_address
     }
 }
 
@@ -149,12 +149,12 @@ impl ServalMesh {
     }
 
     /// Given a specific role, look for all peers that advertise the role.
-    pub async fn find_role(&self, role: &ServalRole) -> Vec<PeerMetadata> {
+    pub async fn peers_with_role(&self, role: &ServalRole) -> Vec<PeerMetadata> {
         let peers = self.peers().await;
         // A naive implementation, to understate the matter, but it gets us going.
         peers
             .into_iter()
-            .filter(|xs| xs.roles().contains(role))
+            .filter(|xs| xs.roles().contains(role) && xs.http_address().is_some())
             .collect()
     }
 }

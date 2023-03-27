@@ -25,7 +25,7 @@ pub async fn relay_request(
 ) -> Result<Response, ServalError> {
     let mesh = MESH.get().expect("Peer network not initialized!");
 
-    let candidates = mesh.find_role(role).await;
+    let candidates = mesh.peers_with_role(role).await;
     let Some(peer) = candidates.first() else {
         log::warn!("proxy_unavailable_services failed to find a node offering the service; service={role}");
         metrics::increment_counter!("proxy:no_service");
@@ -54,7 +54,8 @@ async fn proxy_request_to_other_node(
         .query()
         .map(|qs| format!("?{qs}"))
         .unwrap_or_else(|| "".to_string());
-    let url = format!("{http_address}{path}{query}");
+    // We know that we are only ever handed a candidate with a http_address.
+    let url = format!("http://{}{path}{query}", http_address.unwrap());
     let mut inner_req = reqwest::Client::new().request(req.method().clone(), url);
 
     // Copy over the headers, modulo a few that are only relevant to the original request

@@ -41,9 +41,9 @@ async fn main() -> Result<()> {
     }
     env_logger::init();
 
-    // TODO: metrics sink initialization based on env vars or config
-    let metrics_port = std::env::var("METRICS_PORT").unwrap_or_else(|_| "9000".to_string());
-    let addr: SocketAddr = format!("0.0.0.0:{metrics_port}").parse().unwrap();
+    // TODO: This should switch on which set of metrics features we're building with.
+    let metrics_addr = std::env::var("METRICS_ADDR").unwrap_or_else(|_| "0.0.0.0:9000".to_string());
+    let addr: SocketAddr = metrics_addr.parse().unwrap();
     let builder = TcpBuilder::new().listen_address(addr);
 
     if let Err(err) = builder.install() {
@@ -171,8 +171,8 @@ async fn main() -> Result<()> {
     }
 
     let mut roles: Vec<ServalRole> = Vec::new();
-    if blob_path.is_some() {
-        log::info!("serval agent blob store mounted; path={blob_path:?}");
+    if let Some(storage_path) = blob_path {
+        log::info!("serval agent blob store mounted; path={}", storage_path.display());
         roles.push(ServalRole::Storage);
     }
     if should_run_jobs {
@@ -187,9 +187,12 @@ async fn main() -> Result<()> {
         Err(_) => 8181,
     };
 
+    let host_ip = host.parse()?;
+    let http_addr = SocketAddr::new(host_ip, port);
+
     let metadata = PeerMetadata::new(
         Uuid::new_v4().to_string(),
-        format!("http://{}:{}", host, port),
+        Some(http_addr),
         roles,
         None,
     );
