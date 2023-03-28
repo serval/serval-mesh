@@ -7,30 +7,34 @@ use http::{
     header::{CONTENT_LENGTH, EXPECT, HOST},
     HeaderValue,
 };
-use mdns_sd::ServiceInfo;
 use utils::{
     errors::ServalError,
-    mdns::{discover_service, get_service_instance_id},
+    mesh::{PeerMetadata, ServalRole},
 };
 use uuid::Uuid;
+
+use crate::structures::MESH;
 
 // Relay the given request to to the first node that we discover that is advertising the given
 // service. in the future, we may keep a list of known nodes for a given service so we can avoid
 // running the discovery process for every proxy request.
 pub async fn relay_request(
     req: &mut Request<Body>,
-    service_name: &str,
+    role: &ServalRole,
     source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
-    let node_info = discover_service(service_name).await.map_err(|err| {
-        log::warn!("proxy_unavailable_services failed to find a node offering the service; service={service_name}; err={err:?}");
-        metrics::increment_counter!("proxy:no_service");
-        err
-    })?;
+    let mesh = MESH.get().expect("Peer network not initialized!");
 
-    let result = proxy_request_to_other_node(req, &node_info, source_instance_id).await;
+    let candidates = mesh.peers_with_role(role).await;
+    let Some(peer) = candidates.first() else {
+        log::warn!("proxy_unavailable_services failed to find a node offering the service; service={role}");
+        metrics::increment_counter!("proxy:no_service");
+        return Err(ServalError::ServiceNotFound);
+    };
+
+    let result = proxy_request_to_other_node(req, peer, source_instance_id).await;
     result.map_err(|err| {
-        log::warn!("Failed to proxy request to other node; node={node_info:?}; err={err:?}");
+        log::warn!("Failed to proxy request to peer; peer={peer:?}; err={err:?}");
         metrics::increment_counter!("proxy:failure");
         err
     })
@@ -38,19 +42,20 @@ pub async fn relay_request(
 
 async fn proxy_request_to_other_node(
     req: &mut Request<Body>,
-    info: &ServiceInfo,
+    peer: &PeerMetadata,
     source_instance_id: &Uuid,
 ) -> Result<Response, ServalError> {
-    let target_instance_id = get_service_instance_id(info)?;
-    let host = info.get_addresses().iter().next().unwrap(); // unwrap is safe because discover_service will never return a service without addresses
-    let port = info.get_port();
+    let target_instance_id = peer.instance_id();
+    let http_address = peer.http_address();
+
     let path = req.uri().path();
     let query = req
         .uri()
         .query()
         .map(|qs| format!("?{qs}"))
         .unwrap_or_else(|| "".to_string());
-    let url = format!("http://{host}:{port}{path}{query}");
+    // We know that we are only ever handed a candidate with a http_address.
+    let url = format!("http://{}{path}{query}", http_address.unwrap());
     let mut inner_req = reqwest::Client::new().request(req.method().clone(), url);
 
     // Copy over the headers, modulo a few that are only relevant to the original request
@@ -86,7 +91,7 @@ async fn proxy_request_to_other_node(
 
     resp.headers_mut().append(
         "Serval-Proxied-From",
-        HeaderValue::from_str(&target_instance_id.to_string()).map_err(anyhow::Error::from)?,
+        HeaderValue::from_str(target_instance_id).map_err(anyhow::Error::from)?,
     );
 
     Ok(resp)

@@ -31,7 +31,7 @@ pub enum ServalEngineError {
     #[error("std::io::Error: {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("Failed to load WASM module")]
+    #[error("Failed to load Wasm module")]
     ModuleLoadError(anyhow::Error),
 
     #[error("Error reading bytes from stderr pipe")]

@@ -1,16 +1,15 @@
 use anyhow::Result;
 use engine::extensions::{load_extensions, ServalExtension};
 use once_cell::sync::OnceCell;
+use utils::mesh::ServalMesh;
 use utils::{blobs::BlobStore, errors::ServalError};
 use uuid::Uuid;
 
 use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf};
 
-pub static SERVAL_SERVICE_STORAGE: &str = "_serval_storage";
-pub static SERVAL_SERVICE_RUNNER: &str = "_serval_runner";
-
 pub static STORAGE: OnceCell<BlobStore> = OnceCell::new();
+pub static MESH: OnceCell<ServalMesh> = OnceCell::new();
 
 pub type ServalRouter = axum::Router<Arc<RunnerState>, hyper::Body>;
 

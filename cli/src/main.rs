@@ -13,19 +13,19 @@ use clap::{Parser, Subcommand};
 use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
-use tokio::runtime::Runtime;
+use tokio::time::sleep;
+use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 use utils::structs::Manifest;
 use uuid::Uuid;
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
-
-use utils::mdns::discover_service;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
@@ -43,13 +43,13 @@ struct Args {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
-    /// Store the given WASM task type in the mesh.
+    /// Store the given Wasm task type in the mesh.
     #[clap(display_order = 1)]
     Store {
         /// Path to the task manifest file.
         manifest: PathBuf,
     },
-    /// Run the specified WASM binary.
+    /// Run the specified Wasm binary.
     #[clap(display_order = 2)]
     Run {
         /// The name of the previously-stored job to run.
@@ -72,22 +72,22 @@ pub enum Command {
     Ping,
 }
 
-static SERVAL_NODE_URL: Mutex<Option<String>> = Mutex::new(None);
+static SERVAL_NODE_ADDR: Mutex<Option<SocketAddr>> = Mutex::new(None);
 
 /// Convenience function to build urls repeatably.
 fn build_url(path: String, version: Option<&str>) -> String {
-    let baseurl = SERVAL_NODE_URL.lock().unwrap();
+    let baseurl = SERVAL_NODE_ADDR.lock().unwrap();
     let baseurl = baseurl
         .as_ref()
         .expect("build_url called while SERVAL_NODE_URL is None");
     if let Some(v) = version {
-        format!("{baseurl}/v{v}/{path}")
+        format!("http://{baseurl}/v{v}/{path}")
     } else {
-        format!("{baseurl}/{path}")
+        format!("http://{baseurl}/{path}")
     }
 }
 
-fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
+async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     println!("Reading manifest: {}", manifest_path.display());
     let manifest = Manifest::from_file(&manifest_path)?;
 
@@ -97,10 +97,10 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         .to_path_buf();
     wasmpath.push(manifest.binary());
 
-    println!("Reading WASM executable:{}", wasmpath.display());
+    println!("Reading Wasm executable:{}", wasmpath.display());
     let executable = read_file(wasmpath)?;
 
-    let client = reqwest::blocking::Client::builder()
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()?;
 
@@ -108,20 +108,24 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     println!();
     let mut table = Table::new();
     table.set_format(*prettytable::format::consts::FORMAT_CLEAN);
-    table.add_row(row!["WASM task name:", manifest.fq_name()]);
+    table.add_row(row!["Wasm task name:", manifest.fq_name()]);
     table.add_row(row!["Version:", manifest.version()]);
 
     let url = build_url("storage/manifests".to_string(), Some("1"));
-    let response = client.post(url).body(manifest.to_string()).send()?;
+    let response = client.post(url).body(manifest.to_string()).send().await?;
 
     if !response.status().is_success() {
-        table.add_row(row!["Storing the WASM manifest failed!".bold()]);
-        table.add_row(row![format!("{} {}", response.status(), response.text()?)]);
+        table.add_row(row!["Storing the Wasm manifest failed!".bold()]);
+        table.add_row(row![format!(
+            "{} {}",
+            response.status(),
+            response.text().await?
+        )]);
         println!("{table}");
         return Ok(());
     }
 
-    let manifest_integrity = response.text()?;
+    let manifest_integrity = response.text().await?;
     table.add_row(row!["Manifest integrity:", manifest_integrity]);
 
     let vstring = format!(
@@ -130,10 +134,10 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         manifest.version()
     );
     let url = build_url(vstring, Some("1"));
-    let response = client.put(url).body(executable).send()?;
+    let response = client.put(url).body(executable).send().await?;
     if response.status().is_success() {
-        let wasm_integrity = response.text()?;
-        table.add_row(row!["WASM integrity:", wasm_integrity]);
+        let wasm_integrity = response.text().await?;
+        table.add_row(row!["Wasm integrity:", wasm_integrity]);
         table.add_row(row![
             "To run:",
             format!("cargo run -p serval -- run {}", manifest.fq_name())
@@ -141,8 +145,12 @@ fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
                 .blue()
         ]);
     } else {
-        table.add_row(row!["Storing the WASM executable failed!"]);
-        table.add_row(row![format!("{} {}", response.status(), response.text()?)]);
+        table.add_row(row!["Storing the Wasm executable failed!"]);
+        table.add_row(row![format!(
+            "{} {}",
+            response.status(),
+            response.text().await?
+        )]);
     }
 
     println!("{table}");
@@ -178,7 +186,11 @@ fn read_file(path: PathBuf) -> Result<Vec<u8>, anyhow::Error> {
 }
 
 /// Request that an available agent run a stored job, with optional input.
-fn run(name: String, maybe_input: Option<PathBuf>, maybe_output: Option<PathBuf>) -> Result<()> {
+async fn run(
+    name: String,
+    maybe_input: Option<PathBuf>,
+    maybe_output: Option<PathBuf>,
+) -> Result<()> {
     let input_bytes = read_file_or_stdin(maybe_input)?;
 
     println!(
@@ -187,20 +199,20 @@ fn run(name: String, maybe_input: Option<PathBuf>, maybe_output: Option<PathBuf>
         format_size(input_bytes.len(), BINARY),
     );
 
-    let client = reqwest::blocking::Client::builder()
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()?;
 
     let url = build_url(format!("jobs/{name}/run"), Some("1"));
-    let response = client.post(url).body(input_bytes).send()?;
+    let response = client.post(url).body(input_bytes).send().await?;
 
     if !response.status().is_success() {
-        println!("Running the WASM failed!");
-        println!("{} {}", response.status(), response.text()?);
+        println!("Running the Wasm failed!");
+        println!("{} {}", response.status(), response.text().await?);
         return Ok(());
     }
 
-    let response_body = response.bytes()?;
+    let response_body = response.bytes().await?;
     log::info!("response body read; length={}", response_body.len());
     match maybe_output {
         Some(outputpath) => {
@@ -223,74 +235,89 @@ fn run(name: String, maybe_input: Option<PathBuf>, maybe_output: Option<PathBuf>
 }
 
 /// Get a job's status from a serval agent node.
-fn status(id: Uuid) -> Result<()> {
+async fn status(id: Uuid) -> Result<()> {
     let url = build_url(format!("jobs/{id}/status"), Some("1"));
-    let response = reqwest::blocking::get(url)?;
-    let body: serde_json::Map<String, serde_json::Value> = response.json()?;
+    let response = reqwest::get(url).await?;
+    let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
     Ok(())
 }
 
 /// Get a job's results from a serval agent node.
-fn results(id: Uuid) -> Result<()> {
+async fn results(id: Uuid) -> Result<()> {
     let url = build_url(format!("jobs/{id}/results"), Some("1"));
-    let response = reqwest::blocking::get(url)?;
-    let body: serde_json::Map<String, serde_json::Value> = response.json()?;
+    let response = reqwest::get(url).await?;
+    let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
     Ok(())
 }
 
 /// Get in-memory history from an agent node.
-fn history() -> Result<()> {
+async fn history() -> Result<()> {
     let url = build_url("monitor/history".to_string(), Some("1"));
-    let response = reqwest::blocking::get(url)?;
-    let body: serde_json::Map<String, serde_json::Value> = response.json()?;
+    let response = reqwest::get(url).await?;
+    let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
     Ok(())
 }
 
 /// Ping whichever node we've discovered.
-fn ping() -> Result<()> {
+async fn ping() -> Result<()> {
     let url = build_url("monitor/ping".to_string(), None);
-    let response = reqwest::blocking::get(url)?;
-    let body = response.text()?;
+    let response = reqwest::get(url).await?;
+    let body = response.text().await?;
     println!("PING: {body}");
 
     Ok(())
 }
 
-fn blocking_maybe_discover_service_url(
-    service_type: &str,
-    env_var_override_name: &str,
-) -> Result<String> {
-    if let Ok(override_url) = std::env::var(env_var_override_name) {
-        return Ok(override_url);
+async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<SocketAddr> {
+    if let Ok(override_url) = std::env::var(override_var) {
+        if let Ok(override_addr) = override_url.parse::<SocketAddr>() {
+            return Ok(override_addr);
+        }
     }
 
-    log::info!("Looking for {service_type} node on the local network...");
-
-    let Ok(info) = Runtime::new().unwrap().block_on(discover_service(service_type)) else {
-        return Err(anyhow!(format!(
-            "Failed to discover {service_type} node on the local network"
-        )));
+    log::info!("Looking for {role} node on the peer network...");
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let mesh_port: u16 = match std::env::var("MESH_PORT") {
+        Ok(port_str) => port_str.parse::<u16>().unwrap_or(8181),
+        Err(_) => 8181,
     };
 
-    let Some(addr) = info.get_addresses().iter().next() else {
-        // this should not ever happen, but computers
-        return Err(anyhow!(format!(
-            "Discovered a node that has no addresses",
-        )));
+    let metadata = PeerMetadata::new(
+        format!("client@{host}"),
+        None,
+        vec![ServalRole::Client],
+        None,
+    );
+    let mut mesh = ServalMesh::new(metadata, mesh_port, None).await?;
+    mesh.start().await?;
+
+    // There has to be a better way.
+    log::info!("TO SLEEP PERCHANCE TO DREAM -----------");
+    sleep(Duration::from_secs(20)).await;
+    log::info!("F THAT. LET'S TAKE ARMS AGAINST OUR SEA OF TROUBLES. ----------");
+
+    let candidates = mesh.peers_with_role(role).await;
+    let result = if let Some(target) = candidates.first() {
+        // we know that peers_with_role filters out candidates without http addresses
+        Ok(target.http_address().unwrap())
+    } else {
+        Err(anyhow!("Unable to locate a peer with the {role} role"))
     };
 
-    let port = info.get_port();
-    Ok(format!("http://{addr}:{port}"))
+    mesh.stop().await?;
+
+    result
 }
 
 /// Parse command-line arguments and act.
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     loggerv::Logger::new()
@@ -301,11 +328,11 @@ fn main() -> Result<()> {
         .init()
         .unwrap();
 
-    let baseurl = blocking_maybe_discover_service_url("_serval_daemon", "SERVAL_NODE_URL")?;
-    SERVAL_NODE_URL.lock().unwrap().replace(baseurl);
+    let baseurl = maybe_find_peer(&ServalRole::Runner, "SERVAL_NODE_URL").await?;
+    SERVAL_NODE_ADDR.lock().unwrap().replace(baseurl);
 
     match args.cmd {
-        Command::Store { manifest } => upload_manifest(manifest)?,
+        Command::Store { manifest } => upload_manifest(manifest).await?,
         Command::Run {
             name,
             input_file,
@@ -314,12 +341,12 @@ fn main() -> Result<()> {
             // If people provide - as the filename, interpret that as stdin/stdout
             let input_file = input_file.filter(|p| p != &PathBuf::from("-"));
             let output_file = output_file.filter(|p| p != &PathBuf::from("-"));
-            run(name, input_file, output_file)?;
+            run(name, input_file, output_file).await?;
         }
-        Command::Results { id } => results(id)?,
-        Command::Status { id } => status(id)?,
-        Command::History => history()?,
-        Command::Ping => ping()?,
+        Command::Results { id } => results(id).await?,
+        Command::Status { id } => status(id).await?,
+        Command::History => history().await?,
+        Command::Ping => ping().await?,
     };
 
     Ok(())

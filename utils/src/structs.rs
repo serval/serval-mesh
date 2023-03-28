@@ -5,27 +5,27 @@ use uuid::Uuid;
 
 use crate::errors::ServalError;
 
-/// The results of running a WASM executable.
+/// The results of running a Wasm executable.
 #[derive(Debug)]
 pub struct WasmResult {
     /// The status code returned by the execution; 0 for normal termination.
     pub code: i32,
-    /// Whatever the WASM executable wrote to stdout.
+    /// Whatever the Wasm executable wrote to stdout.
     pub stdout: Vec<u8>,
-    /// Whatever the WASM executable wrote to stderr.
+    /// Whatever the Wasm executable wrote to stderr.
     pub stderr: Vec<u8>,
 }
 
-/// WASM executable metadata, for human reasons.
+/// Wasm executable metadata, for human reasons.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Manifest {
-    /// Short name of this WASM manifest. Lower-cased alphanumerics plus underscore.
+    /// Short name of this Wasm manifest. Lower-cased alphanumerics plus underscore.
     name: String,
-    /// The namespace this WASM manifest belongs to.
+    /// The namespace this Wasm manifest belongs to.
     namespace: String,
     /// A semver-compatible version string. Semver not yet enforced.
     version: String,
-    /// Path to a compiled WASM exectuable.
+    /// Path to a compiled Wasm exectuable.
     binary: PathBuf,
     /// Human-readable description.
     description: String,

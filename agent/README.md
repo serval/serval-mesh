@@ -1,6 +1,6 @@
 # Serval Agent
 
-The serval agent is a persistent process that advertises itself on the network as a runner for WASM jobs. It listens on HTTP for incoming job requests.
+The serval agent is a persistent process that advertises itself on the network as a runner for Wasm jobs. It listens on HTTP for incoming job requests.
 
 It is _not yet_ a full Serval agent node, because it does not make any attempt to find a control node and ask for jobs. Instead it listens passively to be pushed incoming workloads.
 
@@ -20,7 +20,7 @@ TODO; this should respond with a history of jobs and their statuses
 
 This endpoint is not likely to remain in its current state; it exists to allow any HTTP client to post a test job to the runner.
 
-This endpoint accepts an executable WASM job via multipart form data. The body must include two parts: a job metadata envelope in json format named `envelope`, and an octet-stream containing the WASM binary to run.
+This endpoint accepts an executable Wasm job via multipart form data. The body must include two parts: a job metadata envelope in json format named `envelope`, and an octet-stream containing the Wasm binary to run.
 
 Here is an OpenAPI schema definition for this request:
 
