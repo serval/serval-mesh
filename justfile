@@ -49,3 +49,26 @@ check-unused:
 
 @run-dev:
     zellij --layout dev-layout.kdl
+
+tailscale:
+    #!/usr/bin/env bash
+    ADDR=$(tailscale ip --6 2>/dev/null)
+    if [ "$?" -ne 0 ]; then
+    echo This command requires the Tailscale CLI tool to be installed:
+        echo https://tailscale.com/kb/1080/cli/
+        exit 1
+    fi
+    if [ "${ADDR}" == "" ]; then
+        echo Tailscale does not have an IPv6 address; aborting.
+        exit 1
+    fi
+
+    CROSSWIND_PID=$(pgrep crosswind)
+    if [ "$?" -ne 0 ]; then
+        echo "💨 Running Serval over your tailnet requires crosswind to be running; check out" >&2
+        echo "💨 https://github.com/serval/crosswind and run \`just tailscale\` if you haven't already." >&2
+        echo "" >&2
+    fi
+
+    cargo run --bin serval-agent -- --interface "${ADDR}" "$@"
+
