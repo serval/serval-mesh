@@ -134,6 +134,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-once-cell"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b49bd4c5b769125ea6323601c39815848972880efd33ffb2d01f9f909adc699"
+
+[[package]]
 name = "async-trait"
 version = "0.1.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2502,8 +2508,10 @@ name = "serval"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-once-cell",
  "atty",
  "clap 3.2.23",
+ "dotenvy",
  "humansize",
  "log",
  "loggerv",

@@ -6,8 +6,10 @@ license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow = { workspace = true }
+async-once-cell = "0.4.4"
 atty = { workspace = true  }
 clap = { version = "3.2.23", features = ["derive", "wrap_help"] } # older version on purpose
+dotenvy = { workspace = true  }
 humansize = "2.1.3"
 log = { workspace = true }
 loggerv = "0.7.2"

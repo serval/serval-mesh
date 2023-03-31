@@ -17,7 +17,7 @@ use axum::{
 };
 use dotenvy::dotenv;
 use engine::ServalEngine;
-use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
+use utils::mesh::{mesh_interface_and_port, KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 use utils::networking::find_nearest_port;
 use uuid::Uuid;
 
@@ -185,16 +185,12 @@ async fn main() -> Result<()> {
         log::info!("job running not enabled (or not supported)");
     }
 
-    let mesh_port: u16 = match std::env::var("MESH_PORT") {
-        Ok(port_str) => port_str.parse::<u16>().unwrap_or(8181),
-        Err(_) => 8181,
-    };
-
     let host_ip = host.parse()?;
     let http_addr = SocketAddr::new(host_ip, port);
+    let (mesh_port, mesh_interface) = mesh_interface_and_port();
 
     let metadata = PeerMetadata::new(Uuid::new_v4().to_string(), Some(http_addr), roles, None);
-    let mut mesh = ServalMesh::new(metadata, mesh_port, None).await?;
+    let mut mesh = ServalMesh::new(metadata, mesh_interface, mesh_port).await?;
     mesh.start().await?;
     MESH.set(mesh).unwrap();
 

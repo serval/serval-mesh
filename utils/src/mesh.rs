@@ -157,6 +157,20 @@ impl ServalMesh {
             .filter(|xs| xs.roles().contains(role) && xs.http_address().is_some())
             .collect()
     }
+
+    // Delegation would be nice.
+    pub fn discover_peers(
+        &mut self,
+    ) -> Result<tokio::sync::mpsc::UnboundedReceiver<(SocketAddr, axum::body::Bytes)>, KaboodleError>
+    {
+        self.kaboodle.discover_peers()
+    }
+
+    pub fn discover_departures(
+        &mut self,
+    ) -> Result<tokio::sync::mpsc::UnboundedReceiver<SocketAddr>, KaboodleError> {
+        self.kaboodle.discover_departures()
+    }
 }
 
 #[async_trait]
@@ -178,4 +192,17 @@ impl KaboodleMesh for ServalMesh {
             .map(|(addr, identity)| PeerMetadata::from_identity(addr, identity.to_vec()))
             .collect()
     }
+}
+
+pub fn mesh_interface_and_port() -> (Option<if_addrs::Interface>, u16) {
+    let mesh_port: u16 = match std::env::var("MESH_PORT") {
+        Ok(port_str) => port_str.parse::<u16>().unwrap_or(8181),
+        Err(_) => 8181,
+    };
+    let mesh_interface = match std::env::var("MESH_INTERFACE") {
+        Ok(v) => crate::networking::get_interface(&v),
+        Err(_) => None,
+    };
+    log::info!("connecting to the mesh on port {mesh_port} over {mesh_interface:?}");
+    (mesh_interface, mesh_port)
 }
