@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use if_addrs::Interface;
 use kaboodle::{errors::KaboodleError, Kaboodle};
+use serde::Serialize;
 use strum::{Display, EnumString};
 
 use std::net::SocketAddr;
@@ -35,7 +36,7 @@ pub trait KaboodlePeer {
 // End of tiny wrapper around Kaboodle.
 
 /// These are the roles we allow peers to advertise on the mesh
-#[derive(Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode)]
+#[derive(Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode, Serialize)]
 #[strum(serialize_all = "lowercase")]
 pub enum ServalRole {
     Runner,
@@ -52,7 +53,7 @@ struct VersionEnvelope {
     rest: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PeerMetadata {
     address: Option<SocketAddr>,
     inner: MetadataInner,
@@ -60,7 +61,7 @@ pub struct PeerMetadata {
 
 // The ddta we need to encode our identity as a serval peer. Done with an additional
 // type to get the derive. There'll be another way to do this, I'm sure.
-#[derive(Debug, Clone, Decode, Encode)]
+#[derive(Debug, Clone, Decode, Encode, Serialize)]
 struct MetadataInner {
     instance_id: String,
     http_address: Option<SocketAddr>, // this is an option because CLIs don't have one
