@@ -93,7 +93,15 @@ impl PeerMetadata {
 
     /// Get the advertised http address of this peer.
     pub fn http_address(&self) -> Option<SocketAddr> {
-        self.inner.http_address
+        self.inner.http_address.map(|http_address| {
+            if http_address.ip().is_unspecified() {
+                let mut addr = self.address.unwrap().clone();
+                addr.set_port(http_address.port());
+                addr
+            } else {
+                http_address
+            }
+        })
     }
 }
 
