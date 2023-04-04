@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use if_addrs::Interface;
 use kaboodle::{errors::KaboodleError, Kaboodle};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
 use std::net::SocketAddr;
@@ -36,7 +36,9 @@ pub trait KaboodlePeer {
 // End of tiny wrapper around Kaboodle.
 
 /// These are the roles we allow peers to advertise on the mesh
-#[derive(Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode, Serialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode, Serialize, Deserialize,
+)]
 #[strum(serialize_all = "lowercase")]
 pub enum ServalRole {
     Runner,
