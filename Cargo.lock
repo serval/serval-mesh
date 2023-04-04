@@ -1463,9 +1463,9 @@ dependencies = [
 
 [[package]]
 name = "kaboodle"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5b56c34dcd41521d20730068fcab939a8a304a9881836488bb66f4a7c1a77d4"
+checksum = "a9f79b530578ef7c5a9698aff9ea60883aeb4204b37e37dac3198a94258aa302"
 dependencies = [
  "anyhow",
  "atty",
