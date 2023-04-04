@@ -16,6 +16,8 @@ pub trait KaboodleMesh {
     async fn start(&mut self) -> Result<(), KaboodleError>;
     /// Remove this peer from the mesh.
     async fn stop(&mut self) -> Result<(), KaboodleError>;
+    /// Get the fingerprint of the current state of the mesh.
+    async fn fingerprint(&self) -> u32;
     /// Get a list of peers. It's the implementer's responsibility to decide if this is fresh or cached somehow.
     async fn peers(&self) -> Vec<Self::A>;
 }
@@ -177,6 +179,10 @@ impl KaboodleMesh for ServalMesh {
 
     async fn stop(&mut self) -> Result<(), KaboodleError> {
         self.kaboodle.stop().await
+    }
+
+    async fn fingerprint(&self) -> u32 {
+        self.kaboodle.fingerprint().await
     }
 
     async fn peers(&self) -> Vec<Self::A> {
