@@ -140,15 +140,15 @@ async fn main() -> Result<()> {
         Err(_) => None,
     };
 
-    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let host = std::env::var("HOST").unwrap_or_else(|_| "[::]".to_string());
 
     // Start the Axum server; this is in a loop so we can try binding more than once in case our
     // randomly-selected port number ends up conflicting with something else due to a race condition.
-    let mut port: u16;
+    let mut http_addr: SocketAddr;
     let server: Server<_, _> = loop {
-        port = predefined_port.unwrap_or_else(|| find_nearest_port(8100).unwrap());
-        let addr: SocketAddr = format!("{host}:{port}").parse().unwrap();
-        match axum::Server::try_bind(&addr) {
+        let port = predefined_port.unwrap_or_else(|| find_nearest_port(8100).unwrap());
+        http_addr = format!("{host}:{port}").parse().unwrap();
+        match axum::Server::try_bind(&http_addr) {
             Ok(builder) => break builder.serve(app.into_make_service()),
             Err(_) => {
                 // Port number in use already, presumably
@@ -160,7 +160,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    log::info!("serval agent http will listen on {host}:{port}");
+    log::info!("serval agent http will listen on {http_addr}");
 
     if let Some(extensions_path) = extensions_path {
         let extensions = &state.extensions;
@@ -186,10 +186,7 @@ async fn main() -> Result<()> {
         log::info!("job running not enabled (or not supported)");
     }
 
-    let host_ip = host.parse()?;
-    let http_addr = SocketAddr::new(host_ip, port);
     let (mesh_port, mesh_interface) = mesh_interface_and_port();
-
     let metadata = PeerMetadata::new(Uuid::new_v4().to_string(), Some(http_addr), roles, None);
     let mut mesh = ServalMesh::new(metadata, mesh_interface, mesh_port).await?;
     mesh.start().await?;
