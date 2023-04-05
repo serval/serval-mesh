@@ -70,6 +70,11 @@ pub enum Command {
     History,
     /// Liveness check: ping at least one node on the mesh.
     Ping,
+    /// Mesh inspection
+    Mesh {
+        /// Which role to show members from; omit to see all members.
+        role: Option<String>,
+    },
 }
 
 static SERVAL_NODE_ADDR: Mutex<Option<SocketAddr>> = Mutex::new(None);
@@ -274,6 +279,20 @@ async fn ping() -> Result<()> {
     Ok(())
 }
 
+async fn mesh(role: Option<String>) -> Result<()> {
+    let url = role
+        .map(|role| build_url(format!("mesh/roles/{role}"), Some("1")))
+        .unwrap_or_else(|| build_url("mesh/all".to_string(), Some("1")));
+    println!("url {url:?}");
+    let response = reqwest::get(url).await?;
+    let body = response.text().await?;
+    println!("body {body:?}");
+    let obj: serde_json::Value = serde_json::from_str(&body)?;
+    println!("MESH: {}", serde_json::to_string_pretty(&obj)?);
+
+    Ok(())
+}
+
 async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<SocketAddr> {
     if let Ok(override_url) = std::env::var(override_var) {
         if let Ok(override_addr) = override_url.parse::<SocketAddr>() {
@@ -299,7 +318,7 @@ async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<Socket
 
     // There has to be a better way.
     log::info!("TO SLEEP PERCHANCE TO DREAM -----------");
-    sleep(Duration::from_secs(20)).await;
+    sleep(Duration::from_secs(5)).await;
     log::info!("F THAT. LET'S TAKE ARMS AGAINST OUR SEA OF TROUBLES. ----------");
 
     let candidates = mesh.peers_with_role(role).await;
@@ -347,6 +366,7 @@ async fn main() -> Result<()> {
         Command::Status { id } => status(id).await?,
         Command::History => history().await?,
         Command::Ping => ping().await?,
+        Command::Mesh { role } => mesh(role).await?,
     };
 
     Ok(())
