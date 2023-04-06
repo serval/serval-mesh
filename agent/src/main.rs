@@ -102,30 +102,7 @@ async fn main() -> Result<()> {
         state.should_run_jobs
     );
 
-    const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
-
-    let mut router: Router<Arc<RunnerState>, Body> = Router::new()
-        .route("/monitor/ping", get(ping))
-        .route("/monitor/status", get(monitor_status));
-    router = v1::mesh::mount(router);
-
-    // NOTE: We have two of these now. If we develop a third, generalize this pattern.
-    router = if state.has_storage {
-        v1::storage::mount(router)
-    } else {
-        v1::storage::mount_proxy(router)
-    };
-
-    router = if state.should_run_jobs {
-        v1::jobs::mount(router)
-    } else {
-        v1::jobs::mount_proxy(router)
-    };
-
-    let app = router
-        .route_layer(middleware::from_fn(clacks))
-        .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
-        .with_state(state.clone());
+    let app = init_router(&state);
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "[::]".to_string());
 
@@ -198,4 +175,31 @@ fn init_metrics() {
         log::warn!("failed to install TCP recorder: {err:?}");
     };
     metrics::increment_counter!("process:start", "component" => "agent");
+}
+
+fn init_router(state: &Arc<RunnerState>) -> Router {
+    const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
+
+    let mut router: Router<Arc<RunnerState>, Body> = Router::new()
+        .route("/monitor/ping", get(ping))
+        .route("/monitor/status", get(monitor_status));
+    router = v1::mesh::mount(router);
+
+    // NOTE: We have two of these now. If we develop a third, generalize this pattern.
+    router = if state.has_storage {
+        v1::storage::mount(router)
+    } else {
+        v1::storage::mount_proxy(router)
+    };
+
+    router = if state.should_run_jobs {
+        v1::jobs::mount(router)
+    } else {
+        v1::jobs::mount_proxy(router)
+    };
+
+    router
+        .route_layer(middleware::from_fn(clacks))
+        .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
+        .with_state(state.clone())
 }
