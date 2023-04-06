@@ -37,11 +37,13 @@ pub async fn create_mesh_peer() -> Result<ServalMesh> {
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let (interface, port) = utils::mesh::mesh_interface_and_port();
 
+    let http_port = None;
+    let address = None;
     let metadata = PeerMetadata::new(
         format!("observer@{host}"), // todo: should this just be a UUID like it is for everyone else?
-        None,
+        http_port,
         vec![ServalRole::Observer],
-        None,
+        address,
     );
     let mut mesh = ServalMesh::new(metadata, port, Some(interface)).await?;
     mesh.start().await?;
