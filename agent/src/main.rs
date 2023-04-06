@@ -153,7 +153,12 @@ async fn main() -> Result<()> {
     }
 
     let (mesh_interface, mesh_port) = mesh_interface_and_port();
-    let metadata = PeerMetadata::new(Uuid::new_v4().to_string(), Some(http_addr), roles, None);
+    let metadata = PeerMetadata::new(
+        Uuid::new_v4().to_string(),
+        Some(http_addr.port()),
+        roles,
+        None,
+    );
     let mut mesh = ServalMesh::new(metadata, mesh_port, Some(mesh_interface)).await?;
     mesh.start().await?;
     MESH.set(mesh).unwrap();

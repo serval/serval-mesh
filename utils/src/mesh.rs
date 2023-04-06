@@ -71,7 +71,7 @@ pub struct PeerMetadata {
 #[derive(Debug, Clone, Decode, Encode, Deserialize, Serialize)]
 struct MetadataInner {
     instance_id: String,
-    http_address: Option<SocketAddr>, // this is an option because CLIs don't have one
+    http_port: Option<u16>,
     roles: Vec<ServalRole>,
 }
 
@@ -79,13 +79,13 @@ impl PeerMetadata {
     /// Create a new metadata node from useful information.
     pub fn new(
         instance_id: String,
-        http_address: Option<SocketAddr>,
+        http_port: Option<u16>,
         roles: Vec<ServalRole>,
         address: Option<SocketAddr>,
     ) -> Self {
         let inner = MetadataInner {
             instance_id,
-            http_address,
+            http_port,
             roles,
         };
         Self { address, inner }
@@ -103,7 +103,14 @@ impl PeerMetadata {
 
     /// Get the advertised http address of this peer.
     pub fn http_address(&self) -> Option<SocketAddr> {
-        self.inner.http_address
+        let Some(http_port) = self.inner.http_port else {
+            return None;
+        };
+        self.address.map(|addr| {
+            let mut addr = addr.clone();
+            addr.set_port(http_port);
+            addr
+        })
     }
 }
 
