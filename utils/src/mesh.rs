@@ -3,7 +3,6 @@ use bincode::{Decode, Encode};
 use if_addrs::Interface;
 use kaboodle::{errors::KaboodleError, Kaboodle};
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumString};
 
 use std::net::SocketAddr;
 
@@ -34,15 +33,22 @@ pub trait KaboodlePeer {
 // End of tiny wrapper around Kaboodle.
 
 /// These are the roles we allow peers to advertise on the mesh
-#[derive(
-    Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode, Deserialize, Serialize,
-)]
-#[strum(serialize_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq, Eq, Decode, Encode, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ServalRole {
     Runner,
     Storage,
     Client,
+}
+
+impl std::fmt::Display for ServalRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ServalRole::Runner => write!(f, "runner"),
+            ServalRole::Storage => write!(f, "storage"),
+            ServalRole::Client => write!(f, "client"),
+        }
+    }
 }
 
 // An envelope that holds a version number. A little bit of future-proofing
