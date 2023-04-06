@@ -221,6 +221,10 @@ pub fn mesh_interface_and_port() -> (if_addrs::Interface, u16) {
             .expect("Failed to find interface matching MESH_INTERFACE value"),
         Err(_) => crate::networking::best_available_interface().expect("No available interfaces"),
     };
-    log::info!("connecting to the mesh on port {mesh_port} over {mesh_interface:?}");
+    log::info!(
+        "connecting to the mesh on port {mesh_port} over {} ({})",
+        mesh_interface.name,
+        mesh_interface.ip()
+    );
     (mesh_interface, mesh_port)
 }
