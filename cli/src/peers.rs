@@ -35,7 +35,7 @@ async fn discover_peer() -> Result<PeerMetadata> {
 
 pub async fn create_mesh_peer() -> Result<ServalMesh> {
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-    let (port, interface) = utils::mesh::mesh_interface_and_port();
+    let (interface, port) = utils::mesh::mesh_interface_and_port();
 
     let metadata = PeerMetadata::new(
         format!("observer@{host}"),
@@ -43,7 +43,7 @@ pub async fn create_mesh_peer() -> Result<ServalMesh> {
         vec![ServalRole::Observer],
         None,
     );
-    let mut mesh = ServalMesh::new(metadata, interface, port).await?;
+    let mut mesh = ServalMesh::new(metadata, port, Some(interface)).await?;
     mesh.start().await?;
     Ok(mesh)
 }
