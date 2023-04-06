@@ -114,16 +114,15 @@ async fn main() -> Result<()> {
             .and_then(|port_str| port_str.parse::<u16>().ok());
         let port = predefined_port.unwrap_or_else(|| find_nearest_port(8100).unwrap());
         http_addr = format!("{host}:{port}").parse().unwrap();
-        match axum::Server::try_bind(&http_addr) {
-            Ok(builder) => break builder.serve(app.into_make_service()),
-            Err(_) => {
-                // Port number in use already, presumably
-                if predefined_port.is_some() {
-                    log::error!("Specified port number ({port}) is already in use; aborting");
-                    process::exit(1);
-                }
+        let Ok(builder) = axum::Server::try_bind(&http_addr) else {
+            // Port number in use already, presumably
+            if predefined_port.is_some() {
+                log::error!("Specified port number ({port}) is already in use; aborting");
+                process::exit(1);
             }
-        }
+            continue;
+        };
+        break builder.serve(app.into_make_service());
     };
 
     log::info!("serval agent http will listen on {http_addr}");
