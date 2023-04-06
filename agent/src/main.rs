@@ -90,6 +90,7 @@ async fn main() -> Result<()> {
     let extensions_path = std::env::var("EXTENSIONS_PATH").ok().map(PathBuf::from);
 
     let instance_id = Uuid::new_v4();
+    log::info!("instance id {instance_id}");
     let state = Arc::new(RunnerState::new(
         instance_id,
         blob_path.clone(),
