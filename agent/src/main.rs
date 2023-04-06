@@ -41,15 +41,7 @@ async fn main() -> Result<()> {
     }
     env_logger::init();
 
-    // TODO: This should switch on which set of metrics features we're building with.
-    let metrics_addr = std::env::var("METRICS_ADDR").unwrap_or_else(|_| "0.0.0.0:9000".to_string());
-    let addr: SocketAddr = metrics_addr.parse().unwrap();
-    let builder = TcpBuilder::new().listen_address(addr);
-
-    if let Err(err) = builder.install() {
-        log::warn!("failed to install TCP recorder: {err:?}");
-    };
-    metrics::increment_counter!("process:start", "component" => "agent");
+    init_metrics();
 
     let storage_role = match &std::env::var("STORAGE_ROLE").unwrap_or_else(|_| "auto".to_string())[..]
     {
@@ -195,4 +187,16 @@ async fn main() -> Result<()> {
     // And finally, listen on HTTP.
     server.await.unwrap();
     Ok(())
+}
+
+fn init_metrics() {
+    // TODO: This should switch on which set of metrics features we're building with.
+    let metrics_addr = std::env::var("METRICS_ADDR").unwrap_or_else(|_| "0.0.0.0:9000".to_string());
+    let addr: SocketAddr = metrics_addr.parse().unwrap();
+    let builder = TcpBuilder::new().listen_address(addr);
+
+    if let Err(err) = builder.install() {
+        log::warn!("failed to install TCP recorder: {err:?}");
+    };
+    metrics::increment_counter!("process:start", "component" => "agent");
 }
