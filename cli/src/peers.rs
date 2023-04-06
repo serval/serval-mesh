@@ -2,10 +2,9 @@
 
 use anyhow::{anyhow, Result};
 use async_once_cell::OnceCell;
-use tokio::time::sleep;
 use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
 static SERVAL_NODE_ADDR: OnceCell<SocketAddr> = async_once_cell::OnceCell::new();
 
@@ -27,6 +26,11 @@ pub async fn build_url(path: String, version: Option<&str>) -> String {
     } else {
         format!("http://{baseurl}/{path}")
     }
+}
+
+async fn discover_peer() -> Result<PeerMetadata> {
+    let peer = utils::mesh::discover().await?;
+    Ok(peer)
 }
 
 pub async fn create_mesh_peer() -> Result<ServalMesh> {
@@ -52,30 +56,10 @@ async fn maybe_find_peer(role: Option<&ServalRole>, override_var: &str) -> Resul
     }
 
     log::info!("Looking for {role:?} node on the peer network...");
-    let mut mesh = create_mesh_peer().await?;
-
-    // There has to be a better way.
-    sleep(Duration::from_secs(20)).await;
-
-    let result = if let Some(role) = role {
-        let candidates = mesh.peers_with_role(role).await;
-        if let Some(target) = candidates.first() {
-            // we know that peers_with_role filters out candidates without http addresses
-            Ok(target.http_address().unwrap())
-        } else {
-            Err(anyhow!("Unable to locate a peer with the {role} role"))
-        }
+    let peer = discover_peer().await?;
+    if let Some(addr) = peer.http_address() {
+        Ok(addr)
     } else {
-        // any peer will do
-        if let Some(target) = mesh.peers().await.first() {
-            // we know that peers_with_role filters out candidates without http addresses
-            Ok(target.http_address().unwrap())
-        } else {
-            Err(anyhow!("Unable to locate any peers on this mesh"))
-        }
-    };
-
-    mesh.stop().await?;
-
-    result
+        Err(anyhow!("Unable to locate a peer with the {role:?} role"))
+    }
 }

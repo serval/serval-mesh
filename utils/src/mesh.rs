@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use if_addrs::Interface;
 use kaboodle::{errors::KaboodleError, Kaboodle};
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
 use std::net::SocketAddr;
@@ -33,8 +34,11 @@ pub trait KaboodlePeer {
 // End of tiny wrapper around Kaboodle.
 
 /// These are the roles we allow peers to advertise on the mesh
-#[derive(Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode, Deserialize, Serialize,
+)]
 #[strum(serialize_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum ServalRole {
     Runner,
     Storage,
@@ -50,7 +54,7 @@ struct VersionEnvelope {
     rest: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PeerMetadata {
     address: Option<SocketAddr>,
     inner: MetadataInner,
@@ -58,7 +62,7 @@ pub struct PeerMetadata {
 
 // The ddta we need to encode our identity as a serval peer. Done with an additional
 // type to get the derive. There'll be another way to do this, I'm sure.
-#[derive(Debug, Clone, Decode, Encode)]
+#[derive(Debug, Clone, Decode, Encode, Deserialize, Serialize)]
 struct MetadataInner {
     instance_id: String,
     http_address: Option<SocketAddr>, // this is an option because CLIs don't have one
@@ -192,6 +196,13 @@ impl KaboodleMesh for ServalMesh {
             .map(|(addr, identity)| PeerMetadata::from_identity(addr, identity.to_vec()))
             .collect()
     }
+}
+
+/// Discover a single nearby node in the mesh, without the overhead of joining it.
+pub async fn discover() -> Result<PeerMetadata, KaboodleError> {
+    let (iface, port) = mesh_interface_and_port();
+    let (address, identity) = Kaboodle::discover_mesh_member(port, iface).await?;
+    Ok(PeerMetadata::from_identity(address, identity.to_vec()))
 }
 
 pub fn mesh_interface_and_port() -> (Option<if_addrs::Interface>, u16) {
