@@ -21,9 +21,6 @@ use utils::mesh::{mesh_interface_and_port, KaboodleMesh, PeerMetadata, ServalMes
 use utils::networking::find_nearest_port;
 use uuid::Uuid;
 
-// TODO: should switch on feature.
-use metrics_exporter_tcp::TcpBuilder;
-
 use std::{net::SocketAddr, process};
 use std::{path::PathBuf, sync::Arc};
 
@@ -33,6 +30,47 @@ use crate::api::*;
 mod structures;
 use crate::structures::*;
 
+fn configure_metrics() {
+    #[cfg(feature="metrics-tcp")]
+    {
+        use metrics_exporter_tcp::TcpBuilder;
+        let metrics_addr = std::env::var("METRICS_ADDR").unwrap_or_else(|_| "0.0.0.0:9000".to_string());
+        let addr: SocketAddr = metrics_addr.parse().unwrap();
+        let builder = TcpBuilder::new().listen_address(addr);
+        if let Err(err) = builder.install() {
+            log::warn!("failed to install TCP recorder: {err:?}");
+        };
+    }
+    #[cfg(feature="metrics-log")]
+    {
+        use metrics_exporter_log;
+        // TODO; maybe delete this. it seems out of date.
+    }
+    #[cfg(feature="metrics-prometheus")]
+    {
+        use metrics_exporter_prometheus::PrometheusBuilder;
+        let builder = PrometheusBuilder::new();
+        if let Ok(_prom) = builder.install() {
+            log::info!("prometheus metrics configured")
+        } else {
+            log::warn!("prometheus requested but unable to be initiated")
+        }
+        // TODO
+    }
+    #[cfg(feature="metrics-statsd")]
+    {
+        use metrics_exporter_statsd::StatsdBuilder;
+        let recorder = StatsdBuilder::from("127.0.0.1", 8125)
+            .with_queue_size(5000)
+            .with_buffer_size(1024)
+            .build(Some("serval"));
+    }
+}
+
+fn configure_tracing() {
+    // TODO
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let did_find_dotenv = dotenv().ok().is_some();
@@ -40,9 +78,11 @@ async fn main() -> Result<()> {
         println!("Debug-only warning: no .env file found to configure logging; all logging will be disabled. Add RUST_LOG=info to .env to see logging.");
     }
     env_logger::init();
-
     let config = init_config();
-    init_metrics();
+
+    configure_metrics();
+    configure_tracing();
+    metrics::increment_counter!("process:start", "component" => "agent");
 
     log::info!("instance id {}", config.instance_id);
     let state = Arc::new(RunnerState::new(
@@ -182,25 +222,13 @@ fn init_config() -> Config {
         })
         .unwrap_or_else(Uuid::new_v4);
 
-    Config {
-        instance_id,
-        extensions_path,
-        should_run_jobs,
-        blob_path,
+        Config {
+            instance_id,
+            extensions_path,
+            should_run_jobs,
+            blob_path,
+        }
     }
-}
-
-fn init_metrics() {
-    // TODO: This should switch on which set of metrics features we're building with.
-    let metrics_addr = std::env::var("METRICS_ADDR").unwrap_or_else(|_| "[::]:9000".to_string());
-    let addr: SocketAddr = metrics_addr.parse().unwrap();
-    let builder = TcpBuilder::new().listen_address(addr);
-
-    if let Err(err) = builder.install() {
-        log::warn!("failed to install TCP recorder: {err:?}");
-    };
-    metrics::increment_counter!("process:start", "component" => "agent");
-}
 
 fn init_router(state: &Arc<RunnerState>) -> Router {
     const MAX_BODY_SIZE_BYTES: usize = 100 * 1024 * 1024;
