@@ -43,7 +43,7 @@ pub async fn monitor_mesh() -> anyhow::Result<()> {
         if let Some(addr) = depart_rx.recv().await {
             println!("❌ {} {}", "DEPARTED:".red(), addr);
         }
-        sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(1)).await;
     }
     // on ctrl-C, clean up?
 }
