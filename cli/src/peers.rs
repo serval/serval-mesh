@@ -49,10 +49,11 @@ pub async fn create_mesh_peer() -> Result<ServalMesh> {
 }
 
 async fn maybe_find_peer(override_var: &str) -> Result<SocketAddr> {
-    if let Ok(override_url) = std::env::var(override_var) {
-        if let Ok(override_addr) = override_url.parse::<SocketAddr>() {
-            return Ok(override_addr);
-        }
+    if let Some(override_addr) = std::env::var(override_var)
+        .ok()
+        .and_then(|override_url| override_url.parse::<SocketAddr>().ok())
+    {
+        return Ok(override_addr);
     }
 
     log::info!("Looking for any node on the peer network...");
