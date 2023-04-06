@@ -38,7 +38,7 @@ pub async fn create_mesh_peer() -> Result<ServalMesh> {
     let (interface, port) = utils::mesh::mesh_interface_and_port();
 
     let metadata = PeerMetadata::new(
-        format!("observer@{host}"),
+        format!("observer@{host}"), // todo: should this just be a UUID like it is for everyone else?
         None,
         vec![ServalRole::Observer],
         None,
