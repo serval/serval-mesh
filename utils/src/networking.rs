@@ -26,6 +26,20 @@ pub fn get_interface(specified_interface: &str) -> Option<Interface> {
     }
 }
 
+/// Returns the best available network interface. Only non-loopback interfaces are considered, and
+/// IPv6 interfaces are preferred.
+pub fn best_available_interface() -> Option<Interface> {
+    // If no interface was provided, use the first IPv6 interface we find, and if there are
+    // no IPv6 interfaces, use the first IPv4 interface.
+    let non_loopbacks = non_loopback_interfaces();
+    let first_ipv6_interface = non_loopbacks
+        .iter()
+        .find(|xs| matches!(xs.addr, IfAddr::V6(_)));
+    first_ipv6_interface
+        .or_else(|| non_loopbacks.first())
+        .cloned()
+}
+
 /// Get all non-loopback interfaces for this host.
 fn non_loopback_interfaces() -> Vec<Interface> {
     if_addrs::get_if_addrs()
