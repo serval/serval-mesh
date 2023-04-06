@@ -8,24 +8,26 @@
 )]
 /// Pounce is a CLI tool that interacts with a running serval agent daemon via
 /// its HTTP API. It discovers running agents via mDNS advertisement.
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
+use dotenvy::dotenv;
 use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
-use tokio::time::sleep;
-use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 use utils::structs::Manifest;
 use uuid::Uuid;
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::time::Duration;
+
+mod mesh;
+mod peers;
+
+use peers::build_url;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
@@ -70,21 +72,8 @@ pub enum Command {
     History,
     /// Liveness check: ping at least one node on the mesh.
     Ping,
-}
-
-static SERVAL_NODE_ADDR: Mutex<Option<SocketAddr>> = Mutex::new(None);
-
-/// Convenience function to build urls repeatably.
-fn build_url(path: String, version: Option<&str>) -> String {
-    let baseurl = SERVAL_NODE_ADDR.lock().unwrap();
-    let baseurl = baseurl
-        .as_ref()
-        .expect("build_url called while SERVAL_NODE_URL is None");
-    if let Some(v) = version {
-        format!("http://{baseurl}/v{v}/{path}")
-    } else {
-        format!("http://{baseurl}/{path}")
-    }
+    /// Monitor a mesh: print out new peers and departing peers as we learn about them.
+    Monitor,
 }
 
 async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
@@ -111,7 +100,7 @@ async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     table.add_row(row!["Wasm task name:", manifest.fq_name()]);
     table.add_row(row!["Version:", manifest.version()]);
 
-    let url = build_url("storage/manifests".to_string(), Some("1"));
+    let url = build_url("storage/manifests".to_string(), Some("1")).await;
     let response = client.post(url).body(manifest.to_string()).send().await?;
 
     if !response.status().is_success() {
@@ -133,7 +122,7 @@ async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         manifest.fq_name(),
         manifest.version()
     );
-    let url = build_url(vstring, Some("1"));
+    let url = build_url(vstring, Some("1")).await;
     let response = client.put(url).body(executable).send().await?;
     if response.status().is_success() {
         let wasm_integrity = response.text().await?;
@@ -203,7 +192,7 @@ async fn run(
         .timeout(Duration::from_secs(60))
         .build()?;
 
-    let url = build_url(format!("jobs/{name}/run"), Some("1"));
+    let url = build_url(format!("jobs/{name}/run"), Some("1")).await;
     let response = client.post(url).body(input_bytes).send().await?;
 
     if !response.status().is_success() {
@@ -236,7 +225,7 @@ async fn run(
 
 /// Get a job's status from a serval agent node.
 async fn status(id: Uuid) -> Result<()> {
-    let url = build_url(format!("jobs/{id}/status"), Some("1"));
+    let url = build_url(format!("jobs/{id}/status"), Some("1")).await;
     let response = reqwest::get(url).await?;
     let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
     println!("{}", serde_json::to_string_pretty(&body)?);
@@ -246,7 +235,7 @@ async fn status(id: Uuid) -> Result<()> {
 
 /// Get a job's results from a serval agent node.
 async fn results(id: Uuid) -> Result<()> {
-    let url = build_url(format!("jobs/{id}/results"), Some("1"));
+    let url = build_url(format!("jobs/{id}/results"), Some("1")).await;
     let response = reqwest::get(url).await?;
     let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
     println!("{}", serde_json::to_string_pretty(&body)?);
@@ -256,7 +245,7 @@ async fn results(id: Uuid) -> Result<()> {
 
 /// Get in-memory history from an agent node.
 async fn history() -> Result<()> {
-    let url = build_url("monitor/history".to_string(), Some("1"));
+    let url = build_url("monitor/history".to_string(), Some("1")).await;
     let response = reqwest::get(url).await?;
     let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
     println!("{}", serde_json::to_string_pretty(&body)?);
@@ -266,7 +255,7 @@ async fn history() -> Result<()> {
 
 /// Ping whichever node we've discovered.
 async fn ping() -> Result<()> {
-    let url = build_url("monitor/ping".to_string(), None);
+    let url = build_url("monitor/ping".to_string(), None).await;
     let response = reqwest::get(url).await?;
     let body = response.text().await?;
     println!("PING: {body}");
@@ -274,50 +263,10 @@ async fn ping() -> Result<()> {
     Ok(())
 }
 
-async fn maybe_find_peer(role: &ServalRole, override_var: &str) -> Result<SocketAddr> {
-    if let Ok(override_url) = std::env::var(override_var) {
-        if let Ok(override_addr) = override_url.parse::<SocketAddr>() {
-            return Ok(override_addr);
-        }
-    }
-
-    log::info!("Looking for {role} node on the peer network...");
-    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-    let mesh_port: u16 = match std::env::var("MESH_PORT") {
-        Ok(port_str) => port_str.parse::<u16>().unwrap_or(8181),
-        Err(_) => 8181,
-    };
-
-    let metadata = PeerMetadata::new(
-        format!("client@{host}"),
-        None,
-        vec![ServalRole::Client],
-        None,
-    );
-    let mut mesh = ServalMesh::new(metadata, mesh_port, None).await?;
-    mesh.start().await?;
-
-    // There has to be a better way.
-    log::info!("TO SLEEP PERCHANCE TO DREAM -----------");
-    sleep(Duration::from_secs(20)).await;
-    log::info!("F THAT. LET'S TAKE ARMS AGAINST OUR SEA OF TROUBLES. ----------");
-
-    let candidates = mesh.peers_with_role(role).await;
-    let result = if let Some(target) = candidates.first() {
-        // we know that peers_with_role filters out candidates without http addresses
-        Ok(target.http_address().unwrap())
-    } else {
-        Err(anyhow!("Unable to locate a peer with the {role} role"))
-    };
-
-    mesh.stop().await?;
-
-    result
-}
-
 /// Parse command-line arguments and act.
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv().ok();
     let args = Args::parse();
 
     loggerv::Logger::new()
@@ -327,9 +276,6 @@ async fn main() -> Result<()> {
         .colors(true)
         .init()
         .unwrap();
-
-    let baseurl = maybe_find_peer(&ServalRole::Runner, "SERVAL_NODE_URL").await?;
-    SERVAL_NODE_ADDR.lock().unwrap().replace(baseurl);
 
     match args.cmd {
         Command::Store { manifest } => upload_manifest(manifest).await?,
@@ -347,6 +293,7 @@ async fn main() -> Result<()> {
         Command::Status { id } => status(id).await?,
         Command::History => history().await?,
         Command::Ping => ping().await?,
+        Command::Monitor => mesh::monitor_mesh().await?,
     };
 
     Ok(())

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use if_addrs::Interface;
 use kaboodle::{errors::KaboodleError, Kaboodle};
-use strum::{Display, EnumString};
+use serde::{Deserialize, Serialize};
 
 use std::net::SocketAddr;
 
@@ -33,12 +33,22 @@ pub trait KaboodlePeer {
 // End of tiny wrapper around Kaboodle.
 
 /// These are the roles we allow peers to advertise on the mesh
-#[derive(Debug, Clone, PartialEq, Eq, Display, EnumString, Decode, Encode)]
-#[strum(serialize_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq, Eq, Decode, Encode, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ServalRole {
     Runner,
     Storage,
-    Client,
+    Observer,
+}
+
+impl std::fmt::Display for ServalRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ServalRole::Runner => write!(f, "runner"),
+            ServalRole::Storage => write!(f, "storage"),
+            ServalRole::Observer => write!(f, "observer"),
+        }
+    }
 }
 
 // An envelope that holds a version number. A little bit of future-proofing
@@ -50,7 +60,7 @@ struct VersionEnvelope {
     rest: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PeerMetadata {
     address: Option<SocketAddr>,
     inner: MetadataInner,
@@ -58,7 +68,7 @@ pub struct PeerMetadata {
 
 // The ddta we need to encode our identity as a serval peer. Done with an additional
 // type to get the derive. There'll be another way to do this, I'm sure.
-#[derive(Debug, Clone, Decode, Encode)]
+#[derive(Debug, Clone, Decode, Encode, Deserialize, Serialize)]
 struct MetadataInner {
     instance_id: String,
     http_address: Option<SocketAddr>, // this is an option because CLIs don't have one
@@ -157,6 +167,20 @@ impl ServalMesh {
             .filter(|xs| xs.roles().contains(role) && xs.http_address().is_some())
             .collect()
     }
+
+    // Delegation would be nice.
+    pub fn discover_peers(
+        &mut self,
+    ) -> Result<tokio::sync::mpsc::UnboundedReceiver<(SocketAddr, axum::body::Bytes)>, KaboodleError>
+    {
+        self.kaboodle.discover_peers()
+    }
+
+    pub fn discover_departures(
+        &mut self,
+    ) -> Result<tokio::sync::mpsc::UnboundedReceiver<SocketAddr>, KaboodleError> {
+        self.kaboodle.discover_departures()
+    }
 }
 
 #[async_trait]
@@ -178,4 +202,24 @@ impl KaboodleMesh for ServalMesh {
             .map(|(addr, identity)| PeerMetadata::from_identity(addr, identity.to_vec()))
             .collect()
     }
+}
+
+/// Discover a single nearby node in the mesh, without the overhead of joining it.
+pub async fn discover() -> Result<PeerMetadata, KaboodleError> {
+    let (iface, port) = mesh_interface_and_port();
+    let (address, identity) = Kaboodle::discover_mesh_member(port, iface).await?;
+    Ok(PeerMetadata::from_identity(address, identity.to_vec()))
+}
+
+pub fn mesh_interface_and_port() -> (Option<if_addrs::Interface>, u16) {
+    let mesh_port: u16 = std::env::var("MESH_PORT")
+        .ok()
+        .map(|port_str| port_str.parse().expect("Invalid value given for MESH_PORT"))
+        .unwrap_or(8181);
+    let mesh_interface = match std::env::var("MESH_INTERFACE") {
+        Ok(v) => crate::networking::get_interface(&v),
+        Err(_) => None,
+    };
+    log::info!("connecting to the mesh on port {mesh_port} over {mesh_interface:?}");
+    (mesh_interface, mesh_port)
 }
