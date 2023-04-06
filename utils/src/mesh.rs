@@ -38,7 +38,7 @@ pub trait KaboodlePeer {
 pub enum ServalRole {
     Runner,
     Storage,
-    Client,
+    Observer,
 }
 
 impl std::fmt::Display for ServalRole {
@@ -46,7 +46,7 @@ impl std::fmt::Display for ServalRole {
         match self {
             ServalRole::Runner => write!(f, "runner"),
             ServalRole::Storage => write!(f, "storage"),
-            ServalRole::Client => write!(f, "client"),
+            ServalRole::Observer => write!(f, "observer"),
         }
     }
 }

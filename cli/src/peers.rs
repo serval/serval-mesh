@@ -38,9 +38,9 @@ pub async fn create_mesh_peer() -> Result<ServalMesh> {
     let (port, interface) = utils::mesh::mesh_interface_and_port();
 
     let metadata = PeerMetadata::new(
-        format!("client@{host}"),
+        format!("observer@{host}"),
         None,
-        vec![ServalRole::Client],
+        vec![ServalRole::Observer],
         None,
     );
     let mut mesh = ServalMesh::new(metadata, interface, port).await?;
