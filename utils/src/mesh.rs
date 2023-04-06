@@ -212,10 +212,10 @@ pub async fn discover() -> Result<PeerMetadata, KaboodleError> {
 }
 
 pub fn mesh_interface_and_port() -> (Option<if_addrs::Interface>, u16) {
-    let mesh_port: u16 = match std::env::var("MESH_PORT") {
-        Ok(port_str) => port_str.parse::<u16>().unwrap_or(8181),
-        Err(_) => 8181,
-    };
+    let mesh_port: u16 = std::env::var("MESH_PORT")
+        .ok()
+        .map(|port_str| port_str.parse().expect("Invalid value given for MESH_PORT"))
+        .unwrap_or(8181);
     let mesh_interface = match std::env::var("MESH_INTERFACE") {
         Ok(v) => crate::networking::get_interface(&v),
         Err(_) => None,
