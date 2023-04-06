@@ -104,16 +104,14 @@ async fn main() -> Result<()> {
 
     let app = init_router(&state);
 
-    let host = std::env::var("HOST").unwrap_or_else(|_| "[::]".to_string());
-
     // Start the Axum server; this is in a loop so we can try binding more than once in case our
     // randomly-selected port number ends up conflicting with something else due to a race condition.
     let mut http_addr: SocketAddr;
     let server: Server<_, _> = loop {
-        let predefined_port: Option<u16> = match std::env::var("PORT") {
-            Ok(port_str) => port_str.parse::<u16>().ok(),
-            Err(_) => None,
-        };
+        let host = std::env::var("HOST").unwrap_or_else(|_| "[::]".to_string());
+        let predefined_port = std::env::var("PORT")
+            .ok()
+            .and_then(|port_str| port_str.parse::<u16>().ok());
         let port = predefined_port.unwrap_or_else(|| find_nearest_port(8100).unwrap());
         http_addr = format!("{host}:{port}").parse().unwrap();
         match axum::Server::try_bind(&http_addr) {
