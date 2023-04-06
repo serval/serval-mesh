@@ -152,9 +152,9 @@ async fn main() -> Result<()> {
         log::info!("job running not enabled (or not supported)");
     }
 
-    let (mesh_port, mesh_interface) = mesh_interface_and_port();
+    let (mesh_interface, mesh_port) = mesh_interface_and_port();
     let metadata = PeerMetadata::new(Uuid::new_v4().to_string(), Some(http_addr), roles, None);
-    let mut mesh = ServalMesh::new(metadata, mesh_interface, mesh_port).await?;
+    let mut mesh = ServalMesh::new(metadata, mesh_port, Some(mesh_interface)).await?;
     mesh.start().await?;
     MESH.set(mesh).unwrap();
 

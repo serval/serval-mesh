@@ -207,18 +207,19 @@ impl KaboodleMesh for ServalMesh {
 /// Discover a single nearby node in the mesh, without the overhead of joining it.
 pub async fn discover() -> Result<PeerMetadata, KaboodleError> {
     let (iface, port) = mesh_interface_and_port();
-    let (address, identity) = Kaboodle::discover_mesh_member(port, iface).await?;
+    let (address, identity) = Kaboodle::discover_mesh_member(port, Some(iface)).await?;
     Ok(PeerMetadata::from_identity(address, identity.to_vec()))
 }
 
-pub fn mesh_interface_and_port() -> (Option<if_addrs::Interface>, u16) {
+pub fn mesh_interface_and_port() -> (if_addrs::Interface, u16) {
     let mesh_port: u16 = std::env::var("MESH_PORT")
         .ok()
         .map(|port_str| port_str.parse().expect("Invalid value given for MESH_PORT"))
         .unwrap_or(8181);
     let mesh_interface = match std::env::var("MESH_INTERFACE") {
-        Ok(v) => crate::networking::get_interface(&v),
-        Err(_) => None,
+        Ok(v) => crate::networking::get_interface(&v)
+            .expect("Failed to find interface matching MESH_INTERFACE value"),
+        Err(_) => crate::networking::best_available_interface().expect("No available interfaces"),
     };
     log::info!("connecting to the mesh on port {mesh_port} over {mesh_interface:?}");
     (mesh_interface, mesh_port)
