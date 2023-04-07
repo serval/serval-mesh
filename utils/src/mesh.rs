@@ -4,7 +4,7 @@ use if_addrs::Interface;
 use kaboodle::{errors::KaboodleError, Kaboodle};
 use serde::{Deserialize, Serialize};
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
 /// A little wrapper around kaboodle so we can hide the machinery of encoding and decoding.
 /// the identity payload.
@@ -23,11 +23,11 @@ pub trait KaboodleMesh {
 /// This type encodes the responsibilities of the resources we are meshing together.
 pub trait KaboodlePeer {
     /// Create a new peer structure from the node identity payload plus an address.
-    fn from_identity(address: SocketAddr, encoded: Vec<u8>) -> Self;
+    fn from_identity(address: IpAddr, encoded: Vec<u8>) -> Self;
     /// Create an identity payload from whatever internal information matters to your implementation.
     fn identity(&self) -> Vec<u8>;
     /// Get the address of this node.
-    fn address(&self) -> Option<SocketAddr>;
+    fn address(&self) -> IpAddr;
 }
 
 // End of tiny wrapper around Kaboodle.
@@ -62,11 +62,11 @@ struct VersionEnvelope {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PeerMetadata {
-    address: Option<SocketAddr>,
+    address: IpAddr,
     inner: MetadataInner,
 }
 
-// The ddta we need to encode our identity as a serval peer. Done with an additional
+// The data we need to encode our identity as a serval peer. Done with an additional
 // type to get the derive. There'll be another way to do this, I'm sure.
 #[derive(Debug, Clone, Decode, Encode, Deserialize, Serialize)]
 struct MetadataInner {
@@ -81,7 +81,7 @@ impl PeerMetadata {
         instance_id: String,
         http_port: Option<u16>,
         roles: Vec<ServalRole>,
-        address: Option<SocketAddr>,
+        address: IpAddr,
     ) -> Self {
         let inner = MetadataInner {
             instance_id,
@@ -103,19 +103,15 @@ impl PeerMetadata {
 
     /// Get the advertised http address of this peer.
     pub fn http_address(&self) -> Option<SocketAddr> {
-        let Some(http_port) = self.inner.http_port else {
-            return None;
-        };
-        self.address.map(|addr| {
-            let mut addr = addr.clone();
-            addr.set_port(http_port);
-            addr
+        self.inner.http_port.map(|port| match self.address() {
+            IpAddr::V4(ip) => SocketAddr::V4(SocketAddrV4::new(ip, port)),
+            IpAddr::V6(ip) => SocketAddr::V6(SocketAddrV6::new(ip, port, 0, 0)),
         })
     }
 }
 
 impl KaboodlePeer for PeerMetadata {
-    fn from_identity(address: SocketAddr, encoded: Vec<u8>) -> Self {
+    fn from_identity(address: IpAddr, encoded: Vec<u8>) -> Self {
         // TODO: this is actually fallible; when might it fail?
         let config = bincode::config::standard();
         let (envelope, _len): (VersionEnvelope, usize) =
@@ -123,10 +119,7 @@ impl KaboodlePeer for PeerMetadata {
         // In the future, switch on version in the envelope and decode into variants.
         let (inner, _len): (MetadataInner, usize) =
             bincode::decode_from_slice(&envelope.rest[..], config).unwrap();
-        PeerMetadata {
-            address: Some(address),
-            inner,
-        }
+        PeerMetadata { address, inner }
     }
 
     fn identity(&self) -> Vec<u8> {
@@ -137,7 +130,7 @@ impl KaboodlePeer for PeerMetadata {
         identity
     }
 
-    fn address(&self) -> Option<SocketAddr> {
+    fn address(&self) -> IpAddr {
         self.address
     }
 }
@@ -206,7 +199,7 @@ impl KaboodleMesh for ServalMesh {
         let peers = self.kaboodle.peers().await;
         peers
             .into_iter()
-            .map(|(addr, identity)| PeerMetadata::from_identity(addr, identity.to_vec()))
+            .map(|(addr, identity)| PeerMetadata::from_identity(addr.ip(), identity.to_vec()))
             .collect()
     }
 }
@@ -215,7 +208,7 @@ impl KaboodleMesh for ServalMesh {
 pub async fn discover() -> Result<PeerMetadata, KaboodleError> {
     let (iface, port) = mesh_interface_and_port();
     let (address, identity) = Kaboodle::discover_mesh_member(port, Some(iface)).await?;
-    Ok(PeerMetadata::from_identity(address, identity.to_vec()))
+    Ok(PeerMetadata::from_identity(address.ip(), identity.to_vec()))
 }
 
 pub fn mesh_interface_and_port() -> (if_addrs::Interface, u16) {

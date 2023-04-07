@@ -17,20 +17,8 @@ pub async fn monitor_mesh() -> anyhow::Result<()> {
 
     loop {
         while let Some((addr, identity)) = discover_rx.recv().await {
-            let peer = PeerMetadata::from_identity(addr, identity.to_vec());
-            if let Some(peer_address) = peer.address() {
-                print!(
-                    "✅ {} {} @ {peer_address}",
-                    "JOINED:".blue(),
-                    peer.instance_id(),
-                );
-            } else {
-                print!(
-                    "⚠️ {} {} peer with no address",
-                    "JOINED:".blue(),
-                    peer.instance_id()
-                );
-            }
+            let peer = PeerMetadata::from_identity(addr.ip(), identity.to_vec());
+            print!("✅ {} {} @ {addr}", "JOINED:".blue(), peer.instance_id(),);
             if !peer.roles().is_empty() {
                 print!(
                     "; roles: {}",
