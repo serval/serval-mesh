@@ -71,7 +71,7 @@ pub struct PeerMetadata {
 #[derive(Debug, Clone, Decode, Encode, Deserialize, Serialize)]
 struct MetadataInner {
     instance_id: String,
-    http_port: Option<u16>,
+    http_port: Option<u16>, // Observer-only mesh members will not be listening over HTTP at all
     roles: Vec<ServalRole>,
 }
 
