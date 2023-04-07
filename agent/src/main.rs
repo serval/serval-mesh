@@ -175,7 +175,12 @@ fn init_config() -> Config {
 
     let extensions_path = std::env::var("EXTENSIONS_PATH").ok().map(PathBuf::from);
 
-    let instance_id = Uuid::new_v4();
+    let instance_id: Uuid = std::env::var("INSTANCE_ID")
+        .ok()
+        .map(|uuid_str| {
+            Uuid::parse_str(&uuid_str).expect("Invalid INSTANCE_ID value; must be a UUID")
+        })
+        .unwrap_or_else(Uuid::new_v4);
 
     Config {
         instance_id,
