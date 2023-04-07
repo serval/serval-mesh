@@ -16,7 +16,7 @@ pub async fn monitor_mesh() -> anyhow::Result<()> {
         .expect("Unable to get departures channel!");
 
     loop {
-        while let Some((addr, identity)) = discover_rx.recv().await {
+        while let Ok((addr, identity)) = discover_rx.try_recv() {
             let peer = PeerMetadata::from_identity(addr.ip(), identity.to_vec());
             print!("✅ {} {} @ {addr}", "JOINED:".blue(), peer.instance_id(),);
             if !peer.roles().is_empty() {
@@ -34,7 +34,7 @@ pub async fn monitor_mesh() -> anyhow::Result<()> {
             }
             println!();
         }
-        while let Some(addr) = depart_rx.recv().await {
+        while let Ok(addr) = depart_rx.try_recv() {
             println!("❌ {} {}", "DEPARTED:".red(), addr);
         }
         sleep(Duration::from_secs(1)).await;
