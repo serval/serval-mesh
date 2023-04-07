@@ -70,5 +70,5 @@ tailscale:
         echo "" >&2
     fi
 
-    cargo run --bin serval-agent -- --interface "${ADDR}" "$@"
+    MESH_INTERFACE="${ADDR}" cargo run --bin serval-agent -- "$@"
 
