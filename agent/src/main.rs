@@ -157,7 +157,7 @@ async fn main() -> Result<()> {
         Uuid::new_v4().to_string(),
         Some(http_addr.port()),
         roles,
-        None,
+        mesh_interface.ip(),
     );
     let mut mesh = ServalMesh::new(metadata, mesh_port, Some(mesh_interface)).await?;
     mesh.start().await?;
