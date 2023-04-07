@@ -192,7 +192,7 @@ fn init_config() -> Config {
 
 fn init_metrics() {
     // TODO: This should switch on which set of metrics features we're building with.
-    let metrics_addr = std::env::var("METRICS_ADDR").unwrap_or_else(|_| "0.0.0.0:9000".to_string());
+    let metrics_addr = std::env::var("METRICS_ADDR").unwrap_or_else(|_| "[::]:9000".to_string());
     let addr: SocketAddr = metrics_addr.parse().unwrap();
     let builder = TcpBuilder::new().listen_address(addr);
 
