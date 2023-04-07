@@ -41,8 +41,94 @@ async fn main() -> Result<()> {
     }
     env_logger::init();
 
+    let config = init_config();
     init_metrics();
 
+    log::info!("instance id {}", config.instance_id);
+    let state = Arc::new(RunnerState::new(
+        config.instance_id,
+        config.blob_path.clone(),
+        config.extensions_path.clone(),
+        config.should_run_jobs,
+    )?);
+    log::info!(
+        "agent configured with storage={} and run-jobs={}",
+        state.has_storage,
+        state.should_run_jobs
+    );
+
+    let app = init_router(&state);
+
+    // Start the Axum server; this is in a loop so we can try binding more than once in case our
+    // randomly-selected port number ends up conflicting with something else due to a race condition.
+    let mut http_addr: SocketAddr;
+    let server: Server<_, _> = loop {
+        let host = std::env::var("HOST").unwrap_or_else(|_| "[::]".to_string());
+        let predefined_port = std::env::var("PORT")
+            .ok()
+            .and_then(|port_str| port_str.parse::<u16>().ok());
+        let port = predefined_port.unwrap_or_else(|| find_nearest_port(8100).unwrap());
+        http_addr = format!("{host}:{port}").parse().unwrap();
+        let Ok(builder) = axum::Server::try_bind(&http_addr) else {
+            // Port number in use already, presumably
+            if predefined_port.is_some() {
+                log::error!("Specified port number ({port}) is already in use; aborting");
+                process::exit(1);
+            }
+            continue;
+        };
+        break builder.serve(app.into_make_service());
+    };
+
+    log::info!("serval agent http will listen on {http_addr}");
+
+    if let Some(extensions_path) = config.extensions_path {
+        let extensions = &state.extensions;
+        log::info!(
+            "Found {} extensions at {extensions_path:?}: {:?}",
+            extensions.len(),
+            extensions.keys(),
+        );
+    }
+
+    let mut roles: Vec<ServalRole> = Vec::new();
+    if let Some(storage_path) = config.blob_path {
+        log::info!(
+            "serval agent blob store mounted; path={}",
+            storage_path.display()
+        );
+        roles.push(ServalRole::Storage);
+    }
+    if config.should_run_jobs {
+        log::info!("job running enabled");
+        roles.push(ServalRole::Runner);
+    } else {
+        log::info!("job running not enabled (or not supported)");
+    }
+
+    let (mesh_interface, mesh_port) = mesh_interface_and_port();
+    let metadata = PeerMetadata::new(
+        Uuid::new_v4().to_string(),
+        Some(http_addr.port()),
+        roles,
+        mesh_interface.ip(),
+    );
+    let mut mesh = ServalMesh::new(metadata, mesh_port, Some(mesh_interface)).await?;
+    mesh.start().await?;
+    MESH.set(mesh).unwrap();
+
+    // And finally, listen on HTTP.
+    server.await.unwrap();
+    Ok(())
+}
+
+struct Config {
+    instance_id: Uuid,
+    extensions_path: Option<PathBuf>,
+    should_run_jobs: bool,
+    blob_path: Option<PathBuf>,
+}
+fn init_config() -> Config {
     let storage_role = match &std::env::var("STORAGE_ROLE").unwrap_or_else(|_| "auto".to_string())[..]
     {
         "always" => true,
@@ -90,82 +176,13 @@ async fn main() -> Result<()> {
     let extensions_path = std::env::var("EXTENSIONS_PATH").ok().map(PathBuf::from);
 
     let instance_id = Uuid::new_v4();
-    log::info!("instance id {instance_id}");
-    let state = Arc::new(RunnerState::new(
+
+    Config {
         instance_id,
-        blob_path.clone(),
-        extensions_path.clone(),
+        extensions_path,
         should_run_jobs,
-    )?);
-    log::info!(
-        "agent configured with storage={} and run-jobs={}",
-        state.has_storage,
-        state.should_run_jobs
-    );
-
-    let app = init_router(&state);
-
-    // Start the Axum server; this is in a loop so we can try binding more than once in case our
-    // randomly-selected port number ends up conflicting with something else due to a race condition.
-    let mut http_addr: SocketAddr;
-    let server: Server<_, _> = loop {
-        let host = std::env::var("HOST").unwrap_or_else(|_| "[::]".to_string());
-        let predefined_port = std::env::var("PORT")
-            .ok()
-            .and_then(|port_str| port_str.parse::<u16>().ok());
-        let port = predefined_port.unwrap_or_else(|| find_nearest_port(8100).unwrap());
-        http_addr = format!("{host}:{port}").parse().unwrap();
-        let Ok(builder) = axum::Server::try_bind(&http_addr) else {
-            // Port number in use already, presumably
-            if predefined_port.is_some() {
-                log::error!("Specified port number ({port}) is already in use; aborting");
-                process::exit(1);
-            }
-            continue;
-        };
-        break builder.serve(app.into_make_service());
-    };
-
-    log::info!("serval agent http will listen on {http_addr}");
-
-    if let Some(extensions_path) = extensions_path {
-        let extensions = &state.extensions;
-        log::info!(
-            "Found {} extensions at {extensions_path:?}: {:?}",
-            extensions.len(),
-            extensions.keys(),
-        );
+        blob_path,
     }
-
-    let mut roles: Vec<ServalRole> = Vec::new();
-    if let Some(storage_path) = blob_path {
-        log::info!(
-            "serval agent blob store mounted; path={}",
-            storage_path.display()
-        );
-        roles.push(ServalRole::Storage);
-    }
-    if should_run_jobs {
-        log::info!("job running enabled");
-        roles.push(ServalRole::Runner);
-    } else {
-        log::info!("job running not enabled (or not supported)");
-    }
-
-    let (mesh_interface, mesh_port) = mesh_interface_and_port();
-    let metadata = PeerMetadata::new(
-        Uuid::new_v4().to_string(),
-        Some(http_addr.port()),
-        roles,
-        mesh_interface.ip(),
-    );
-    let mut mesh = ServalMesh::new(metadata, mesh_port, Some(mesh_interface)).await?;
-    mesh.start().await?;
-    MESH.set(mesh).unwrap();
-
-    // And finally, listen on HTTP.
-    server.await.unwrap();
-    Ok(())
 }
 
 fn init_metrics() {
