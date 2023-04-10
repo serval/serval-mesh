@@ -30,6 +30,7 @@ pub struct Manifest {
     /// Human-readable description.
     description: String,
     /// Required extensions.
+    #[serde(default)]
     required_extensions: Vec<String>,
     // TODO: this is a placeholder and requires more thought; the WASM binary itself contains the
     // info we need to enumerate the required extensions it is looking for. However, for job
@@ -38,6 +39,7 @@ pub struct Manifest {
     // files, and to derive the value automatically at binary/manifest storage time.
     /// Required permissions; it is up to the agent to ensure that the submitter of this job is
     /// actually authorized to run a job with said permissions.
+    #[serde(default)]
     required_permissions: Vec<Permission>,
 }
 
