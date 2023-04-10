@@ -1,6 +1,6 @@
 // Finding a peer at most once, so we can build urls.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_once_cell::OnceCell;
 use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 
@@ -58,10 +58,10 @@ async fn maybe_find_peer(override_var: &str) -> Result<SocketAddr> {
     }
 
     log::info!("Looking for any node on the peer network...");
-    let peer = discover_peer().await?;
-    if let Some(addr) = peer.http_address() {
-        Ok(addr)
-    } else {
-        Err(anyhow!("Unable to locate a peer"))
+    loop {
+        let peer = discover_peer().await?; // todo: perhaps discover_peer() should not return Observers?
+        if let Some(addr) = peer.http_address() {
+            return Ok(addr);
+        }
     }
 }
