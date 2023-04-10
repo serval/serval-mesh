@@ -181,7 +181,7 @@ pub enum Permission {
 impl Display for Permission {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
-            Permission::ProcRead => String::from("proc:read"),
+            Permission::ProcRead => String::from("proc:read:*"),
             Permission::AllExtensions => String::from("extension:*"),
             Permission::Extension(name) => format!("extension:{name}"),
             Permission::AllHttpHosts => String::from("http:*"),
