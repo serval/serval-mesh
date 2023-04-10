@@ -197,7 +197,9 @@ fn init_metrics() {
     let builder = TcpBuilder::new().listen_address(addr);
 
     if let Err(err) = builder.install() {
-        log::warn!("failed to install TCP recorder: {err:?}");
+        if !matches!(err, metrics_exporter_tcp::Error::Io(_)) {
+            log::warn!("failed to install TCP recorder: {err:?}");
+        }
     };
     metrics::increment_counter!("process:start", "component" => "agent");
 }
