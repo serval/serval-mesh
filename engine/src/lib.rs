@@ -119,6 +119,8 @@ impl ServalEngine {
         // defined at the node level, and then the subset of those that any job by a specific user
         // can access should exist in our configuration store, and then the subset of those that a
         // specific job by that specific user should exist in the manifest for that job. Phew!
+        log::info!("Job has the following permissions: {permissions:?}");
+
         if permissions.contains(&Permission::ProcRead) {
             let path = PathBuf::from("/proc");
             if !path.exists() {
