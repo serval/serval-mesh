@@ -16,7 +16,7 @@ help:
 
 # Run the same checks we run in CI
 @ci: test
-    cargo clippy
+    cargo clippy --workspace
     cargo fmt --check
     cargo deny check licenses
 

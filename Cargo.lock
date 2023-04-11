@@ -2519,6 +2519,7 @@ dependencies = [
  "prettytable",
  "reqwest",
  "serde_json",
+ "serval-client",
  "term_grid",
  "tokio 1.27.0",
  "utils",
@@ -2530,7 +2531,9 @@ name = "serval-agent"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
+ "cacache",
  "dotenvy",
  "engine",
  "env_logger",
@@ -2544,8 +2547,25 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "ssri",
+ "thiserror",
  "tokio 1.27.0",
  "tokio-util",
+ "toml 0.7.3",
+ "utils",
+ "uuid",
+]
+
+[[package]]
+name = "serval-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "owo-colors",
+ "reqwest",
+ "serde_json",
+ "tokio 1.27.0",
  "utils",
  "uuid",
 ]

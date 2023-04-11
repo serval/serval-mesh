@@ -6,9 +6,11 @@ use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 
 use std::net::SocketAddr;
 
+use serval_client::ServalApiClient;
+
 static SERVAL_NODE_ADDR: OnceCell<SocketAddr> = async_once_cell::OnceCell::new();
 
-async fn base_url() -> SocketAddr {
+async fn peer_http_addr() -> SocketAddr {
     *SERVAL_NODE_ADDR
         .get_or_init(async {
             maybe_find_peer("SERVAL_NODE_URL")
@@ -18,14 +20,10 @@ async fn base_url() -> SocketAddr {
         .await
 }
 
-// Convenience function to build urls repeatably.
-pub async fn build_url(path: String, version: Option<&str>) -> String {
-    let baseurl = base_url().await;
-    if let Some(v) = version {
-        format!("http://{baseurl}/v{v}/{path}")
-    } else {
-        format!("http://{baseurl}/{path}")
-    }
+pub async fn api_client() -> ServalApiClient {
+    let addr = peer_http_addr().await;
+
+    ServalApiClient::new_with_version(1, addr.to_string())
 }
 
 async fn discover_peer() -> Result<PeerMetadata> {

@@ -43,6 +43,10 @@ pub enum ServalError {
     #[error("no metadata for job `{0}`")]
     ManifestNotFound(String),
 
+    /// Invalid role string.
+    #[error("not a valid role `{0}`")]
+    InvalidRole(String),
+
     /// A conversion for std:io:Error
     #[error("std::io::Error: {0}")]
     IoError(#[from] std::io::Error),

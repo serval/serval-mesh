@@ -1,12 +1,14 @@
 use anyhow::Result;
 use engine::extensions::{load_extensions, ServalExtension};
 use once_cell::sync::OnceCell;
+use utils::errors::ServalError;
 use utils::mesh::ServalMesh;
-use utils::{blobs::BlobStore, errors::ServalError};
 use uuid::Uuid;
 
 use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf};
+
+use crate::storage::BlobStore;
 
 pub static STORAGE: OnceCell<BlobStore> = OnceCell::new();
 pub static MESH: OnceCell<ServalMesh> = OnceCell::new();

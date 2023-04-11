@@ -1,24 +1,15 @@
 [package]
-name = "serval"
+name = "serval-client"
 version = "0.1.0"
 edition = "2021"
 license = "BSD-2-Clause-Patent"
 
 [dependencies]
 anyhow = { workspace = true }
-async-once-cell = "0.4.4"
-atty = { workspace = true  }
-clap = { version = "3.2.23", features = ["derive", "wrap_help"] } # older version on purpose
-dotenvy = { workspace = true  }
-humansize = "2.1.3"
 log = { workspace = true }
-loggerv = "0.7.2"
 owo-colors = "3.5.0"
-prettytable = "0.10.0"
 reqwest = { version = "0.11.13", default-features = false, features = ["deflate", "brotli", "json", "multipart", "stream", "rustls-tls"] }
 serde_json = { workspace = true }
-serval-client = { path = "../client" }
-term_grid = "0.2.0"
 tokio = { workspace = true }
 utils = { path = "../utils" }
 uuid = { workspace = true }

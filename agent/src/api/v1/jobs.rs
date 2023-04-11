@@ -8,6 +8,7 @@ use axum::{
 use engine::{errors::ServalEngineError, ServalEngine};
 use utils::{mesh::ServalRole, structs::Job};
 
+use crate::storage::Storage;
 use crate::structures::*;
 
 /// Mount all jobs endpoint handlers onto the passed-in router.

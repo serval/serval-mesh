@@ -10,6 +10,7 @@ use axum::{
 use utils::structs::Manifest;
 use utils::{errors::ServalError, mesh::ServalRole};
 
+use crate::storage::Storage;
 use crate::structures::*;
 
 /// Mount all storage endpoint handlers onto the passed-in router.
@@ -91,9 +92,7 @@ async fn get_manifest(
     match storage.manifest(&name).await {
         Ok(v) => {
             log::info!("Serving job manifest; name={}", &name);
-            let stringified = v.to_string();
-            let headers = [(header::CONTENT_TYPE, String::from("application/toml"))];
-            (headers, stringified).into_response()
+            (StatusCode::OK, Json(v)).into_response()
         }
         Err(e) => {
             log::warn!("error reading job metadata; name={}; error={}", &name, e);

@@ -2,6 +2,7 @@
 members = [
   "engine",
   "cli",
+  "client",
   "queue",
   "agent",
   "test-runner",
