@@ -14,7 +14,7 @@ bincode = "2.0.0-rc.2"
 cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }
 hex = "0.4.3"
 if-addrs = "0.10.1"
-kaboodle = "0.1.4"
+kaboodle = "0.1.5"
 log = { workspace = true }
 mdns-sd = { version = "0.5.9", default-features = false, features = ["async"] }
 reqwest = { workspace = true }
