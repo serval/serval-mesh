@@ -34,7 +34,7 @@ pub trait Storage {
         name: &str,
         version: &str,
         bytes: &[u8],
-    ) -> Result<String, ServalError>;
+    ) -> Result<Integrity, ServalError>;
 
     /// Given a content address, return a read stream for the object stored there.
     /// Responds with an error if no object is found or if the address is invalid.
@@ -56,5 +56,6 @@ pub trait Storage {
     /// Checks if the given job type is present in our data store, using the fully-qualified name.
     async fn data_exists_by_key(&self, fq_name: &str) -> Result<bool, ServalError>;
 
-    fn manifest_names(&self) -> Result<Vec<String>, ServalError>;
+    /// List all manifests stored in this cache.
+    async fn manifest_names(&self) -> Result<Vec<String>, ServalError>;
 }

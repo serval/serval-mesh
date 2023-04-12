@@ -125,7 +125,7 @@ async fn store_executable(
                 integrity,
                 bytes.len()
             );
-            (StatusCode::CREATED, integrity).into_response()
+            (StatusCode::CREATED, integrity.to_string()).into_response()
         }
         Err(e) => e.into_response(),
     }
@@ -154,7 +154,7 @@ async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
     metrics::increment_counter!("storage:manifest:list");
     let storage = STORAGE.get().unwrap();
 
-    match storage.manifest_names() {
+    match storage.manifest_names().await {
         Ok(list) => (StatusCode::OK, Json(list)).into_response(),
         Err(e) => e.into_response(),
     }

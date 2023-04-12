@@ -39,6 +39,10 @@ pub enum ServalError {
     #[error("no blob found at address `{0}`")]
     BlobAddressNotFound(String),
 
+    /// The agent was unable to store data, despite advertising a storage role.
+    #[error("unable to store data: `{0}`")]
+    StorageError(String),
+
     /// This job has no metadata
     #[error("no metadata for job `{0}`")]
     ManifestNotFound(String),

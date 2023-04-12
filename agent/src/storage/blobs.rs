@@ -83,10 +83,10 @@ impl Storage for BlobStore {
         name: &str,
         version: &str,
         bytes: &[u8],
-    ) -> Result<String, ServalError> {
+    ) -> Result<Integrity, ServalError> {
         let key = Manifest::make_executable_key(name, version);
         let sri = cacache::write(&self.location, key, bytes).await?;
-        Ok(sri.to_string())
+        Ok(sri)
     }
 
     /// Given a content address, return a read stream for the object stored there.
@@ -132,10 +132,11 @@ impl Storage for BlobStore {
         }
     }
 
-    fn manifest_names(&self) -> Result<Vec<String>, ServalError> {
+    async fn manifest_names(&self) -> Result<Vec<String>, ServalError> {
         let result: Vec<String> = cacache::list_sync(&self.location)
             .filter(|xs| xs.is_ok())
             .map(|xs| xs.unwrap().key)
+            .filter(|xs| xs.contains("manifest"))
             .collect();
         Ok(result)
     }

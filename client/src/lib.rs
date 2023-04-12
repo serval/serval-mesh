@@ -7,21 +7,26 @@
     unused_qualifications
 )]
 
-use anyhow::{anyhow, Result};
+use bytes::Bytes;
 use reqwest::{Response, StatusCode};
+use ssri::Integrity;
+use tokio_util::io::ReaderStream;
 
+use std::io::Cursor;
 use std::time::Duration;
 
+use utils::errors::ServalError;
 use utils::mesh::{PeerMetadata, ServalRole};
 use utils::structs::Manifest;
+
+type ApiResult<T> = Result<T, ServalError>;
+type JsonObject = serde_json::Map<String, serde_json::Value>;
 
 #[derive(Debug, Clone)]
 pub struct ServalApiClient {
     version: u8,
     socket_addr: String,
 }
-
-type JsonObject = serde_json::Map<String, serde_json::Value>;
 
 impl ServalApiClient {
     /// Create a new client for the peer node pointed to by the address, using the most recent API version.
@@ -41,7 +46,7 @@ impl ServalApiClient {
     }
 
     /// Ping whichever node we're pointing to.
-    pub async fn ping(&self) -> Result<String> {
+    pub async fn ping(&self) -> ApiResult<String> {
         // This url is not versioned.
         let url = format!("http://{}/monitor/ping", self.socket_addr);
         let response = reqwest::get(&url).await?;
@@ -51,7 +56,7 @@ impl ServalApiClient {
     }
 
     /// Get monitoring status from whatever node we're pointing to.
-    pub async fn monitor_status(&self) -> Result<JsonObject> {
+    pub async fn monitor_status(&self) -> ApiResult<JsonObject> {
         // This url is not versioned.
         let url = format!("http://{}/monitor/status", self.socket_addr);
         let response = reqwest::get(&url).await?;
@@ -60,7 +65,7 @@ impl ServalApiClient {
         Ok(body)
     }
 
-    pub async fn list_jobs(&self) -> Result<JsonObject> {
+    pub async fn list_jobs(&self) -> ApiResult<JsonObject> {
         let url = self.build_url("jobs");
         let response = reqwest::get(&url).await?;
         let body: JsonObject = response.json().await?;
@@ -68,7 +73,7 @@ impl ServalApiClient {
         Ok(body)
     }
 
-    pub async fn run_job(&self, name: &str, input: Vec<u8>) -> Result<Response> {
+    pub async fn run_job(&self, name: &str, input: Vec<u8>) -> ApiResult<Response> {
         let url = self.build_url(&format!("jobs/{name}/run"));
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
@@ -78,7 +83,7 @@ impl ServalApiClient {
         Ok(response)
     }
 
-    pub async fn peers_with_role(&self, role: ServalRole) -> Result<Vec<PeerMetadata>> {
+    pub async fn peers_with_role(&self, role: ServalRole) -> ApiResult<Vec<PeerMetadata>> {
         let url = self.build_url(&format!("mesh/peers/{role}"));
         let response = reqwest::get(&url).await?;
         let body: Vec<PeerMetadata> = response.json().await?;
@@ -86,7 +91,7 @@ impl ServalApiClient {
         Ok(body)
     }
 
-    pub async fn all_peers(&self) -> Result<Vec<PeerMetadata>> {
+    pub async fn all_peers(&self) -> ApiResult<Vec<PeerMetadata>> {
         let url = self.build_url("mesh/peers");
         let response = reqwest::get(&url).await?;
         let body: Vec<PeerMetadata> = response.json().await?;
@@ -94,7 +99,7 @@ impl ServalApiClient {
         Ok(body)
     }
 
-    pub async fn list_manifests(&self) -> Result<Vec<String>> {
+    pub async fn list_manifests(&self) -> ApiResult<Vec<String>> {
         let url = self.build_url("storage/manifests");
         let response = reqwest::get(&url).await?;
         let body: Vec<String> = response.json().await?;
@@ -102,7 +107,7 @@ impl ServalApiClient {
         Ok(body)
     }
 
-    pub async fn store_manifest(&self, manifest: &Manifest) -> Result<String> {
+    pub async fn store_manifest(&self, manifest: &Manifest) -> ApiResult<Integrity> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(60))
             .build()?;
@@ -111,21 +116,21 @@ impl ServalApiClient {
 
         // StatusCode.CREATED  + ssri string
         let body = response.text().await?;
-        Ok(body)
+        Ok(Integrity::from(body))
     }
 
-    pub async fn get_manifest(&self, name: &str) -> Result<Manifest> {
+    pub async fn get_manifest(&self, name: &str) -> ApiResult<Manifest> {
         let url = self.build_url(&format!("storage/manifests/{name}"));
         let response = reqwest::get(&url).await?;
         if response.status().is_success() {
             let body: Manifest = response.json().await?;
             Ok(body)
         } else {
-            Err(anyhow!(response.text().await?))
+            Err(ServalError::ManifestNotFound(response.text().await?))
         }
     }
 
-    pub async fn has_manifest(&self, name: &str) -> Result<bool> {
+    pub async fn has_manifest(&self, name: &str) -> ApiResult<bool> {
         let url = self.build_url(&format!("storage/manifests/{name}"));
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(60))
@@ -141,27 +146,42 @@ impl ServalApiClient {
         name: &str,
         version: &str,
         executable: Vec<u8>,
-    ) -> Result<String> {
+    ) -> ApiResult<Integrity> {
         let url = self.build_url(&format!("storage/manifests/{name}/executable/{version}"));
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(60))
             .build()?;
         let response = client.put(url).body(executable).send().await?;
         if response.status().is_success() {
-            Ok(response.text().await?)
+            let body = response.text().await?;
+            Ok(Integrity::from(body))
         } else {
-            Err(anyhow!(response.text().await?))
+            Err(ServalError::StorageError(response.text().await?))
         }
     }
 
-    pub async fn get_executable(&self, name: &str, version: &str) -> Result<Vec<u8>> {
+    pub async fn get_executable(&self, name: &str, version: &str) -> ApiResult<Vec<u8>> {
         let url = self.build_url(&format!(
             "/v1/storage/manifests/{name}/executable/{version}"
         ));
         let response = reqwest::get(&url).await?;
-        // TODO: we'll want to return a stream here instead.
         let executable = response.bytes().await?;
         Ok(executable.to_vec())
+    }
+
+    // oh my these types
+    pub async fn get_executable_as_stream(
+        &self,
+        name: &str,
+        version: &str,
+    ) -> ApiResult<ReaderStream<Cursor<Bytes>>> {
+        let url = self.build_url(&format!(
+            "/v1/storage/manifests/{name}/executable/{version}"
+        ));
+        let response = reqwest::get(&url).await?;
+        let bytes = response.bytes().await?;
+        let reader = ReaderStream::new(Cursor::new(bytes));
+        Ok(reader)
     }
 
     // Convenience function to build urls repeatably.

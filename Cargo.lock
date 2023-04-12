@@ -2533,6 +2533,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "bytes 1.4.0",
  "cacache",
  "dotenvy",
  "engine",
@@ -2547,6 +2548,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serval-client",
  "ssri",
  "thiserror",
  "tokio 1.27.0",
@@ -2560,14 +2562,15 @@ dependencies = [
 name = "serval-client"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "log",
- "owo-colors",
+ "bytes 1.4.0",
+ "futures-util",
  "reqwest",
  "serde_json",
+ "ssri",
  "tokio 1.27.0",
+ "tokio-stream",
+ "tokio-util",
  "utils",
- "uuid",
 ]
 
 [[package]]
