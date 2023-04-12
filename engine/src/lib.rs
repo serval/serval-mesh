@@ -133,6 +133,8 @@ impl ServalEngine {
 
         let mut store = Store::new(&self.engine, wasi_builder.build());
 
+        log::info!("Module is {} bytes", wasm_module_bytes.len());
+
         let module = Module::from_binary(&self.engine, wasm_module_bytes)
             .map_err(ServalEngineError::ModuleLoadError)?;
 
