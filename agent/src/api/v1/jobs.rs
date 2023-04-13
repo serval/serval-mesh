@@ -8,8 +8,6 @@ use axum::{
 use engine::{errors::ServalEngineError, ServalEngine};
 use utils::{mesh::ServalRole, structs::Job};
 
-use axum_macros::debug_handler;
-
 use crate::structures::*;
 
 /// Mount all jobs endpoint handlers onto the passed-in router.
@@ -51,7 +49,6 @@ async fn running(_state: State<AppState>) -> impl IntoResponse {
 }
 
 /// This is the main worker endpoint. It accepts incoming jobs and runs them.
-#[debug_handler]
 async fn run_job(
     Path(name): Path<String>,
     state: State<AppState>,

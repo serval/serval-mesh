@@ -8,8 +8,6 @@ license = "BSD-2-Clause-Patent"
 anyhow = { workspace = true }
 async-trait = "0.1.67"
 axum = { version = "0.6.1", features = ["json", "multipart"] }
-axum-extra = { version = "0.7.3", features = ["async-read-body"] }
-axum-macros = "0.3.7"
 bytes = "1.4.0"
 cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }
 dotenvy = "0.15.6"
@@ -19,7 +17,6 @@ http = "0.2.8"
 hyper = "0.14.23"
 log = "0.4.17"
 metrics = "0.20.1"
-metrics-exporter-log = "0.4.0"
 metrics-exporter-tcp = "0.7.0"
 once_cell = "1.17.0"
 reqwest = { workspace = true }
