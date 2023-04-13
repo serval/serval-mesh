@@ -96,9 +96,10 @@ async fn get_manifest(
     };
 
     match storage.manifest(&name).await {
-        Ok(v) => {
+        Ok(manifest) => {
             log::info!("Serving job manifest; name={}", &name);
-            (StatusCode::OK, Json(v)).into_response()
+            // Note that this is toml.
+            (StatusCode::OK, manifest.to_string()).into_response()
         }
         Err(e) => {
             log::warn!("error reading job metadata; name={}; error={}", &name, e);

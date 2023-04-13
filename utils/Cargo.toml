@@ -16,7 +16,7 @@ hex = "0.4.3"
 if-addrs = "0.10.1"
 kaboodle = "0.1.4"
 log = { workspace = true }
-mdns-sd = { workspace = true }
+mdns-sd = { version = "0.5.9", default-features = false, features = ["async"] }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

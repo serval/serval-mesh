@@ -19,6 +19,7 @@ use utils::structs::Manifest;
 type ApiResult<T> = Result<T, ServalError>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
 
+/// A client for the Serval API.
 #[derive(Debug, Clone)]
 pub struct ServalApiClient {
     version: u8,
@@ -62,6 +63,7 @@ impl ServalApiClient {
         Ok(body)
     }
 
+    /// List all running jobs.
     pub async fn list_jobs(&self) -> ApiResult<JsonObject> {
         let url = self.build_url("jobs");
         let response = reqwest::get(&url).await?;
@@ -70,24 +72,21 @@ impl ServalApiClient {
         Ok(body)
     }
 
+    /// Run a previously-stored Wasm job by its fully-qualified name. If the job
+    /// needs input, send it in as a vec of bytes. Pass a zero-length vec if the
+    /// job doesn't need input.
     pub async fn run_job(&self, name: &str, input: Vec<u8>) -> ApiResult<Response> {
         let url = self.build_url(&format!("jobs/{name}/run"));
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
             .build()?;
         // TODO: this is a cop-out for the moment, because the cli does a lot with the response object.
+        // We *should* respond with WasmResult.
         let response = client.post(url).body(input).send().await?;
         Ok(response)
     }
 
-    pub async fn peers_with_role(&self, role: ServalRole) -> ApiResult<Vec<PeerMetadata>> {
-        let url = self.build_url(&format!("mesh/peers/{role}"));
-        let response = reqwest::get(&url).await?;
-        let body: Vec<PeerMetadata> = response.json().await?;
-
-        Ok(body)
-    }
-
+    /// Get a list of all peers the node is aware of.
     pub async fn all_peers(&self) -> ApiResult<Vec<PeerMetadata>> {
         let url = self.build_url("mesh/peers");
         let response = reqwest::get(&url).await?;
@@ -96,6 +95,16 @@ impl ServalApiClient {
         Ok(body)
     }
 
+    /// Get a list of all known peers advertising the given role.
+    pub async fn peers_with_role(&self, role: ServalRole) -> ApiResult<Vec<PeerMetadata>> {
+        let url = self.build_url(&format!("mesh/peers/{role}"));
+        let response = reqwest::get(&url).await?;
+        let body: Vec<PeerMetadata> = response.json().await?;
+
+        Ok(body)
+    }
+
+    /// Get a list of all Wasm manifests stored on the node.
     pub async fn list_manifests(&self) -> ApiResult<Vec<String>> {
         let url = self.build_url("storage/manifests");
         let response = reqwest::get(&url).await?;
@@ -104,6 +113,7 @@ impl ServalApiClient {
         Ok(body)
     }
 
+    /// Store a Wasm manifest on the node.
     pub async fn store_manifest(&self, manifest: &Manifest) -> ApiResult<Integrity> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(60))
@@ -116,17 +126,21 @@ impl ServalApiClient {
         Ok(Integrity::from(body))
     }
 
+    /// Fetch a manifest from the node. The response will be *toml*, not json
+    /// as you might expect, because manifests are canonically stored as toml.
     pub async fn get_manifest(&self, name: &str) -> ApiResult<Manifest> {
         let url = self.build_url(&format!("storage/manifests/{name}"));
         let response = reqwest::get(&url).await?;
         if response.status().is_success() {
-            let body: Manifest = response.json().await?;
-            Ok(body)
+            let text = response.text().await?;
+            let manifest = Manifest::from_string(&text)?;
+            Ok(manifest)
         } else {
             Err(ServalError::ManifestNotFound(response.text().await?))
         }
     }
 
+    /// Check if this node has in its local storage the named manifest.
     pub async fn has_manifest(&self, name: &str) -> ApiResult<bool> {
         let url = self.build_url(&format!("storage/manifests/{name}"));
         let client = reqwest::Client::builder()
@@ -138,6 +152,9 @@ impl ServalApiClient {
         Ok(found)
     }
 
+    /// Store bytes for a pre-compiled Wasm executable. Note that we're not yet
+    /// tracking architecture or anything else; it's YOLO if you built the wasm
+    /// for something the target node can't run. (If we were done, we'd ship it.)
     pub async fn store_executable(
         &self,
         name: &str,
@@ -157,6 +174,7 @@ impl ServalApiClient {
         }
     }
 
+    /// Fetch the bytes for the named Wasm executable.
     pub async fn get_executable(&self, name: &str, version: &str) -> ApiResult<Vec<u8>> {
         let url = self.build_url(&format!(
             "/v1/storage/manifests/{name}/executable/{version}"

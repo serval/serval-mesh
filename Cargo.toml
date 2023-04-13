@@ -2,7 +2,7 @@
 members = [
   "engine",
   "cli",
-  "client",
+  "api-client",
   "queue",
   "agent",
   "test-runner",
@@ -17,7 +17,6 @@ clap = { version = "3.2.23", features = ["derive"] }
 dotenvy = "0.15.6"
 env_logger = "0.10.0"
 log = "0.4.17"
-mdns-sd = { version = "0.5.9", default-features = false, features = ["async"] }
 reqwest = { version = "0.11.13",  default-features = false, features = ["brotli", "json", "rustls-tls", "stream"] }
 serde = { version = "1.0.149", features = ["derive"] }
 serde_json = "1.0.89"

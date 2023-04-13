@@ -17,7 +17,7 @@ owo-colors = "3.5.0"
 prettytable = "0.10.0"
 reqwest = { version = "0.11.13", default-features = false, features = ["deflate", "brotli", "json", "multipart", "stream", "rustls-tls"] }
 serde_json = { workspace = true }
-serval-client = { path = "../client" }
+serval-client = { path = "../api-client" }
 term_grid = "0.2.0"
 tokio = { workspace = true }
 utils = { path = "../utils" }
