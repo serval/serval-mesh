@@ -5,6 +5,8 @@ use uuid::Uuid;
 
 use crate::errors::ServalError;
 
+pub mod api;
+
 /// The results of running a Wasm executable.
 #[derive(Debug)]
 pub struct WasmResult {
