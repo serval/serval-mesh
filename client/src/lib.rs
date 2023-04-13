@@ -7,12 +7,9 @@
     unused_qualifications
 )]
 
-use bytes::Bytes;
 use reqwest::{Response, StatusCode};
 use ssri::Integrity;
-use tokio_util::io::ReaderStream;
 
-use std::io::Cursor;
 use std::time::Duration;
 
 use utils::errors::ServalError;
@@ -167,21 +164,6 @@ impl ServalApiClient {
         let response = reqwest::get(&url).await?;
         let executable = response.bytes().await?;
         Ok(executable.to_vec())
-    }
-
-    // oh my these types
-    pub async fn get_executable_as_stream(
-        &self,
-        name: &str,
-        version: &str,
-    ) -> ApiResult<ReaderStream<Cursor<Bytes>>> {
-        let url = self.build_url(&format!(
-            "/v1/storage/manifests/{name}/executable/{version}"
-        ));
-        let response = reqwest::get(&url).await?;
-        let bytes = response.bytes().await?;
-        let reader = ReaderStream::new(Cursor::new(bytes));
-        Ok(reader)
     }
 
     // Convenience function to build urls repeatably.

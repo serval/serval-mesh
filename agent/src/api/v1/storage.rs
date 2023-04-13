@@ -10,8 +10,10 @@ use axum::{
 use utils::structs::Manifest;
 use utils::{errors::ServalError, mesh::ServalRole};
 
-use crate::storage::Storage;
-use crate::structures::*;
+use crate::{
+    storage::{RunnerStorage, STORAGE},
+    structures::*,
+};
 
 /// Mount all storage endpoint handlers onto the passed-in router.
 pub fn mount(router: ServalRouter) -> ServalRouter {
@@ -61,7 +63,9 @@ async fn get_executable(
     State(_state): State<AppState>,
 ) -> impl IntoResponse {
     metrics::increment_counter!("storage:executable:get");
-    let storage = STORAGE.get().unwrap();
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+    };
 
     match storage.executable_as_stream(&name, &version).await {
         Ok(stream) => {
@@ -87,7 +91,9 @@ async fn get_manifest(
     State(_state): State<AppState>,
 ) -> impl IntoResponse {
     metrics::increment_counter!("storage:manifest:get");
-    let storage = STORAGE.get().unwrap();
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+    };
 
     match storage.manifest(&name).await {
         Ok(v) => {
@@ -108,7 +114,9 @@ async fn store_executable(
     body: Bytes,
 ) -> impl IntoResponse {
     metrics::increment_counter!("storage:executable:put");
-    let storage = STORAGE.get().unwrap();
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+    };
 
     let Ok(manifest) = storage.manifest(&name).await else {
         return (StatusCode::NOT_FOUND, format!("no manifest of that name found; name={name}")).into_response();
@@ -134,7 +142,9 @@ async fn store_executable(
 /// Returns true if this node has access to the given task type, specified by fully-qualified name.
 async fn has_manifest(Path(name): Path<String>, State(_state): State<AppState>) -> StatusCode {
     metrics::increment_counter!("storage:manifest:head");
-    let storage = STORAGE.get().unwrap();
+    let Some(storage) = STORAGE.get() else {
+        return StatusCode::SERVICE_UNAVAILABLE;
+    };
 
     match storage.data_exists_by_key(&name).await {
         Ok(exists) => {
@@ -152,7 +162,9 @@ async fn has_manifest(Path(name): Path<String>, State(_state): State<AppState>) 
 
 async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
     metrics::increment_counter!("storage:manifest:list");
-    let storage = STORAGE.get().unwrap();
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+    };
 
     match storage.manifest_names().await {
         Ok(list) => (StatusCode::OK, Json(list)).into_response(),
@@ -162,7 +174,9 @@ async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
 
 async fn store_manifest(State(_state): State<AppState>, body: String) -> impl IntoResponse {
     metrics::increment_counter!("storage:manifest:post");
-    let storage = STORAGE.get().unwrap();
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+    };
 
     match Manifest::from_string(&body) {
         Ok(manifest) => {

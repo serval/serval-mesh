@@ -8,8 +8,10 @@ license = "BSD-2-Clause-Patent"
 anyhow = { workspace = true }
 async-trait = "0.1.67"
 axum = { version = "0.6.1", features = ["json", "multipart"] }
+axum-extra = { version = "0.7.3", features = ["async-read-body"] }
+axum-macros = "0.3.7"
+bytes = "1.4.0"
 cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }
-serval-client = { path = "../client" }
 dotenvy = "0.15.6"
 engine = { path = "../engine" }
 env_logger = { workspace = true }
@@ -23,6 +25,7 @@ once_cell = "1.17.0"
 reqwest = { workspace = true }
 serde = { version = "1.0.149", features = ["serde_derive"] }
 serde_json = { workspace = true }
+serval-client = { path = "../client" }
 ssri = "8.0.0"
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -30,4 +33,3 @@ tokio-util = { workspace = true }
 toml = { workspace = true }
 utils = { path = "../utils" }
 uuid = { workspace = true }
-bytes = "1.4.0"

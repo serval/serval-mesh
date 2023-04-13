@@ -8,7 +8,8 @@ use axum::{
 use engine::{errors::ServalEngineError, ServalEngine};
 use utils::{mesh::ServalRole, structs::Job};
 
-use crate::storage::Storage;
+use axum_macros::debug_handler;
+
 use crate::structures::*;
 
 /// Mount all jobs endpoint handlers onto the passed-in router.
@@ -50,12 +51,16 @@ async fn running(_state: State<AppState>) -> impl IntoResponse {
 }
 
 /// This is the main worker endpoint. It accepts incoming jobs and runs them.
+#[debug_handler]
 async fn run_job(
     Path(name): Path<String>,
     state: State<AppState>,
     input: Bytes,
 ) -> impl IntoResponse {
-    let storage = STORAGE.get().expect("Storage not initialized!");
+    let Ok(storage) = crate::storage::get_runner_storage().await else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+    };
+
     let Ok(manifest) = storage.manifest(&name).await else {
         return (StatusCode::NOT_FOUND, "no manifest of that name found").into_response();
     };
