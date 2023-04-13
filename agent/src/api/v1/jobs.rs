@@ -63,8 +63,15 @@ async fn run_job(
     };
 
     let Ok(executable) = storage.executable_as_bytes(&name, manifest.version()).await else {
-        return (StatusCode::NOT_FOUND, "no executable found for manifest; key={key}").into_response();
+        return (StatusCode::NOT_FOUND,
+            format!("no executable found for manifest;  name={name}; version={}", manifest.version())).into_response();
     };
+
+    if executable.is_empty() {
+        let warning = format!("Declining to run a job of zero length; name={}; version={}", &name, manifest.version());
+        log::warn!("{warning}");
+        return (StatusCode::NOT_FOUND, warning).into_response();
+    }
 
     let job = Job::new(manifest, executable, input.to_vec());
     log::info!(

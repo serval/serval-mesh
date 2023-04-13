@@ -108,9 +108,12 @@ impl ServalApiClient {
     pub async fn list_manifests(&self) -> ApiResult<Vec<String>> {
         let url = self.build_url("storage/manifests");
         let response = reqwest::get(&url).await?;
-        let body: Vec<String> = response.json().await?;
-
-        Ok(body)
+        if response.status().is_success() {
+            let body: Vec<String> = response.json().await?;
+            Ok(body)
+        } else {
+            Err(ServalError::StorageError(response.text().await?))
+        }
     }
 
     /// Store a Wasm manifest on the node.
@@ -122,8 +125,12 @@ impl ServalApiClient {
         let response = client.post(url).body(manifest.to_string()).send().await?;
 
         // StatusCode.CREATED  + ssri string
-        let body = response.text().await?;
-        Ok(Integrity::from(body))
+        if response.status().is_success() {
+            let body = response.text().await?;
+            Ok(Integrity::from(body))
+        } else {
+            Err(ServalError::StorageError(response.text().await?))
+        }
     }
 
     /// Fetch a manifest from the node. The response will be *toml*, not json
@@ -177,11 +184,15 @@ impl ServalApiClient {
     /// Fetch the bytes for the named Wasm executable.
     pub async fn get_executable(&self, name: &str, version: &str) -> ApiResult<Vec<u8>> {
         let url = self.build_url(&format!(
-            "/v1/storage/manifests/{name}/executable/{version}"
+            "storage/manifests/{name}/executable/{version}"
         ));
         let response = reqwest::get(&url).await?;
-        let executable = response.bytes().await?;
-        Ok(executable.to_vec())
+        if response.status().is_success() {
+            let executable = response.bytes().await?;
+            Ok(executable.to_vec())
+        } else {
+            Err(ServalError::StorageError(response.text().await?))
+        }
     }
 
     // Convenience function to build urls repeatably.
