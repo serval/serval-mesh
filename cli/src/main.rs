@@ -14,20 +14,19 @@ use dotenvy::dotenv;
 use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
-use utils::structs::Manifest;
-use uuid::Uuid;
+use utils::mesh::ServalRole;
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
-use std::time::Duration;
 
 mod mesh;
 mod peers;
 
-use peers::build_url;
+use peers::api_client;
+use utils::structs::Manifest;
 
 #[derive(Parser, Debug)]
 #[clap(name = "pounce 🐈", version)]
@@ -61,15 +60,25 @@ pub enum Command {
         /// Path to write the output of the job; omit to write to stdout
         output_file: Option<PathBuf>,
     },
-    /// Get the status of a job in progress.
+    /// List all manifests stored with a discovered node.
     #[clap(display_order = 3)]
-    Status { id: Uuid },
-    /// Get results for a job run, given its ID.
+    ListManifests,
+    /// Get the manifest for a stored job type.
     #[clap(display_order = 4)]
-    Results { id: Uuid },
-    /// Get full job run history from the running process.
+    Manifest {
+        /// The name of the stored job.
+        name: String,
+    },
+    /// List all known peers of this node.
     #[clap(display_order = 5)]
-    History,
+    Peers,
+    /// List all known peers with the named role.
+    #[clap(display_order = 5)]
+    PeersWithRole {
+        /// The role
+        role: ServalRole,
+    },
+    NodeStatus,
     /// Liveness check: ping at least one node on the mesh.
     Ping,
     /// Monitor a mesh: print out new peers and departing peers as we learn about them.
@@ -89,9 +98,7 @@ async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     println!("Reading Wasm executable:{}", wasmpath.display());
     let executable = read_file(wasmpath)?;
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()?;
+    let serval = api_client().await;
 
     // Start building pretty output now that we're past the most likely errors.
     println!();
@@ -100,32 +107,22 @@ async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
     table.add_row(row!["Wasm task name:", manifest.fq_name()]);
     table.add_row(row!["Version:", manifest.version()]);
 
-    let url = build_url("storage/manifests".to_string(), Some("1")).await;
-    let response = client.post(url).body(manifest.to_string()).send().await?;
-
-    if !response.status().is_success() {
+    let manifest_resp = serval.store_manifest(&manifest).await;
+    let Ok(manifest_integrity) = manifest_resp else {
         table.add_row(row!["Storing the Wasm manifest failed!".bold()]);
         table.add_row(row![format!(
-            "{} {}",
-            response.status(),
-            response.text().await?
+            "{:?}", manifest_resp
         )]);
         println!("{table}");
         return Ok(());
-    }
+    };
 
-    let manifest_integrity = response.text().await?;
     table.add_row(row!["Manifest integrity:", manifest_integrity]);
 
-    let vstring = format!(
-        "storage/manifests/{}/executable/{}",
-        manifest.fq_name(),
-        manifest.version()
-    );
-    let url = build_url(vstring, Some("1")).await;
-    let response = client.put(url).body(executable).send().await?;
-    if response.status().is_success() {
-        let wasm_integrity = response.text().await?;
+    let exec_resp = serval
+        .store_executable(&manifest.fq_name(), manifest.version(), executable)
+        .await;
+    if let Ok(wasm_integrity) = exec_resp {
         table.add_row(row!["Wasm integrity:", wasm_integrity]);
         table.add_row(row![
             "To run:",
@@ -135,11 +132,7 @@ async fn upload_manifest(manifest_path: PathBuf) -> Result<()> {
         ]);
     } else {
         table.add_row(row!["Storing the Wasm executable failed!"]);
-        table.add_row(row![format!(
-            "{} {}",
-            response.status(),
-            response.text().await?
-        )]);
+        table.add_row(row![format!("{:?}", exec_resp)]);
     }
 
     println!("{table}");
@@ -188,12 +181,8 @@ async fn run(
         format_size(input_bytes.len(), BINARY),
     );
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()?;
-
-    let url = build_url(format!("jobs/{name}/run"), Some("1")).await;
-    let response = client.post(url).body(input_bytes).send().await?;
+    let serval = api_client().await;
+    let response = serval.run_job(&name, input_bytes).await?;
 
     if !response.status().is_success() {
         println!("Running the Wasm failed!");
@@ -223,31 +212,33 @@ async fn run(
     Ok(())
 }
 
-/// Get a job's status from a serval agent node.
-async fn status(id: Uuid) -> Result<()> {
-    let url = build_url(format!("jobs/{id}/status"), Some("1")).await;
-    let response = reqwest::get(url).await?;
-    let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
+async fn list_manifests() -> Result<()> {
+    let body = api_client().await.list_manifests().await?;
     println!("{}", serde_json::to_string_pretty(&body)?);
-
     Ok(())
 }
 
-/// Get a job's results from a serval agent node.
-async fn results(id: Uuid) -> Result<()> {
-    let url = build_url(format!("jobs/{id}/results"), Some("1")).await;
-    let response = reqwest::get(url).await?;
-    let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
-    println!("{}", serde_json::to_string_pretty(&body)?);
-
+async fn get_manifest(name: String) -> Result<()> {
+    let manifest = api_client().await.get_manifest(&name).await?;
+    println!("{}", serde_json::to_string_pretty(&manifest)?);
     Ok(())
 }
 
-/// Get in-memory history from an agent node.
-async fn history() -> Result<()> {
-    let url = build_url("monitor/history".to_string(), Some("1")).await;
-    let response = reqwest::get(url).await?;
-    let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
+async fn list_peers() -> Result<()> {
+    let body = api_client().await.all_peers().await?;
+    println!("{}", serde_json::to_string_pretty(&body)?);
+    Ok(())
+}
+
+async fn peers_with_role(role: ServalRole) -> Result<()> {
+    let body = api_client().await.peers_with_role(role).await?;
+    println!("{}", serde_json::to_string_pretty(&body)?);
+    Ok(())
+}
+
+/// Get the runtime status from a serval agent node.
+async fn monitor_status() -> Result<()> {
+    let body = api_client().await.monitor_status().await?;
     println!("{}", serde_json::to_string_pretty(&body)?);
 
     Ok(())
@@ -255,9 +246,7 @@ async fn history() -> Result<()> {
 
 /// Ping whichever node we've discovered.
 async fn ping() -> Result<()> {
-    let url = build_url("monitor/ping".to_string(), None).await;
-    let response = reqwest::get(url).await?;
-    let body = response.text().await?;
+    let body = api_client().await.ping().await?;
     println!("PING: {body}");
 
     Ok(())
@@ -289,11 +278,13 @@ async fn main() -> Result<()> {
             let output_file = output_file.filter(|p| p != &PathBuf::from("-"));
             run(name, input_file, output_file).await?;
         }
-        Command::Results { id } => results(id).await?,
-        Command::Status { id } => status(id).await?,
-        Command::History => history().await?,
+        Command::NodeStatus => monitor_status().await?,
         Command::Ping => ping().await?,
         Command::Monitor => mesh::monitor_mesh().await?,
+        Command::ListManifests => list_manifests().await?,
+        Command::Manifest { name } => get_manifest(name).await?,
+        Command::Peers => list_peers().await?,
+        Command::PeersWithRole { role } => peers_with_role(role).await?,
     };
 
     Ok(())

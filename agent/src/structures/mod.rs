@@ -1,14 +1,13 @@
 use anyhow::Result;
 use engine::extensions::{load_extensions, ServalExtension};
 use once_cell::sync::OnceCell;
+use utils::errors::ServalError;
 use utils::mesh::ServalMesh;
-use utils::{blobs::BlobStore, errors::ServalError};
 use uuid::Uuid;
 
 use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf};
 
-pub static STORAGE: OnceCell<BlobStore> = OnceCell::new();
 pub static MESH: OnceCell<ServalMesh> = OnceCell::new();
 
 pub type ServalRouter = axum::Router<Arc<RunnerState>, hyper::Body>;
@@ -31,8 +30,7 @@ impl RunnerState {
     ) -> Result<Self, ServalError> {
         let has_storage = match blob_path {
             Some(path) => {
-                let store = BlobStore::new(path)?;
-                STORAGE.set(store).unwrap();
+                crate::storage::initialize(path)?;
                 true
             }
             None => false,

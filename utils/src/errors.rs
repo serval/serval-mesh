@@ -39,9 +39,17 @@ pub enum ServalError {
     #[error("no blob found at address `{0}`")]
     BlobAddressNotFound(String),
 
+    /// The agent was unable to store data, despite advertising a storage role.
+    #[error("unable to store data: `{0}`")]
+    StorageError(String),
+
     /// This job has no metadata
     #[error("no metadata for job `{0}`")]
     ManifestNotFound(String),
+
+    /// Invalid role string.
+    #[error("not a valid role `{0}`")]
+    InvalidRole(String),
 
     /// A conversion for std:io:Error
     #[error("std::io::Error: {0}")]

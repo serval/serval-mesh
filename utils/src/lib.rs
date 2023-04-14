@@ -1,4 +1,3 @@
-pub mod blobs;
 pub mod errors;
 pub mod futures;
 pub mod mdns;

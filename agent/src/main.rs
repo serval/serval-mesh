@@ -33,6 +33,8 @@ use crate::api::*;
 mod structures;
 use crate::structures::*;
 
+mod storage;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let did_find_dotenv = dotenv().ok().is_some();

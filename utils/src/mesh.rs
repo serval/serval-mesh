@@ -4,7 +4,12 @@ use if_addrs::Interface;
 use kaboodle::{errors::KaboodleError, Kaboodle};
 use serde::{Deserialize, Serialize};
 
-use std::net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::{
+    net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    str::FromStr,
+};
+
+use crate::errors::ServalError;
 
 /// A little wrapper around kaboodle so we can hide the machinery of encoding and decoding.
 /// the identity payload.
@@ -47,6 +52,19 @@ impl std::fmt::Display for ServalRole {
             ServalRole::Runner => write!(f, "runner"),
             ServalRole::Storage => write!(f, "storage"),
             ServalRole::Observer => write!(f, "observer"),
+        }
+    }
+}
+
+impl FromStr for ServalRole {
+    type Err = ServalError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "runner" => Ok(ServalRole::Runner),
+            "storage" => Ok(ServalRole::Storage),
+            "observer" => Ok(ServalRole::Observer),
+            _ => Err(ServalError::InvalidRole(s.to_string())),
         }
     }
 }
