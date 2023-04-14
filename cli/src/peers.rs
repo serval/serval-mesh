@@ -1,12 +1,11 @@
 // Finding a peer at most once, so we can build urls.
 
-use anyhow::Result;
-use async_once_cell::OnceCell;
-use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
-
 use std::net::SocketAddr;
 
+use anyhow::Result;
+use async_once_cell::OnceCell;
 use serval_client::ServalApiClient;
+use utils::mesh::{KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 
 static SERVAL_NODE_ADDR: OnceCell<SocketAddr> = async_once_cell::OnceCell::new();
 

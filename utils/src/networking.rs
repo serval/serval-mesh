@@ -1,8 +1,6 @@
-use if_addrs::Interface;
-use if_addrs::{IfAddr, Ifv4Addr};
+use std::net::{Ipv4Addr, TcpListener};
 
-use std::net::Ipv4Addr;
-use std::net::TcpListener;
+use if_addrs::{IfAddr, Ifv4Addr, Interface};
 
 use crate::errors::ServalError;
 

@@ -10,11 +10,11 @@ test:
 @ci: licenses
     cargo test
     cargo clippy --all-targets
-    cargo fmt --check
+    cargo +nightly fmt --check
 
 # Lint and automatically fix what we can fix
 @lint:
-    cargo fmt
+    cargo +nightly fmt
     cargo clippy --all-targets --fix --allow-dirty --allow-staged
 
 # Vet dependency licenses

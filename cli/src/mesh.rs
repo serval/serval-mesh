@@ -1,12 +1,9 @@
+use std::io::{stdin, Read, Write};
+use std::sync::mpsc::{self, Receiver};
+use std::time::Duration;
+
 use owo_colors::OwoColorize;
 use tokio::time::sleep;
-
-use std::{
-    io::{stdin, Read, Write},
-    sync::mpsc::{self, Receiver},
-    time::Duration,
-};
-
 use utils::mesh::{KaboodlePeer, PeerMetadata};
 
 pub async fn monitor_mesh() -> anyhow::Result<()> {

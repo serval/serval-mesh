@@ -1,6 +1,8 @@
-use crate::mesh::PeerMetadata;
-use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+
+use serde::{Deserialize, Serialize};
+
+use crate::mesh::PeerMetadata;
 
 #[derive(Deserialize, Serialize)]
 pub struct MeshMember {

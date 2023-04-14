@@ -1,16 +1,10 @@
-use axum::{
-    body::{Body, HttpBody},
-    http::{Request, StatusCode},
-    response::{IntoResponse, Response},
-};
-use http::{
-    header::{CONTENT_LENGTH, EXPECT, HOST},
-    HeaderValue,
-};
-use utils::{
-    errors::ServalError,
-    mesh::{PeerMetadata, ServalRole},
-};
+use axum::body::{Body, HttpBody};
+use axum::http::{Request, StatusCode};
+use axum::response::{IntoResponse, Response};
+use http::header::{CONTENT_LENGTH, EXPECT, HOST};
+use http::HeaderValue;
+use utils::errors::ServalError;
+use utils::mesh::{PeerMetadata, ServalRole};
 use uuid::Uuid;
 
 use crate::structures::MESH;

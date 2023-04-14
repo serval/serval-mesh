@@ -1,10 +1,11 @@
+use std::collections::HashMap;
+use std::net::Ipv4Addr;
+use std::time::Duration;
+
 use anyhow::anyhow;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use tokio::time::timeout as tokio_timeout;
 use uuid::Uuid;
-
-use std::time::Duration;
-use std::{collections::HashMap, net::Ipv4Addr};
 
 use crate::errors::ServalError;
 use crate::networking::my_ipv4_addrs;

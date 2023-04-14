@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
-use axum::{
-    extract::{Json, Path, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;

@@ -1,14 +1,16 @@
 pub mod v1;
 
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use anyhow::anyhow;
-use axum::{
-    routing::{get, post},
-    Router,
-};
-use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use axum::routing::{get, post};
+use axum::Router;
 use tokio::sync::Mutex;
 
-use crate::{api::v1::AxumState, queue::JobQueue};
+use crate::api::v1::AxumState;
+use crate::queue::JobQueue;
 
 /// Initialize an HTTP service. Set up all routes.
 pub async fn init_http(host: &str, port: u16, job_queue_filename: PathBuf) -> anyhow::Result<()> {

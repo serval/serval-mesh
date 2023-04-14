@@ -7,12 +7,14 @@
     unused_qualifications
 )]
 
-use std::{env, path::PathBuf};
+use std::env;
+use std::path::PathBuf;
 
 use anyhow::anyhow;
 use clap::Parser;
 use dotenvy::dotenv;
-use utils::{mdns::advertise_service, networking::find_nearest_port};
+use utils::mdns::advertise_service;
+use utils::networking::find_nearest_port;
 use uuid::Uuid;
 
 mod api;

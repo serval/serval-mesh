@@ -6,6 +6,11 @@
     trivial_casts,
     unused_qualifications
 )]
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::path::{Path, PathBuf};
+
 /// Pounce is a CLI tool that interacts with a running serval agent daemon via
 /// its HTTP API. It discovers running agents via mDNS advertisement.
 use anyhow::Result;
@@ -15,12 +20,6 @@ use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use utils::mesh::ServalRole;
-
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::path::Path;
-use std::path::PathBuf;
 
 mod mesh;
 mod peers;

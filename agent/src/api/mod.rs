@@ -1,10 +1,8 @@
 use anyhow::Result;
-use axum::{
-    extract::State,
-    http::{Request, StatusCode},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
+use axum::extract::State;
+use axum::http::{Request, StatusCode};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use http::header::HeaderValue;
 
 use crate::structures::AppState;

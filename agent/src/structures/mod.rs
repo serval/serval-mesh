@@ -1,12 +1,13 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use anyhow::Result;
 use engine::extensions::{load_extensions, ServalExtension};
 use once_cell::sync::OnceCell;
 use utils::errors::ServalError;
 use utils::mesh::ServalMesh;
 use uuid::Uuid;
-
-use std::sync::Arc;
-use std::{collections::HashMap, path::PathBuf};
 
 pub static MESH: OnceCell<ServalMesh> = OnceCell::new();
 

@@ -17,7 +17,7 @@ help:
 # Run the same checks we run in CI
 @ci: test
     cargo clippy --workspace
-    cargo fmt --check
+    cargo +nightly fmt --check
     cargo deny check licenses
 
 # Get security advisories from cargo-deny
@@ -31,7 +31,7 @@ help:
 # Lint and automatically fix what we can fix
 @lint:
     cargo clippy --fix --allow-dirty --allow-staged
-    cargo fmt
+    cargo +nightly fmt
 
 # Install required linting/testing tools via cargo.
 @install-tools:

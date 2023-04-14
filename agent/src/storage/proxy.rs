@@ -2,7 +2,6 @@ use std::net::SocketAddr;
 
 // Write to figure out how it should work, then make it vanish.
 use async_trait::async_trait;
-
 use serval_client::ServalApiClient;
 use ssri::Integrity;
 use utils::errors::ServalError;

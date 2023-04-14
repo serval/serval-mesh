@@ -1,15 +1,14 @@
+use std::collections::HashMap;
+use std::net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::str::FromStr;
+use std::time::Duration;
+
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use if_addrs::Interface;
-use kaboodle::{errors::KaboodleError, Kaboodle};
+use kaboodle::errors::KaboodleError;
+use kaboodle::Kaboodle;
 use serde::{Deserialize, Serialize};
-
-use std::{
-    collections::HashMap,
-    net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6},
-    str::FromStr,
-    time::Duration,
-};
 
 use crate::errors::ServalError;
 

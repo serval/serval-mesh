@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use once_cell::sync::OnceCell;
-
 use ssri::Integrity;
 use utils::errors::ServalError;
 use utils::mesh::ServalRole;

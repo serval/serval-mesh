@@ -1,13 +1,12 @@
+use std::fs;
+use std::io::ErrorKind;
+use std::path::PathBuf;
+
 use async_trait::async_trait;
 use cacache::Reader;
 use serde::Serialize;
 use ssri::Integrity;
 use tokio_util::io::ReaderStream;
-
-use std::fs;
-use std::io::ErrorKind;
-use std::path::PathBuf;
-
 use utils::errors::ServalError;
 use utils::structs::Manifest;
 

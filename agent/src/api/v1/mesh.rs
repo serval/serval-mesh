@@ -1,12 +1,8 @@
-use axum::{
-    extract::{Path, State},
-    routing::get,
-    Json,
-};
-use utils::{
-    mesh::{KaboodleMesh, ServalRole},
-    structs::api::MeshMember,
-};
+use axum::extract::{Path, State};
+use axum::routing::get;
+use axum::Json;
+use utils::mesh::{KaboodleMesh, ServalRole};
+use utils::structs::api::MeshMember;
 
 use crate::structures::*;
 

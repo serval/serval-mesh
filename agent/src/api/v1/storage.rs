@@ -1,19 +1,15 @@
-use axum::{
-    body::{Body, Bytes, StreamBody},
-    extract::{Path, State},
-    http::{header, Request, StatusCode},
-    response::IntoResponse,
-    routing::{any, get, head, post, put},
-    Json,
-};
-
+use axum::body::{Body, Bytes, StreamBody};
+use axum::extract::{Path, State};
+use axum::http::{header, Request, StatusCode};
+use axum::response::IntoResponse;
+use axum::routing::{any, get, head, post, put};
+use axum::Json;
+use utils::errors::ServalError;
+use utils::mesh::ServalRole;
 use utils::structs::Manifest;
-use utils::{errors::ServalError, mesh::ServalRole};
 
-use crate::{
-    storage::{RunnerStorage, STORAGE},
-    structures::*,
-};
+use crate::storage::{RunnerStorage, STORAGE};
+use crate::structures::*;
 
 /// Mount all storage endpoint handlers onto the passed-in router.
 pub fn mount(router: ServalRouter) -> ServalRouter {

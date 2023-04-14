@@ -7,28 +7,26 @@
     unused_qualifications
 )]
 
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    path::PathBuf,
-};
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::path::PathBuf;
 
 use anyhow::anyhow;
 use cranelift_codegen_meta::isa::Isa;
 use extensions::ServalExtension;
 use utils::structs::{Permission, WasmResult};
-use wasi_common::{
-    pipe::{ReadPipe, WritePipe},
-    I32Exit,
-};
+use wasi_common::pipe::{ReadPipe, WritePipe};
+use wasi_common::I32Exit;
 use wasmtime::{Config, Engine, Linker, Module, Store};
 use wasmtime_wasi::{Dir, WasiCtx, WasiCtxBuilder};
 
 pub mod errors;
 pub mod extensions;
 mod runtime;
-use crate::{errors::ServalEngineError, runtime::register_exports};
 use wasi_experimental_http_wasmtime::{HttpCtx, HttpState};
+
+use crate::errors::ServalEngineError;
+use crate::runtime::register_exports;
 
 #[allow(missing_debug_implementations)]
 #[derive(Clone)]

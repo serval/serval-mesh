@@ -6,19 +6,18 @@
     trivial_casts,
     unused_qualifications
 )]
-use clap::Parser;
-use engine::extensions::load_extensions;
-use owo_colors::OwoColorize;
-
 use std::fs;
 use std::fs::File;
 use std::io::{stdin, Read};
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::str::FromStr;
-use utils::structs::{Manifest, Permission};
 
+use clap::Parser;
+use engine::extensions::load_extensions;
 use engine::ServalEngine;
+use owo_colors::OwoColorize;
+use utils::structs::{Manifest, Permission};
 
 /// Note: The CLI is just here for simple testing purpose.
 /// The real worker will pick up executables and inputs from an API endpoint.

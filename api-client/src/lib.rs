@@ -7,11 +7,10 @@
     unused_qualifications
 )]
 
-use reqwest::{Response, StatusCode};
-use ssri::Integrity;
-
 use std::time::Duration;
 
+use reqwest::{Response, StatusCode};
+use ssri::Integrity;
 use utils::errors::ServalError;
 use utils::mesh::{PeerMetadata, ServalRole};
 use utils::structs::Manifest;

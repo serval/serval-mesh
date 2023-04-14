@@ -7,25 +7,24 @@
     unused_qualifications
 )]
 
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::process;
+use std::sync::Arc;
+
 use anyhow::Result;
-use axum::{
-    body::*,
-    extract::DefaultBodyLimit,
-    middleware::{self},
-    routing::get,
-    Router, Server,
-};
+use axum::body::*;
+use axum::extract::DefaultBodyLimit;
+use axum::middleware::{self};
+use axum::routing::get;
+use axum::{Router, Server};
 use dotenvy::dotenv;
 use engine::ServalEngine;
+// TODO: should switch on feature.
+use metrics_exporter_tcp::TcpBuilder;
 use utils::mesh::{mesh_interface_and_port, KaboodleMesh, PeerMetadata, ServalMesh, ServalRole};
 use utils::networking::find_nearest_port;
 use uuid::Uuid;
-
-// TODO: should switch on feature.
-use metrics_exporter_tcp::TcpBuilder;
-
-use std::{net::SocketAddr, process};
-use std::{path::PathBuf, sync::Arc};
 
 mod api;
 use crate::api::*;
