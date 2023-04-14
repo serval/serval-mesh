@@ -7,7 +7,10 @@ use tokio::time::sleep;
 use utils::mesh::{KaboodlePeer, PeerMetadata};
 
 pub async fn monitor_mesh() -> anyhow::Result<()> {
-    println!("Monitoring mesh ...");
+    println!(
+        "Monitoring mesh ... {}",
+        "(Press enter at any time to see a list of known peer latencies.)".blue()
+    );
     let stdin_rx = spawn_stdin_reader();
     let mut mesh = super::peers::create_mesh_peer().await?;
     let mut discover_rx = mesh
