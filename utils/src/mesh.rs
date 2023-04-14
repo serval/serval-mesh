@@ -5,8 +5,10 @@ use kaboodle::{errors::KaboodleError, Kaboodle};
 use serde::{Deserialize, Serialize};
 
 use std::{
+    collections::HashMap,
     net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6},
     str::FromStr,
+    time::Duration,
 };
 
 use crate::errors::ServalError;
@@ -38,7 +40,7 @@ pub trait KaboodlePeer {
 // End of tiny wrapper around Kaboodle.
 
 /// These are the roles we allow peers to advertise on the mesh
-#[derive(Debug, Clone, PartialEq, Eq, Decode, Encode, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Decode, Encode, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ServalRole {
     Runner,
@@ -78,7 +80,7 @@ struct VersionEnvelope {
     rest: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct PeerMetadata {
     address: IpAddr,
     inner: MetadataInner,
@@ -86,7 +88,7 @@ pub struct PeerMetadata {
 
 // The data we need to encode our identity as a serval peer. Done with an additional
 // type to get the derive. There'll be another way to do this, I'm sure.
-#[derive(Debug, Clone, Decode, Encode, Deserialize, Serialize)]
+#[derive(Debug, Clone, Decode, Encode, Hash, Eq, PartialEq, Deserialize, Serialize)]
 struct MetadataInner {
     instance_id: String,
     http_port: Option<u16>, // Observer-only mesh members will not be listening over HTTP at all
@@ -174,6 +176,23 @@ impl ServalMesh {
             kaboodle,
             _metadata: metadata,
         })
+    }
+
+    /// Returns a map of all peers with known latencies.
+    pub async fn peer_latencies(&self) -> HashMap<PeerMetadata, Duration> {
+        self.kaboodle
+            .peer_states()
+            .await
+            .into_iter()
+            .filter_map(|(addr, peer_info)| {
+                peer_info.latency.map(|latency| {
+                    (
+                        PeerMetadata::from_identity(addr.ip(), peer_info.identity.to_vec()),
+                        latency,
+                    )
+                })
+            })
+            .collect::<HashMap<_, _>>()
     }
 
     /// Given a specific role, look for all peers that advertise the role.
