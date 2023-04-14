@@ -79,6 +79,8 @@ struct VersionEnvelope {
     rest: Vec<u8>,
 }
 
+/// Represents a peer within the mesh. Generally speaking, this contains the data needed to identify
+/// and communicate with a particular peer.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct PeerMetadata {
     address: IpAddr,
