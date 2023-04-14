@@ -94,7 +94,7 @@ impl RunnerStorage for &BlobStore {
     async fn manifest(&self, fq_name: &str) -> Result<Manifest, ServalError> {
         let bytes = cacache::read(&self.location, Manifest::make_manifest_key(fq_name)).await?;
         if let Ok(data) = String::from_utf8(bytes) {
-            let manifest: Manifest = toml::from_str(&data)?; // TODO CJ this is json right now
+            let manifest: Manifest = toml::from_str(&data)?;
             Ok(manifest)
         } else {
             // TODO: bad data error

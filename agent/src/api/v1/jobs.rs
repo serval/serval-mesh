@@ -68,7 +68,11 @@ async fn run_job(
     };
 
     if executable.is_empty() {
-        let warning = format!("Declining to run a job of zero length; name={}; version={}", &name, manifest.version());
+        let warning = format!(
+            "Declining to run a job of zero length; name={}; version={}",
+            &name,
+            manifest.version()
+        );
         log::warn!("{warning}");
         return (StatusCode::NOT_FOUND, warning).into_response();
     }

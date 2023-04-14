@@ -183,9 +183,7 @@ impl ServalApiClient {
 
     /// Fetch the bytes for the named Wasm executable.
     pub async fn get_executable(&self, name: &str, version: &str) -> ApiResult<Vec<u8>> {
-        let url = self.build_url(&format!(
-            "storage/manifests/{name}/executable/{version}"
-        ));
+        let url = self.build_url(&format!("storage/manifests/{name}/executable/{version}"));
         let response = reqwest::get(&url).await?;
         if response.status().is_success() {
             let executable = response.bytes().await?;
