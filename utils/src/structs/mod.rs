@@ -101,7 +101,7 @@ impl Manifest {
 
     /// Get the fully-qualified-by-namespace name for this job type manifest.
     pub fn fq_name(&self) -> String {
-        let name = self.name.to_ascii_lowercase().replace('-', "_");
+        let name = self.name.to_ascii_lowercase();
         format!("{}.{name}", self.namespace)
     }
 
