@@ -81,6 +81,9 @@ pub enum ServalError {
 
     #[error("Manifest with a relative binary path was passed to Manifest::from_string; only absolute paths are supported here")]
     RelativeBinaryPathInManifestError,
+
+    #[error("Manifest contains an invalid job name: {0}")]
+    InvalidManifestName(String),
 }
 
 use axum::http::StatusCode;
