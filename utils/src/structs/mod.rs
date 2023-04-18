@@ -315,9 +315,10 @@ required_permissions = []
 "###;
         let result = Manifest::from_string(invalid_manifest);
         assert!(result.is_err());
-        if let Err(error) = result {
-            assert!(matches!(error, ServalError::TomlDeserializationError(_)));
-        }
+        assert!(matches!(
+            result.unwrap_err(),
+            ServalError::TomlDeserializationError(_)
+        ));
 
         // this one is okay
         let valid_manifest = r###"
