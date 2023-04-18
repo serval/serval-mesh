@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use uuid::Uuid;
 
@@ -22,7 +23,7 @@ pub struct WasmResult {
 }
 
 /// Wasm executable metadata, for human reasons.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct Manifest {
     /// Short name of this Wasm manifest. Lower-cased alphanumerics plus underscore.
     name: String,
@@ -100,7 +101,7 @@ impl Manifest {
 
     /// Get the fully-qualified-by-namespace name for this job type manifest.
     pub fn fq_name(&self) -> String {
-        let name = self.name.to_ascii_lowercase().replace('-', "_");
+        let name = self.name.to_ascii_lowercase();
         format!("{}.{name}", self.namespace)
     }
 
@@ -131,6 +132,59 @@ impl Display for Manifest {
             Ok(v) => write!(f, "{v}"),
             Err(e) => write!(f, "{e:?}"),
         }
+    }
+}
+
+use once_cell::sync::OnceCell;
+use regex::Regex;
+pub static INVALID_NAME_CHARS: OnceCell<Regex> = OnceCell::new();
+
+impl<'de> Deserialize<'de> for Manifest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Serde will deserialize into this for us.
+        #[derive(Deserialize)]
+        struct InnerManifest {
+            name: String,
+            namespace: String,
+            version: String,
+            binary: PathBuf,
+            description: String,
+            #[serde(default)]
+            required_extensions: Vec<String>,
+            #[serde(default)]
+            required_permissions: Vec<Permission>,
+        }
+
+        let inner = InnerManifest::deserialize(deserializer)?;
+
+        let invalid_chars = match INVALID_NAME_CHARS.get() {
+            Some(v) => v,
+            None => {
+                let regex = Regex::new("[^A-Za-z_]").unwrap(); // We affirm this regex is good.
+                INVALID_NAME_CHARS.set(regex).unwrap();
+                INVALID_NAME_CHARS.get().unwrap()
+            }
+        };
+
+        // Now we validate our fields.
+        if invalid_chars.is_match(&inner.name) {
+            return Err(D::Error::custom(
+                "Manifest names may include only alphanumeric characters plus _ (underscore).",
+            ));
+        }
+
+        Ok(Manifest {
+            name: inner.name,
+            namespace: inner.namespace,
+            version: inner.version,
+            binary: inner.binary,
+            description: inner.description,
+            required_extensions: inner.required_extensions,
+            required_permissions: inner.required_permissions,
+        })
     }
 }
 
@@ -241,5 +295,42 @@ impl Serialize for Permission {
         S: Serializer,
     {
         serializer.serialize_str(&self.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_invalid_name() {
+        let invalid_manifest = r###"
+name = "loudify spaces"
+namespace = "sh.serval"
+binary = "/tmp/loudify.wasm"
+version = "1"
+description = "SHOUT SHOUT LET IT ALL OUT"
+required_extensions = ["yelling"]
+required_permissions = []
+"###;
+        let result = Manifest::from_string(invalid_manifest);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ServalError::TomlDeserializationError(_)
+        ));
+
+        // this one is okay
+        let valid_manifest = r###"
+name = "loudify"
+namespace = "sh.serval"
+binary = "/tmp/loudify.wasm"
+version = "1"
+description = "SHOUT SHOUT LET IT ALL OUT"
+required_extensions = ["shouting"]
+required_permissions = []
+"###;
+        let result = Manifest::from_string(valid_manifest);
+        assert!(result.is_ok());
     }
 }
