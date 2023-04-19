@@ -42,6 +42,7 @@ pub trait KaboodlePeer {
 #[derive(Debug, Clone, PartialEq, Eq, Decode, Encode, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ServalRole {
+    Scheduler,
     Runner,
     Storage,
     Observer,
@@ -51,6 +52,7 @@ impl std::fmt::Display for ServalRole {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ServalRole::Runner => write!(f, "runner"),
+            ServalRole::Scheduler => write!(f, "scheduler"),
             ServalRole::Storage => write!(f, "storage"),
             ServalRole::Observer => write!(f, "observer"),
         }
@@ -63,6 +65,7 @@ impl FromStr for ServalRole {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "runner" => Ok(ServalRole::Runner),
+            "scheduler" => Ok(ServalRole::Scheduler),
             "storage" => Ok(ServalRole::Storage),
             "observer" => Ok(ServalRole::Observer),
             _ => Err(ServalError::InvalidRole(s.to_string())),
