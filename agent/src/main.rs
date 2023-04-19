@@ -108,6 +108,12 @@ async fn main() -> Result<()> {
     } else {
         log::info!("job running not enabled (or not supported)");
     }
+    if config.should_run_scheduler {
+        log::info!("job scheduler enabled");
+        roles.push(ServalRole::Scheduler);
+    } else {
+        log::info!("job scheduler not enabled");
+    }
 
     let (mesh_interface, mesh_port) = mesh_interface_and_port();
     let metadata = PeerMetadata::new(
