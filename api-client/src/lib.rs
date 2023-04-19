@@ -9,11 +9,13 @@
 
 use std::time::Duration;
 
-use reqwest::{Response, StatusCode};
+use reqwest::StatusCode;
 use ssri::Integrity;
 use utils::errors::ServalError;
 use utils::mesh::{PeerMetadata, ServalRole};
+use utils::structs::api::{SchedulerEnqueueJobResponse, SchedulerJobStatusResponse};
 use utils::structs::Manifest;
+use uuid::Uuid;
 
 type ApiResult<T> = Result<T, ServalError>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
@@ -74,15 +76,31 @@ impl ServalApiClient {
     /// Run a previously-stored Wasm job by its fully-qualified name. If the job
     /// needs input, send it in as a vec of bytes. Pass a zero-length vec if the
     /// job doesn't need input.
-    pub async fn run_job(&self, name: &str, input: Vec<u8>) -> ApiResult<Response> {
-        let url = self.build_url(&format!("jobs/{name}/run"));
+    pub async fn enqueue_job(
+        &self,
+        name: &str,
+        input: Vec<u8>,
+    ) -> ApiResult<SchedulerEnqueueJobResponse> {
+        // todo: validate name
+        let url = self.build_url(&format!("scheduler/enqueue/{name}"));
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
             .build()?;
-        // TODO: this is a cop-out for the moment, because the cli does a lot with the response object.
-        // We *should* respond with WasmResult.
+        println!("Sending {} bytes to {url}", input.len());
         let response = client.post(url).body(input).send().await?;
-        Ok(response)
+        let body: SchedulerEnqueueJobResponse = response.json().await?;
+        Ok(body)
+    }
+
+    pub async fn job_status(&self, job_id: &Uuid) -> ApiResult<SchedulerJobStatusResponse> {
+        let url = self.build_url(&format!("scheduler/{job_id}/status"));
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()?;
+        println!("{url}");
+        let response = client.get(url).send().await?;
+        let body: SchedulerJobStatusResponse = response.json().await?;
+        Ok(body)
     }
 
     /// Get a list of all peers the node is aware of.

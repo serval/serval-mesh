@@ -10,6 +10,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 /// Pounce is a CLI tool that interacts with a running serval agent daemon via
 /// its HTTP API. It discovers running agents via mDNS advertisement.
@@ -19,12 +20,14 @@ use dotenvy::dotenv;
 use humansize::{format_size, BINARY};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
+use tokio::time::sleep;
 use utils::mesh::ServalRole;
 
 mod mesh;
 mod peers;
 
 use peers::api_client;
+use utils::structs::JobStatus;
 use utils::structs::Manifest;
 
 #[derive(Parser, Debug)]
@@ -181,28 +184,45 @@ async fn run(
     );
 
     let serval = api_client().await;
-    let response = serval.run_job(&name, input_bytes).await?;
+    let job_id = match serval.enqueue_job(&name, input_bytes).await {
+        Ok(resp) => resp.job_id,
+        Err(err) => {
+            eprintln!("Enqueuing the job failed: {err}");
+            return Ok(());
+        }
+    };
 
-    if !response.status().is_success() {
-        println!("Running the Wasm failed!");
-        println!("{} {}", response.status(), response.text().await?);
+    // Poll the job until it's done
+    println!("Created job {}; waiting for it to run...", job_id);
+    let job_status = loop {
+        let resp = serval.job_status(&job_id).await?;
+        if matches!(resp.status, JobStatus::Completed | JobStatus::Failed) {
+            break resp;
+        }
+
+        sleep(Duration::from_secs(1)).await;
+    };
+
+    if job_status.status == JobStatus::Failed {
+        eprintln!("Running the job failed!");
         return Ok(());
     }
 
-    let response_body = response.bytes().await?;
-    log::info!("response body read; length={}", response_body.len());
+    log::info!("response body read; length={}", job_status.output.len());
     match maybe_output {
         Some(outputpath) => {
             eprintln!("Writing output to {outputpath:?}");
             let mut f = File::create(&outputpath)?;
-            f.write_all(&response_body)?;
+            f.write_all(&job_status.output)?;
         }
         None => {
-            if atty::is(atty::Stream::Stdin) && String::from_utf8(response_body.to_vec()).is_err() {
+            if atty::is(atty::Stream::Stdin)
+                && String::from_utf8(job_status.output.to_vec()).is_err()
+            {
                 eprintln!("Response is non-printable binary data; redirect output to a file or provide an output filename to retrieve it.");
             } else {
                 eprintln!("----------");
-                std::io::stdout().write_all(&response_body)?;
+                std::io::stdout().write_all(&job_status.output)?;
                 eprintln!("----------");
             };
         }

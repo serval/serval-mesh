@@ -334,3 +334,12 @@ required_permissions = []
         assert!(result.is_ok());
     }
 }
+
+#[derive(Deserialize, Serialize, Eq, PartialEq, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum JobStatus {
+    Pending,
+    Active,
+    Completed,
+    Failed,
+}

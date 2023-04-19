@@ -8,9 +8,11 @@ license = "BSD-2-Clause-Patent"
 bytes = "1.4.0"
 futures-util = "0.3.28"
 reqwest = { version = "0.11.13", default-features = false, features = ["deflate", "brotli", "json", "multipart", "stream", "rustls-tls"] }
+serde = { workspace = true }
 serde_json = { workspace = true }
 ssri = { workspace = true }
 tokio = { workspace = true }
 tokio-stream = "0.1.12"
 tokio-util = { workspace = true }
 utils = { path = "../utils" }
+uuid = { workspace = true }
