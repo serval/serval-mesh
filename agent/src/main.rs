@@ -228,6 +228,7 @@ fn init_router(state: &Arc<RunnerState>) -> Router {
 
     router
         .route_layer(middleware::from_fn(clacks))
+        .route_layer(middleware::from_fn(http_logging))
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
         .with_state(state.clone())
 }
