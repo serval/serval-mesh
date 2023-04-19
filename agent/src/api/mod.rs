@@ -23,6 +23,24 @@ pub async fn clacks<B>(req: Request<B>, next: Next<B>) -> Result<Response, Statu
     Ok(response)
 }
 
+pub async fn http_logging<B>(req: Request<B>, next: Next<B>) -> Result<Response, StatusCode> {
+    let method = req.method().to_owned();
+    let uri = req.uri().to_owned();
+    let response = next.run(req).await;
+    if let Some(proxied_from) = response.headers().get("Serval-Proxied-From") {
+        log::info!(
+            "{} {} {} (via {})",
+            response.status().as_u16(),
+            method,
+            uri,
+            proxied_from.to_str().unwrap(),
+        );
+    } else {
+        log::info!("{} {} {}", response.status().as_u16(), method, uri);
+    }
+    Ok(response)
+}
+
 /// Respond to ping. Useful for monitoring.
 pub async fn ping() -> String {
     metrics::increment_counter!("monitor:ping");
