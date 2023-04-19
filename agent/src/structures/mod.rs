@@ -19,6 +19,7 @@ pub struct RunnerState {
     pub instance_id: Uuid,
     pub extensions: HashMap<String, ServalExtension>,
     pub should_run_jobs: bool,
+    pub should_run_scheduler: bool,
     pub has_storage: bool,
 }
 
@@ -28,6 +29,7 @@ impl RunnerState {
         blob_path: Option<PathBuf>,
         extensions_path: Option<PathBuf>,
         should_run_jobs: bool,
+        should_run_scheduler: bool,
     ) -> Result<Self, ServalError> {
         let has_storage = match blob_path {
             Some(path) => {
@@ -54,6 +56,7 @@ impl RunnerState {
             instance_id,
             extensions,
             should_run_jobs,
+            should_run_scheduler,
             has_storage,
         })
     }

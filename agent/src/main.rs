@@ -51,11 +51,13 @@ async fn main() -> Result<()> {
         config.blob_path.clone(),
         config.extensions_path.clone(),
         config.should_run_jobs,
+        config.should_run_scheduler,
     )?);
     log::info!(
-        "agent configured with storage={} and run-jobs={}",
+        "agent configured with storage={}; run-jobs={}; run-scheduler={}",
         state.has_storage,
-        state.should_run_jobs
+        state.should_run_jobs,
+        state.should_run_scheduler,
     );
 
     let app = init_router(&state);
@@ -127,6 +129,7 @@ struct Config {
     instance_id: Uuid,
     extensions_path: Option<PathBuf>,
     should_run_jobs: bool,
+    should_run_scheduler: bool,
     blob_path: Option<PathBuf>,
 }
 fn init_config() -> Config {
@@ -173,6 +176,19 @@ fn init_config() -> Config {
             false
         }
     };
+    let should_run_scheduler =
+        match &std::env::var("SCHEDULER_ROLE").unwrap_or_else(|_| "auto".to_string())[..] {
+            "always" => true,
+            // In the future, "auto" could cause us to probe the mesh to see whether there is already
+            // a scheduler. For now, though, just default to no.
+            "auto" | "never" => false,
+            _ => {
+                log::warn!(
+                    "Invalid value for SCHEDULER_ROLE environment variable; defaulting to 'never'"
+                );
+                false
+            }
+        };
 
     let extensions_path = std::env::var("EXTENSIONS_PATH").ok().map(PathBuf::from);
 
@@ -187,6 +203,7 @@ fn init_config() -> Config {
         instance_id,
         extensions_path,
         should_run_jobs,
+        should_run_scheduler,
         blob_path,
     }
 }
