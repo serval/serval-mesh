@@ -3,7 +3,6 @@ members = [
   "engine",
   "cli",
   "api-client",
-  "queue",
   "agent",
   "test-runner",
   "utils"
