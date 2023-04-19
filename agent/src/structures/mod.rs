@@ -87,10 +87,12 @@ pub struct Job {
 impl Job {
     pub fn mark_complete(&mut self, status: JobStatus, output: Vec<u8>) -> Result<(), ()> {
         if self.status != JobStatus::Active {
+            println!("job not active {:?}", self.status);
             return Err(());
         }
         if status != JobStatus::Completed && status != JobStatus::Failed {
             // can't mark something as compete with any other state
+            println!("invalid target status");
             return Err(());
         }
 
@@ -98,6 +100,18 @@ impl Job {
         self.status = status;
 
         Ok(())
+    }
+
+    pub fn id(&self) -> &Uuid {
+        &self.id
+    }
+
+    pub fn input(&self) -> &[u8] {
+        &self.input
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn output(&self) -> &[u8] {

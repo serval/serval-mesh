@@ -6,7 +6,7 @@ use axum::routing::{any, get, post};
 use axum::Json;
 use utils::mesh::ServalRole;
 use utils::structs::api::{
-    SchedulerCompleteJobPayload, SchedulerEnqueueJobResponse, SchedulerJobStatusResponse,
+    SchedulerEnqueueJobResponse, SchedulerJobClaimResponse, SchedulerJobStatusResponse,
 };
 use utils::structs::JobStatus;
 use uuid::Uuid;
@@ -21,6 +21,7 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
         .route("/v1/scheduler/:job_id/complete", post(complete_job))
         .route("/v1/scheduler/:job_id/status", get(job_status))
         .route("/v1/scheduler/:job_id/tickle", post(tickle_job))
+    // todo: route to mark a job as failed
 }
 
 /// Mount a handler that relays all job-running requests to another node.
@@ -67,8 +68,23 @@ async fn enqueue_job(
     Ok(Json(SchedulerEnqueueJobResponse { job_id }))
 }
 
-async fn claim_job() -> impl IntoResponse {
-    StatusCode::NOT_FOUND
+async fn claim_job() -> Result<Json<SchedulerJobClaimResponse>, impl IntoResponse> {
+    let mut queue = JOBS
+        .get()
+        .expect("Job queue not initialized")
+        .lock()
+        .unwrap();
+
+    println!("want to claim a job");
+    let Some(job) = queue.claim() else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+
+    Ok(Json(SchedulerJobClaimResponse {
+        job_id: job.id().to_owned(),
+        name: job.name().to_owned(),
+        input: job.input().to_owned(),
+    }))
 }
 
 async fn tickle_job(Path(_job_id): Path<Uuid>) -> impl IntoResponse {
@@ -84,14 +100,10 @@ async fn job_status(
         .expect("Job queue not initialized")
         .lock()
         .unwrap();
-    println!("want job status");
 
     let Some(job) = queue.get_job(job_id) else {
-        println!("404");
         return Err(StatusCode::NOT_FOUND);
     };
-
-    println!("ok job status");
 
     Ok(Json(SchedulerJobStatusResponse {
         status: job.status().to_owned(),
@@ -101,7 +113,7 @@ async fn job_status(
 
 async fn complete_job(
     Path(job_id): Path<Uuid>,
-    Json(payload): Json<SchedulerCompleteJobPayload>,
+    output: Bytes,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
     let mut queue = JOBS
         .get()
@@ -113,7 +125,12 @@ async fn complete_job(
         return Err(StatusCode::NOT_FOUND);
     };
 
-    match job.mark_complete(JobStatus::Completed, payload.output) {
+    log::info!(
+        "Marking job {job_id} as complete with {} bytes of output",
+        output.len()
+    );
+
+    match job.mark_complete(JobStatus::Completed, output.to_vec()) {
         Ok(_) => Ok(StatusCode::OK),
         Err(_) => Err(StatusCode::BAD_REQUEST),
     }
