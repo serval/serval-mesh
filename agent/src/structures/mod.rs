@@ -75,6 +75,8 @@ pub type AppState = Arc<RunnerState>;
 pub struct Job {
     // todo: keep track of when a job was claimed so we can expire and retry
     // todo: keep track of attempts so we can give up if it fails too many time
+    // todo: we have some interdependent fields (e.g. `output` should only be set if `status` is
+    // JobStatus::Completed). it might make sense for have a JobState enum to hold related things.
     id: Uuid,
     status: JobStatus,
     name: String,
@@ -83,6 +85,21 @@ pub struct Job {
 }
 
 impl Job {
+    pub fn mark_complete(&mut self, status: JobStatus, output: Vec<u8>) -> Result<(), ()> {
+        if self.status != JobStatus::Active {
+            return Err(());
+        }
+        if status != JobStatus::Completed && status != JobStatus::Failed {
+            // can't mark something as compete with any other state
+            return Err(());
+        }
+
+        self.output = output;
+        self.status = status;
+
+        Ok(())
+    }
+
     pub fn output(&self) -> &[u8] {
         &self.output
     }
@@ -110,6 +127,10 @@ impl JobQueue {
 impl JobQueue {
     pub fn get_job(&self, job_id: Uuid) -> Option<&Job> {
         self.jobs.iter().find(|job| job.id == job_id)
+    }
+
+    pub fn get_job_mut(&mut self, job_id: Uuid) -> Option<&mut Job> {
+        self.jobs.iter_mut().find(|job| job.id == job_id)
     }
 
     pub fn enqueue(&mut self, name: String, input: Vec<u8>) -> Result<Uuid> {

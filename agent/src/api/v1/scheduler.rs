@@ -5,7 +5,10 @@ use axum::response::IntoResponse;
 use axum::routing::{any, get, post};
 use axum::Json;
 use utils::mesh::ServalRole;
-use utils::structs::api::{SchedulerEnqueueJobResponse, SchedulerJobStatusResponse};
+use utils::structs::api::{
+    SchedulerCompleteJobPayload, SchedulerEnqueueJobResponse, SchedulerJobStatusResponse,
+};
+use utils::structs::JobStatus;
 use uuid::Uuid;
 
 use crate::structures::*;
@@ -15,8 +18,9 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
     router
         .route("/v1/scheduler/enqueue/:name", post(enqueue_job))
         .route("/v1/scheduler/claim", post(claim_job))
-        .route("/v1/scheduler/:job_id/tickle", post(tickle_job))
+        .route("/v1/scheduler/:job_id/complete", post(complete_job))
         .route("/v1/scheduler/:job_id/status", get(job_status))
+        .route("/v1/scheduler/:job_id/tickle", post(tickle_job))
 }
 
 /// Mount a handler that relays all job-running requests to another node.
@@ -49,7 +53,6 @@ async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> imp
 /// claimed by an appropriate runner.
 async fn enqueue_job(
     Path(name): Path<String>,
-    state: State<AppState>,
     input: Bytes,
 ) -> Result<Json<SchedulerEnqueueJobResponse>, impl IntoResponse> {
     let mut queue = JOBS
@@ -64,11 +67,11 @@ async fn enqueue_job(
     Ok(Json(SchedulerEnqueueJobResponse { job_id }))
 }
 
-async fn claim_job(_state: State<AppState>) -> impl IntoResponse {
+async fn claim_job() -> impl IntoResponse {
     StatusCode::NOT_FOUND
 }
 
-async fn tickle_job(Path(job_id): Path<Uuid>, _state: State<AppState>) -> impl IntoResponse {
+async fn tickle_job(Path(_job_id): Path<Uuid>) -> impl IntoResponse {
     StatusCode::OK
 }
 
@@ -94,4 +97,24 @@ async fn job_status(
         status: job.status().to_owned(),
         output: job.output().to_owned(),
     }))
+}
+
+async fn complete_job(
+    Path(job_id): Path<Uuid>,
+    Json(payload): Json<SchedulerCompleteJobPayload>,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    let mut queue = JOBS
+        .get()
+        .expect("Job queue not initialized")
+        .lock()
+        .unwrap();
+
+    let Some(job) = queue.get_job_mut(job_id) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+
+    match job.mark_complete(JobStatus::Completed, payload.output) {
+        Ok(_) => Ok(StatusCode::OK),
+        Err(_) => Err(StatusCode::BAD_REQUEST),
+    }
 }

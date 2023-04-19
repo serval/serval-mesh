@@ -44,3 +44,9 @@ pub struct SchedulerJobClaimResponse {
     pub name: String,
     pub input: Vec<u8>,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct SchedulerCompleteJobPayload {
+    pub status: JobStatus,
+    pub output: Vec<u8>,
+}
