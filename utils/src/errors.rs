@@ -15,10 +15,6 @@ pub enum ServalError {
     #[error("unable to find a free port >= `{0}`")]
     NoFreePorts(u16),
 
-    /// MDNS failed for some reason. We wrap up the MDNS library's error here.
-    #[error("unable to set up mdns")]
-    MdnsError(#[from] mdns_sd::Error),
-
     //     #[error("an example of a more complex error type (expected {expected:?}, found {found:?})")]
     //     InvalidHeader { expected: String, found: String },
     //
@@ -55,8 +51,8 @@ pub enum ServalError {
     #[error("std::io::Error: {0}")]
     IoError(#[from] std::io::Error),
 
-    /// The searched-for mdns service could not be found.
-    #[error("mdns service was not found before timeout")]
+    /// The searched-for service could not be found.
+    #[error("service was not found before timeout")]
     ServiceNotFound,
 
     /// Translation for errors from reqwest.
