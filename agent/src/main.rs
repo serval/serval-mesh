@@ -249,6 +249,12 @@ fn init_router(state: &Arc<RunnerState>) -> Router {
         v1::jobs::mount_proxy(router)
     };
 
+    router = if state.should_run_scheduler {
+        v1::scheduler::mount(router)
+    } else {
+        v1::scheduler::mount_proxy(router)
+    };
+
     router
         .route_layer(middleware::from_fn(clacks))
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE_BYTES))
