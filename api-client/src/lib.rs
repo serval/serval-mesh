@@ -192,6 +192,17 @@ impl ServalApiClient {
         }
     }
 
+    pub async fn data_by_sri(&self, address: &str) -> ApiResult<Vec<u8>> {
+        let url = self.build_url(&format!("storage/data/{address}"));
+        let response = reqwest::get(&url).await?;
+        if response.status().is_success() {
+            let bytes = response.bytes().await?;
+            Ok(bytes.to_vec())
+        } else {
+            Err(ServalError::StorageError(response.text().await?))
+        }
+    }
+
     // Convenience function to build urls repeatably.
     fn build_url(&self, path: &str) -> String {
         format!("http://{}/v{}/{path} ", self.socket_addr, self.version)

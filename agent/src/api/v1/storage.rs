@@ -1,14 +1,15 @@
-use axum::body::{Body, Bytes, StreamBody};
+use axum::body::{Body, Bytes};
 use axum::extract::{Path, State};
 use axum::http::{header, Request, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{any, get, head, post, put};
 use axum::Json;
+use ssri::Integrity;
 use utils::errors::ServalError;
 use utils::mesh::ServalRole;
 use utils::structs::Manifest;
 
-use crate::storage::{RunnerStorage, STORAGE};
+use crate::storage::STORAGE;
 use crate::structures::*;
 
 /// Mount all storage endpoint handlers onto the passed-in router.
@@ -26,6 +27,7 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
             "/v1/storage/manifests/:name/executable/:version",
             get(get_executable),
         )
+        .route("/v1/storage/data/*address", get(get_by_content_address))
 }
 
 /// Mount a handler for all storage routes that relays requests to a node that can handle them.
@@ -53,6 +55,34 @@ async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> imp
     }
 }
 
+async fn get_by_content_address(Path(address): Path<String>) -> impl IntoResponse {
+    metrics::increment_counter!("storage:cas:get");
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
+    };
+
+    let Ok(integrity) = address.parse::<Integrity>() else {
+        let e = ServalError::BlobAddressInvalid(format!("{} is not a valid sub-resource integrity string", address));
+        return e.into_response()
+    };
+
+    match storage.data_by_sri(integrity).await {
+        Ok(stream) => {
+            let headers = [(
+                header::CONTENT_TYPE,
+                String::from("application/octet-stream"),
+            )];
+
+            log::info!("Serving CAS data; address={}", &address);
+            (headers, stream).into_response()
+        }
+        Err(e) => {
+            log::info!("Error serving CAS data; address={}; error={}", &address, e);
+            e.into_response()
+        }
+    }
+}
+
 /// Fetch an executable by fully-qualified manifest name.
 async fn get_executable(
     Path((name, version)): Path<(String, String)>,
@@ -60,19 +90,18 @@ async fn get_executable(
 ) -> impl IntoResponse {
     metrics::increment_counter!("storage:executable:get");
     let Some(storage) = STORAGE.get() else {
-        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
     };
 
     match storage.executable_as_stream(&name, &version).await {
         Ok(stream) => {
-            let body = StreamBody::new(stream);
             let headers = [(
                 header::CONTENT_TYPE,
                 String::from("application/octet-stream"),
             )];
 
             log::info!("Serving job binary; name={}", &name);
-            (headers, body).into_response()
+            (headers, stream).into_response()
         }
         Err(e) => {
             log::warn!("error reading job binary; name={}; error={}", name, e);
@@ -88,7 +117,7 @@ async fn get_manifest(
 ) -> impl IntoResponse {
     metrics::increment_counter!("storage:manifest:get");
     let Some(storage) = STORAGE.get() else {
-        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
     };
 
     match storage.manifest(&name).await {
@@ -112,7 +141,7 @@ async fn store_executable(
 ) -> impl IntoResponse {
     metrics::increment_counter!("storage:executable:put");
     let Some(storage) = STORAGE.get() else {
-        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
     };
 
     let Ok(manifest) = storage.manifest(&name).await else {
@@ -160,7 +189,7 @@ async fn has_manifest(Path(name): Path<String>, State(_state): State<AppState>) 
 async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
     metrics::increment_counter!("storage:manifest:list");
     let Some(storage) = STORAGE.get() else {
-        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
     };
 
     match storage.manifest_names().await {
@@ -172,7 +201,7 @@ async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
 async fn store_manifest(State(_state): State<AppState>, body: String) -> impl IntoResponse {
     metrics::increment_counter!("storage:manifest:post");
     let Some(storage) = STORAGE.get() else {
-        return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
     };
 
     match Manifest::from_string(&body) {

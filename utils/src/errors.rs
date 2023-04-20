@@ -7,6 +7,9 @@ use crate::structs::WasmResult;
 // errors internally in our libraries, while allowing applications to use
 // anyhow for final error handling.
 
+/// An alias for an oft-used result type.
+pub type ServalResult<T> = Result<T, ServalError>;
+
 #[derive(Error, Debug)]
 /// Error types used by internal serval libraries to communicate details about
 /// errors specific to our implementation details.
@@ -39,9 +42,16 @@ pub enum ServalError {
     #[error("unable to store data: `{0}`")]
     StorageError(String),
 
+    #[error("data not found; sri: `{0}`")]
+    DataNotFound(String),
+
     /// This job has no metadata
-    #[error("no metadata for job `{0}`")]
+    #[error("no manifest found for task `{0}`")]
     ManifestNotFound(String),
+
+    /// Could not locate the named executable
+    #[error("no data found for executable `{0}`")]
+    ExecutableNotFound(String),
 
     /// Invalid role string.
     #[error("not a valid role `{0}`")]
@@ -74,6 +84,27 @@ pub enum ServalError {
     /// Translation for errors from ssri.
     #[error("ssri::Error: {0}")]
     SsriError(#[from] ssri::Error),
+
+    /// Translation for errors from rust-s3.
+    #[error("aws_sdk_s3::Error: {0}")]
+    S3Error(#[from] aws_sdk_s3::Error),
+
+    /// Several translations for errors from rust-s3.
+    #[error("aws_sdk_s3::error::SdkError: {0}")]
+    S3SHeadError(
+        #[from] aws_sdk_s3::error::SdkError<aws_sdk_s3::operation::head_object::HeadObjectError>,
+    ),
+
+    #[error("aws_sdk_s3::error::SdkError: {0}")]
+    S3GetError(
+        #[from] aws_sdk_s3::error::SdkError<aws_sdk_s3::operation::get_object::GetObjectError>,
+    ),
+
+    #[error("aws_sdk_s3::error::SdkError: {0}")]
+    S3BytestreamError(#[from] aws_sdk_s3::primitives::ByteStreamError),
+
+    #[error("std::string::FromUtf8Error: {0}")]
+    S3Utf8Error(#[from] std::string::FromUtf8Error),
 
     #[error("Manifest with a relative binary path was passed to Manifest::from_string; only absolute paths are supported here")]
     RelativeBinaryPathInManifestError,

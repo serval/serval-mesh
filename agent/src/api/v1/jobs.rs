@@ -8,6 +8,7 @@ use engine::ServalEngine;
 use utils::mesh::ServalRole;
 use utils::structs::Job;
 
+use crate::storage::STORAGE;
 use crate::structures::*;
 
 /// Mount all jobs endpoint handlers onto the passed-in router.
@@ -54,7 +55,7 @@ async fn run_job(
     state: State<AppState>,
     input: Bytes,
 ) -> impl IntoResponse {
-    let Ok(storage) = crate::storage::get_runner_storage().await else {
+    let Some(storage) = STORAGE.get() else {
         return (StatusCode::SERVICE_UNAVAILABLE, "unable to locate a storage node on the mesh".to_string()).into_response();
     };
 
