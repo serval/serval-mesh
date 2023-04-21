@@ -24,6 +24,7 @@ jobs:
         with:
           toolchain: 1.68
           override: true
+          components: rustfmt, clippy
 
       - uses: actions/cache@v3
         with:
