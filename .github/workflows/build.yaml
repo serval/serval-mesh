@@ -121,11 +121,12 @@ jobs:
 
       - run: cargo build --target ${{ matrix.target }} --release
 
-      - name: write out completions
-        run: |
-          ./target/release/serval-mesh completions bash > completions.bash
-          ./target/release/serval-mesh completions zsh > completions.zsh
-          ./target/release/serval-mesh completions fish > completions.fish
+      # TODO: might want to add this to CLI at some point
+      # - name: write out completions
+      #   run: |
+      #     ./target/release/serval-mesh completions bash > completions.bash
+      #     ./target/release/serval-mesh completions zsh > completions.zsh
+      #     ./target/release/serval-mesh completions fish > completions.fish
 
       - name: tar up the Mac ${{ matrix.arch }} release
         run: |
