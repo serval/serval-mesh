@@ -34,8 +34,6 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, arm64]
-        fail-fast: true
-        max-parallel: 1
         include:
           - arch: amd64
             target: x86_64-unknown-linux-gnu
@@ -43,6 +41,8 @@ jobs:
           - arch: arm64
             target: aarch64-unknown-linux-gnu
             cross: true
+      fail-fast: true
+      max-parallel: 1
     steps:
       - uses: actions/checkout@v2
 
@@ -101,8 +101,6 @@ jobs:
     strategy:
       matrix:
         arch: [intel, arm]
-        fail-fast: true
-        max-parallel: 1
         include:
           - arch: intel
             target: x86_64-apple-darwin
@@ -110,6 +108,8 @@ jobs:
           - arch: arm
             target: aarch64-apple-darwin
             cross: true
+      fail-fast: true
+      max-parallel: 1
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
