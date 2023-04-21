@@ -78,7 +78,7 @@ jobs:
 
       - name: tar it up
         run: |
-          tar cf serval-mesh_${{ matrix.arch }}_linux.tar -C target/release serval serval-agent test-runner
+          tar cf serval-mesh_${{ matrix.arch }}_linux.tar -C target/${{ matrix.target }}/release serval serval-agent test-runner
           # tar f serval-mesh_${{ matrix.arch }}_linux.tar -r completions.bash completions.zsh completions.fish
           gzip serval-mesh_${{ matrix.arch }}_linux.tar
 
@@ -135,7 +135,7 @@ jobs:
 
       - name: tar up the Mac ${{ matrix.arch }} release
         run: |
-          tar cf serval-mesh_${{ matrix.arch }}_darwin.tar -C target/release serval serval-agent test-runner
+          tar cf serval-mesh_${{ matrix.arch }}_darwin.tar -C target/${{ matrix.target }}/release serval serval-agent test-runner
           # tar f serval-mesh_${{ matrix.arch }}_darwin.tar -r completions.bash completions.zsh completions.fish
           gzip serval-mesh_${{ matrix.arch }}_darwin.tar
 
