@@ -25,7 +25,7 @@ jobs:
           draft: true
           prerelease: false
 
-  build:
+  linux:
     name: build for linux
     runs-on: ubuntu-latest
     needs: [release]
@@ -73,7 +73,7 @@ jobs:
 
       - name: tar it up
         run: |
-          tar cf serval-mesh_${{ matrix.arch }}_linux.tar -C target/release serval serval-mesh test-runner
+          tar cf serval-mesh_${{ matrix.arch }}_linux.tar -C target/release serval serval-agent test-runner
           # tar f serval-mesh_${{ matrix.arch }}_linux.tar -r completions.bash completions.zsh completions.fish
           gzip serval-mesh_${{ matrix.arch }}_linux.tar
 
@@ -85,4 +85,60 @@ jobs:
           upload_url: ${{needs.release.outputs.upload_url}}
           asset_path: serval-mesh_${{ matrix.arch }}_linux.tar.gz
           asset_name: serval-mesh_${{ matrix.arch }}_linux.tar.gz
+          asset_content_type: application/octet-stream
+
+  macos:
+    name: build for macos
+    runs-on: macos-latest
+    needs: [release]
+    strategy:
+      matrix:
+        arch: [intel, arm]
+        include:
+          - arch: intel
+            target: x86_64-apple-darwin
+            cross: false
+          - arch: arm
+            target: aarch64-apple-darwin
+            cross: true
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - run: rustup target install ${{ matrix.target }}
+        if: ${{ matrix.arch == 'arm'}}
+
+      - run: cargo build --target ${{ matrix.target }} --release
+
+      - name: write out completions
+        run: |
+          ./target/release/serval-mesh completions bash > completions.bash
+          ./target/release/serval-mesh completions zsh > completions.zsh
+          ./target/release/serval-mesh completions fish > completions.fish
+
+      - name: tar up the Mac ${{ matrix.arch }} release
+        run: |
+          tar cf serval-mesh_${{ matrix.arch }}_darwin.tar -C target/release serval serval-agent test-runner
+          # tar f serval-mesh_${{ matrix.arch }}_darwin.tar -r completions.bash completions.zsh completions.fish
+          gzip serval-mesh_${{ matrix.arch }}_darwin.tar
+
+      - name: upload darwin ${{ matrix.arch }} release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{needs.release.outputs.upload_url}}
+          asset_path: serval-mesh_${{ matrix.arch }}_darwin.tar.gz
+          asset_name: serval-mesh_${{ matrix.arch }}_darwin.tar.gz
           asset_content_type: application/octet-stream
