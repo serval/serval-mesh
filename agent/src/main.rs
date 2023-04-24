@@ -27,6 +27,7 @@ use utils::networking::find_nearest_port;
 use uuid::Uuid;
 
 mod api;
+mod scheduler;
 use crate::api::*;
 
 mod structures;
