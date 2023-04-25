@@ -344,5 +344,5 @@ fn vec_to_byte_stream(bytes: Vec<u8>) -> SendableStream {
     );
     let sr = StreamReader::new(stream);
 
-    Box::pin(sr) as _
+    Box::pin(sr)
 }
