@@ -146,16 +146,21 @@ impl Storage {
             let proxy = make_proxy_client().await?;
             return proxy.get_manifest(fq_name).await;
         }
-
         if let Some(local) = &self.local {
-            if let Ok(v) = local.manifest(fq_name).await {
-                return Ok(v);
+            if let Ok(bytes) = local.data_by_key(fq_name).await {
+                if let Ok(data) = String::from_utf8(bytes) {
+                    let manifest: Manifest = toml::from_str(&data)?;
+                    return Ok(manifest);
+                }
             }
         }
 
         if let Some(bucket) = &self.bucket {
-            if let Ok(v) = bucket.manifest(fq_name).await {
-                return Ok(v);
+            if let Ok(bytes) = bucket.data_by_key(fq_name).await {
+                if let Ok(data) = String::from_utf8(bytes) {
+                    let manifest: Manifest = toml::from_str(&data)?;
+                    return Ok(manifest);
+                }
             }
         }
 
@@ -169,14 +174,17 @@ impl Storage {
             return proxy.store_manifest(manifest).await;
         }
 
+        let toml = toml::to_string(manifest)?;
+        let key = manifest.manifest_key();
+
         let local_result = if let Some(local) = &self.local {
-            Some(local.store_manifest(manifest).await)
+            Some(local.store_by_key(&key, toml.as_bytes()).await)
         } else {
             None
         };
 
         let bucket_result = if let Some(bucket) = &self.bucket {
-            Some(bucket.store_manifest(manifest).await)
+            Some(bucket.store_by_key(&key, toml.as_bytes()).await)
         } else {
             None
         };
@@ -195,22 +203,6 @@ impl Storage {
         }
     }
 
-    /// Retrieve a list of all Wasm manifests stored on the target node.
-    pub async fn manifest_names(&self) -> ServalResult<Vec<String>> {
-        if !self.has_storage() {
-            let proxy = make_proxy_client().await?;
-            return proxy.list_manifests().await;
-        }
-
-        if let Some(local) = &self.local {
-            local.manifest_names().await
-        } else if let Some(bucket) = &self.bucket {
-            bucket.manifest_names().await
-        } else {
-            Ok(Vec::new())
-        }
-    }
-
     /// Fetch an executable by key as a read stream.
     pub async fn executable_as_stream(
         &self,
@@ -226,8 +218,10 @@ impl Storage {
             return Ok(StreamBody::new(reader));
         }
 
+        let key = Manifest::make_executable_key(name, version);
+
         if let Some(local) = &self.local {
-            match local.executable_as_stream(name, version).await {
+            match local.stream_by_key(&key).await {
                 Ok(reader) => {
                     let body = StreamBody::new(reader);
                     return Ok(body);
@@ -239,7 +233,7 @@ impl Storage {
         }
 
         if let Some(bucket) = &self.bucket {
-            match bucket.executable_as_stream(name, version).await {
+            match bucket.stream_by_key(&key).await {
                 Ok(bytestream) => {
                     let readable = bytestream.into_async_read();
                     let pinned: SendableStream = Box::pin(readable);
@@ -263,14 +257,16 @@ impl Storage {
             return proxy.get_executable(name, version).await;
         }
 
+        let key = Manifest::make_executable_key(name, version);
+
         if let Some(local) = &self.local {
-            if let Ok(v) = local.executable_as_bytes(name, version).await {
+            if let Ok(v) = local.data_by_key(&key).await {
                 return Ok(v);
             }
         }
 
         if let Some(bucket) = &self.bucket {
-            if let Ok(v) = bucket.executable_as_bytes(name, version).await {
+            if let Ok(v) = bucket.data_by_key(&key).await {
                 return Ok(v);
             }
         }
@@ -291,19 +287,18 @@ impl Storage {
             return proxy.store_executable(name, version, bytes.to_vec()).await;
         }
 
+        let key = Manifest::make_executable_key(name, version);
         let local_result = if let Some(local) = &self.local {
-            Some(local.store_executable(name, version, bytes).await)
+            Some(local.store_by_key(&key, bytes).await)
         } else {
             None
         };
 
         let bucket_result = if let Some(bucket) = &self.bucket {
-            Some(bucket.store_executable(name, version, bytes).await)
+            Some(bucket.store_by_key(&key, bytes).await)
         } else {
             None
         };
-
-        // Consider comparing integrity hashes.
 
         if let Some(result) = local_result {
             result

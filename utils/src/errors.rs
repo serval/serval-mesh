@@ -18,11 +18,6 @@ pub enum ServalError {
     #[error("unable to find a free port >= `{0}`")]
     NoFreePorts(u16),
 
-    //     #[error("an example of a more complex error type (expected {expected:?}, found {found:?})")]
-    //     InvalidHeader { expected: String, found: String },
-    //
-    //     #[error("an error we have no more details about happened")]
-    //     Unknown,
     #[error("the WASM executable terminated abnormally; code={}", result.code)]
     AbnormalWasmExit { result: WasmResult },
 
@@ -31,7 +26,7 @@ pub enum ServalError {
     AnyhowError(#[from] anyhow::Error),
 
     /// The caller has attempted to load an object from the blob store with an invalid address.
-    #[error("blob address is not a valid hex representation of a sha256 hash `{0}`")]
+    #[error("blob address is not a valid SRI string `{0}`")]
     BlobAddressInvalid(String),
 
     /// This blob was not found.

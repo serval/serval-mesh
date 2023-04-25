@@ -3,7 +3,6 @@ use axum::extract::{Path, State};
 use axum::http::{header, Request, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{any, get, head, post, put};
-use axum::Json;
 use ssri::Integrity;
 use utils::errors::ServalError;
 use utils::mesh::ServalRole;
@@ -15,7 +14,6 @@ use crate::structures::*;
 /// Mount all storage endpoint handlers onto the passed-in router.
 pub fn mount(router: ServalRouter) -> ServalRouter {
     router
-        .route("/v1/storage/manifests", get(list_manifests))
         .route("/v1/storage/manifests", post(store_manifest))
         .route("/v1/storage/manifests/:name", get(get_manifest))
         .route("/v1/storage/manifests/:name", head(has_manifest))
@@ -183,18 +181,6 @@ async fn has_manifest(Path(name): Path<String>, State(_state): State<AppState>) 
         }
         Err(ServalError::BlobAddressInvalid(_)) => StatusCode::BAD_REQUEST,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
-    }
-}
-
-async fn list_manifests(State(_state): State<AppState>) -> impl IntoResponse {
-    metrics::increment_counter!("storage:manifest:list");
-    let Some(storage) = STORAGE.get() else {
-        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
-    };
-
-    match storage.manifest_names().await {
-        Ok(list) => (StatusCode::OK, Json(list)).into_response(),
-        Err(e) => e.into_response(),
     }
 }
 
