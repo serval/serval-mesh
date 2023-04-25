@@ -85,11 +85,7 @@ pub enum ServalError {
     #[error("ssri::Error: {0}")]
     SsriError(#[from] ssri::Error),
 
-    /// Translation for errors from rust-s3.
-    #[error("aws_sdk_s3::Error: {0}")]
-    S3Error(#[from] aws_sdk_s3::Error),
-
-    /// Several translations for errors from rust-s3.
+    /// Several translations for errors from the aws sdk.
     #[error("aws_sdk_s3::error::SdkError: {0}")]
     S3SHeadError(
         #[from] aws_sdk_s3::error::SdkError<aws_sdk_s3::operation::head_object::HeadObjectError>,
