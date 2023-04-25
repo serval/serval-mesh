@@ -103,18 +103,6 @@ impl ServalApiClient {
         Ok(body)
     }
 
-    /// Get a list of all Wasm manifests stored on the node.
-    pub async fn list_manifests(&self) -> ApiResult<Vec<String>> {
-        let url = self.build_url("storage/manifests");
-        let response = reqwest::get(&url).await?;
-        if response.status().is_success() {
-            let body: Vec<String> = response.json().await?;
-            Ok(body)
-        } else {
-            Err(ServalError::StorageError(response.text().await?))
-        }
-    }
-
     /// Store a Wasm manifest on the node.
     pub async fn store_manifest(&self, manifest: &Manifest) -> ApiResult<Integrity> {
         let client = reqwest::Client::builder()
@@ -187,6 +175,17 @@ impl ServalApiClient {
         if response.status().is_success() {
             let executable = response.bytes().await?;
             Ok(executable.to_vec())
+        } else {
+            Err(ServalError::StorageError(response.text().await?))
+        }
+    }
+
+    pub async fn data_by_sri(&self, address: &str) -> ApiResult<Vec<u8>> {
+        let url = self.build_url(&format!("storage/data/{address}"));
+        let response = reqwest::get(&url).await?;
+        if response.status().is_success() {
+            let bytes = response.bytes().await?;
+            Ok(bytes.to_vec())
         } else {
             Err(ServalError::StorageError(response.text().await?))
         }

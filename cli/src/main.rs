@@ -59,17 +59,14 @@ pub enum Command {
         /// Path to write the output of the job; omit to write to stdout
         output_file: Option<PathBuf>,
     },
-    /// List all manifests stored with a discovered node.
-    #[clap(display_order = 3)]
-    ListManifests,
     /// Get the manifest for a stored job type.
-    #[clap(display_order = 4)]
+    #[clap(display_order = 3)]
     Manifest {
         /// The name of the stored job.
         name: String,
     },
     /// List all known peers of this node.
-    #[clap(display_order = 5)]
+    #[clap(display_order = 4)]
     Peers,
     /// List all known peers with the named role.
     #[clap(display_order = 5)]
@@ -211,12 +208,6 @@ async fn run(
     Ok(())
 }
 
-async fn list_manifests() -> Result<()> {
-    let body = api_client().await.list_manifests().await?;
-    println!("{}", serde_json::to_string_pretty(&body)?);
-    Ok(())
-}
-
 async fn get_manifest(name: String) -> Result<()> {
     let manifest = api_client().await.get_manifest(&name).await?;
     println!("{}", serde_json::to_string_pretty(&manifest)?);
@@ -280,7 +271,6 @@ async fn main() -> Result<()> {
         Command::NodeStatus => monitor_status().await?,
         Command::Ping => ping().await?,
         Command::Monitor => mesh::monitor_mesh().await?,
-        Command::ListManifests => list_manifests().await?,
         Command::Manifest { name } => get_manifest(name).await?,
         Command::Peers => list_peers().await?,
         Command::PeersWithRole { role } => peers_with_role(role).await?,

@@ -24,20 +24,15 @@ pub struct RunnerState {
 }
 
 impl RunnerState {
-    pub fn new(
+    pub async fn new(
         instance_id: Uuid,
         blob_path: Option<PathBuf>,
         extensions_path: Option<PathBuf>,
         should_run_jobs: bool,
         should_run_scheduler: bool,
     ) -> Result<Self, ServalError> {
-        let has_storage = match blob_path {
-            Some(path) => {
-                crate::storage::initialize(path)?;
-                true
-            }
-            None => false,
-        };
+        let has_storage = blob_path.is_some();
+        crate::storage::initialize(blob_path).await?;
 
         let extensions = extensions_path
             .and_then(|extensions_path| {

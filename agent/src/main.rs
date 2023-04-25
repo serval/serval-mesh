@@ -18,7 +18,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::middleware::{self};
 use axum::routing::get;
 use axum::{Router, Server};
-use dotenvy::dotenv;
+use dotenvy::dotenv_override as dotenv;
 use engine::ServalEngine;
 // TODO: should switch on feature.
 use metrics_exporter_tcp::TcpBuilder;
@@ -46,13 +46,16 @@ async fn main() -> Result<()> {
     init_metrics();
 
     log::info!("instance id {}", config.instance_id);
-    let state = Arc::new(RunnerState::new(
-        config.instance_id,
-        config.blob_path.clone(),
-        config.extensions_path.clone(),
-        config.should_run_jobs,
-        config.should_run_scheduler,
-    )?);
+    let state = Arc::new(
+        RunnerState::new(
+            config.instance_id,
+            config.blob_path.clone(),
+            config.extensions_path.clone(),
+            config.should_run_jobs,
+            config.should_run_scheduler,
+        )
+        .await?,
+    );
     log::info!(
         "agent configured with storage={}; run-jobs={}; run-scheduler={}",
         state.has_storage,

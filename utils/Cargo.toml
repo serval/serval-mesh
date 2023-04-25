@@ -9,6 +9,7 @@ license = "BSD-2-Clause-Patent"
 [dependencies]
 anyhow = { workspace = true }
 async-trait = "0.1.67"
+aws-sdk-s3 = { workspace = true }
 axum = { workspace = true }
 bincode = "2.0.0-rc.2"
 cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }

@@ -7,12 +7,15 @@ license = "BSD-2-Clause-Patent"
 [dependencies]
 anyhow = { workspace = true }
 async-trait = "0.1.67"
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
 axum = { version = "0.6.1", features = ["json", "multipart"] }
 bytes = "1.4.0"
 cacache = { version = "11.0.0", default-features = false, features = ["tokio-runtime"] }
 dotenvy = "0.15.6"
 engine = { path = "../engine" }
 env_logger = { workspace = true }
+futures = "0.3.28"
 http = "0.2.8"
 hyper = "0.14.23"
 log = "0.4.17"
@@ -26,6 +29,7 @@ serval-client = { path = "../api-client" }
 ssri = "8.0.0"
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tokio-stream = "0.1.12"
 tokio-util = { workspace = true }
 toml = { workspace = true }
 utils = { path = "../utils" }
