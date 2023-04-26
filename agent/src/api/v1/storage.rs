@@ -26,6 +26,7 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
             get(get_executable),
         )
         .route("/v1/storage/data/*address", get(get_by_content_address))
+        .route("/v1/storage/data/*address", head(has_content_address))
 }
 
 /// Mount a handler for all storage routes that relays requests to a node that can handle them.
@@ -73,9 +74,37 @@ async fn get_by_content_address(Path(address): Path<String>) -> impl IntoRespons
 
             log::info!("Serving CAS data; address={}", &address);
             (headers, stream).into_response()
-        }
+        },
+        Err(ServalError::DataNotFound(s)) => (StatusCode::NOT_FOUND, s).into_response(),
         Err(e) => {
             log::info!("Error serving CAS data; address={}; error={}", &address, e);
+            e.into_response()
+        }
+    }
+}
+
+async fn has_content_address(Path(address): Path<String>) -> impl IntoResponse {
+    metrics::increment_counter!("storage:cas:head");
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
+    };
+
+    let Ok(integrity) = address.parse::<Integrity>() else {
+        let e = ServalError::BlobAddressInvalid(format!("{} is not a valid sub-resource integrity string", address));
+        return e.into_response()
+    };
+
+    match storage.data_exists_by_sri(&integrity).await {
+        Ok(exists) => {
+            if exists {
+                StatusCode::OK.into_response()
+            } else {
+                StatusCode::NOT_FOUND.into_response()
+            }
+        },
+        Err(ServalError::DataNotFound(s)) => (StatusCode::NOT_FOUND, s).into_response(),
+        Err(e) => {
+            log::info!("Error serving CAS data head; address={}; error={}", &address, e);
             e.into_response()
         }
     }
@@ -120,12 +149,15 @@ async fn get_manifest(
 
     match storage.manifest(&name).await {
         Ok(manifest) => {
-            log::info!("Serving job manifest; name={}", &name);
-            // Note that this is toml.
-            (StatusCode::OK, manifest.to_string()).into_response()
+            let headers = [(
+                header::CONTENT_TYPE,
+                String::from("application/toml"),
+            )];
+            (headers, manifest.to_string()).into_response()
         }
+        Err(ServalError::DataNotFound(s)) => (StatusCode::NOT_FOUND, s).into_response(),
         Err(e) => {
-            log::warn!("error reading job metadata; name={}; error={}", &name, e);
+            log::warn!("error reading manifest; name={}; error={}", &name, e);
             e.into_response()
         }
     }

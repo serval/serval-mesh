@@ -31,10 +31,15 @@ pub static STORAGE: OnceCell<Storage> = OnceCell::new();
 /// Initialize our local storage and a proxy option if we have no storage ourselves.
 pub async fn initialize(path: Option<PathBuf>) -> ServalResult<()> {
     let local = if let Some(blobpath) = path {
-        if let Ok(blob) = BlobStore::new(blobpath) {
-            Some(blob)
-        } else {
-            None
+        match BlobStore::new(&blobpath) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                log::warn!(
+                    "We requested a cacache store at {} but failed! error={e}",
+                    blobpath.display()
+                );
+                None
+            }
         }
     } else {
         None
@@ -97,14 +102,14 @@ impl Storage {
         }
 
         if let Some(local) = &self.local {
-            if let Ok(v) = local.data_by_sri(&integrity).await {
+            if let Ok(v) = local.data_by_integrity(&integrity).await {
                 log::info!("serving from local blobs; {integrity}");
                 return Ok(StreamBody::new(v));
             }
         }
 
         if let Some(bucket) = &self.bucket {
-            if let Ok(bytestream) = bucket.data_by_sri(integrity.clone()).await {
+            if let Ok(bytestream) = bucket.data_by_integrity(&integrity).await {
                 log::info!("serving from s3 bucket; {integrity}");
                 let readable = bytestream.into_async_read();
                 let pinned: SendableStream = Box::pin(readable);
@@ -117,6 +122,27 @@ impl Storage {
     }
 
     /// Check if the given manifest is present in our store, using the fully-qualified name.
+    ///
+    /// Never checks a proxy; this is intended to be a local check.
+    pub async fn data_exists_by_sri(&self, integrity: &Integrity) -> ServalResult<bool> {
+        if let Some(local) = &self.local {
+            if let Ok(_v) = local.data_exists_by_integrity(integrity).await {
+                return Ok(true);
+            }
+        }
+
+        if let Some(bucket) = &self.bucket {
+            if let Ok(_v) = bucket.data_exists_by_key(&integrity.to_string()).await {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Check if the given manifest is present in our store, using the fully-qualified name.
+    ///
+    /// Never checks a proxy; this is intended to be a local check.
     pub async fn data_exists_by_key(&self, fq_name: &str) -> ServalResult<bool> {
         let key = Manifest::make_manifest_key(fq_name);
 
@@ -136,7 +162,6 @@ impl Storage {
             }
         }
 
-        // This is not exposed in the API yet so we cannot proxy, so we admit defeat.
         Ok(false)
     }
 
@@ -146,8 +171,11 @@ impl Storage {
             let proxy = make_proxy_client().await?;
             return proxy.get_manifest(fq_name).await;
         }
+
+        let key = Manifest::make_manifest_key(fq_name);
+
         if let Some(local) = &self.local {
-            if let Ok(bytes) = local.data_by_key(fq_name).await {
+            if let Ok(bytes) = local.data_by_key(&key).await {
                 if let Ok(data) = String::from_utf8(bytes) {
                     let manifest: Manifest = toml::from_str(&data)?;
                     return Ok(manifest);
@@ -156,7 +184,7 @@ impl Storage {
         }
 
         if let Some(bucket) = &self.bucket {
-            if let Ok(bytes) = bucket.data_by_key(fq_name).await {
+            if let Ok(bytes) = bucket.data_by_key(&key).await {
                 if let Ok(data) = String::from_utf8(bytes) {
                     let manifest: Manifest = toml::from_str(&data)?;
                     return Ok(manifest);

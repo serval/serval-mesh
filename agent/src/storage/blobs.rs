@@ -23,9 +23,9 @@ pub struct BlobStore {
 
 impl BlobStore {
     /// Create a new blob store, passing in a path to a writeable directory
-    pub fn new(location: PathBuf) -> ServalResult<Self> {
+    pub fn new(location: &PathBuf) -> ServalResult<Self> {
         if !location.exists() {
-            fs::create_dir(&location)?;
+            fs::create_dir(location)?;
         }
         if !location.is_dir() {
             // todo: ErrorKind::NotADirectory would be more appropriate but as of 2023-01-11, that
@@ -34,30 +34,30 @@ impl BlobStore {
             // https://github.com/rust-lang/rust/pull/106375
             return Err(ServalError::IoError(ErrorKind::PermissionDenied.into()));
         }
-        let md = fs::metadata(&location)?;
+        let md = fs::metadata(location)?;
         if md.permissions().readonly() {
             return Err(ServalError::IoError(ErrorKind::PermissionDenied.into()));
         }
 
-        Ok(Self { location })
+        Ok(Self {
+            location: location.to_path_buf(),
+        })
     }
 
     /// Given a content address, return a read stream for the object stored there.
     /// Responds with an error if no object is found or if the address is invalid.
-    pub async fn data_by_sri(
+    pub async fn data_by_integrity(
         &self,
         integrity: &Integrity,
     ) -> ServalResult<ReaderStream<SendableStream>> {
         let fd = cacache::Reader::open_hash(&self.location, integrity.clone()).await?;
-        log::info!("got a file descriptor");
         let pinned: Pin<Box<dyn AsyncRead + Send + 'static>> = Box::pin(fd);
         let stream = ReaderStream::new(pinned);
         Ok(stream)
     }
 
-    #[allow(dead_code)]
     /// Checks if the given blob is in the content store, by its SRI string.
-    pub async fn data_exists_by_sri(&self, integrity: &Integrity) -> ServalResult<bool> {
+    pub async fn data_exists_by_integrity(&self, integrity: &Integrity) -> ServalResult<bool> {
         Ok(cacache::exists(&self.location, integrity).await)
     }
 

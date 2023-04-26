@@ -30,8 +30,8 @@ help:
 
 # Lint and automatically fix what we can fix
 @lint:
-    cargo clippy --fix --allow-dirty --allow-staged
-    cargo +nightly fmt
+    cargo clippy --fix --allow-dirty --allow-staged --all-targets
+    cargo +nightly fmt --all
 
 # Install required linting/testing tools via cargo.
 @install-tools:
