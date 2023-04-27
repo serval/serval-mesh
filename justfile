@@ -50,7 +50,13 @@ check-unused:
 @run-dev:
     zellij --layout dev-layout.kdl
 
-tailscale:
+tailscale *ARGS:
+    just tailscale-run cargo run --bin serval-agent -- {{ARGS}}
+
+tailscale-monitor *ARGS:
+    just tailscale-run cargo run --bin serval -- monitor {{ARGS}}
+
+tailscale-run *CMD:
     #!/usr/bin/env bash
     ADDR=$(tailscale ip --6 2>/dev/null)
     if [ "$?" -ne 0 ]; then
@@ -70,5 +76,4 @@ tailscale:
         echo "" >&2
     fi
 
-    MESH_INTERFACE="${ADDR}" cargo run --bin serval-agent -- "$@"
-
+    MESH_INTERFACE="${ADDR}" {{CMD}}
