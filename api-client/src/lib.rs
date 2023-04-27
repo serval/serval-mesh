@@ -114,7 +114,8 @@ impl ServalApiClient {
         // StatusCode.CREATED  + ssri string
         if response.status().is_success() {
             let body = response.text().await?;
-            Ok(Integrity::from(body))
+            let integrity: Integrity = body.parse()?;
+            Ok(integrity)
         } else {
             Err(ServalError::StorageError(response.text().await?))
         }
@@ -162,7 +163,8 @@ impl ServalApiClient {
         let response = client.put(url).body(executable).send().await?;
         if response.status().is_success() {
             let body = response.text().await?;
-            Ok(Integrity::from(body))
+            let integrity: Integrity = body.parse()?;
+            Ok(integrity)
         } else {
             Err(ServalError::StorageError(response.text().await?))
         }

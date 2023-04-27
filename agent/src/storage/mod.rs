@@ -217,8 +217,6 @@ impl Storage {
             None
         };
 
-        // Consider comparing integrity hashes.
-
         if let Some(result) = local_result {
             result
         } else if let Some(result) = bucket_result {

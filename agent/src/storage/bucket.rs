@@ -114,19 +114,22 @@ impl S3Storage {
             .bucket(&self.bucket)
             .key(&keyfile)
             .send()
-            .await {
-                Ok(object) => {
-                    let chunks = object.body.collect().await?;
-                    let bytes = chunks.into_bytes().to_vec();
-                    let integrity_string = String::from_utf8(bytes)?;
-                    let encoded = encode(&integrity_string);
-                    Ok(encoded.to_string())
-                },
-                Err(e) => {
-                    log::info!("integrity checksum not found for key={key}; keyfile={keyfile}; error={e}");
-                    Err(ServalError::S3GetError(e))
-                },
+            .await
+        {
+            Ok(object) => {
+                let chunks = object.body.collect().await?;
+                let bytes = chunks.into_bytes().to_vec();
+                let integrity_string = String::from_utf8(bytes)?;
+                let encoded = encode(&integrity_string);
+                Ok(encoded.to_string())
             }
+            Err(e) => {
+                log::info!(
+                    "integrity checksum not found for key={key}; keyfile={keyfile}; error={e}"
+                );
+                Err(ServalError::S3GetError(e))
+            }
+        }
     }
 
     /// Store data by key.
@@ -162,4 +165,3 @@ impl S3Storage {
         }
     }
 }
-

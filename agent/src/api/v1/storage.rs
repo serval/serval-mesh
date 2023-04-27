@@ -74,7 +74,7 @@ async fn get_by_content_address(Path(address): Path<String>) -> impl IntoRespons
 
             log::info!("Serving CAS data; address={}", &address);
             (headers, stream).into_response()
-        },
+        }
         Err(ServalError::DataNotFound(s)) => (StatusCode::NOT_FOUND, s).into_response(),
         Err(e) => {
             log::info!("Error serving CAS data; address={}; error={}", &address, e);
@@ -101,10 +101,14 @@ async fn has_content_address(Path(address): Path<String>) -> impl IntoResponse {
             } else {
                 StatusCode::NOT_FOUND.into_response()
             }
-        },
+        }
         Err(ServalError::DataNotFound(s)) => (StatusCode::NOT_FOUND, s).into_response(),
         Err(e) => {
-            log::info!("Error serving CAS data head; address={}; error={}", &address, e);
+            log::info!(
+                "Error serving CAS data head; address={}; error={}",
+                &address,
+                e
+            );
             e.into_response()
         }
     }
@@ -149,10 +153,7 @@ async fn get_manifest(
 
     match storage.manifest(&name).await {
         Ok(manifest) => {
-            let headers = [(
-                header::CONTENT_TYPE,
-                String::from("application/toml"),
-            )];
+            let headers = [(header::CONTENT_TYPE, String::from("application/toml"))];
             (headers, manifest.to_string()).into_response()
         }
         Err(ServalError::DataNotFound(s)) => (StatusCode::NOT_FOUND, s).into_response(),
