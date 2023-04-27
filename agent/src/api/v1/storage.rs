@@ -65,7 +65,7 @@ async fn get_by_content_address(Path(address): Path<String>) -> impl IntoRespons
         return e.into_response()
     };
 
-    match storage.data_by_sri(integrity).await {
+    match storage.data_by_integrity(integrity).await {
         Ok(stream) => {
             let headers = [(
                 header::CONTENT_TYPE,
@@ -94,7 +94,7 @@ async fn has_content_address(Path(address): Path<String>) -> impl IntoResponse {
         return e.into_response()
     };
 
-    match storage.data_exists_by_sri(&integrity).await {
+    match storage.data_exists_by_integrity(&integrity).await {
         Ok(exists) => {
             if exists {
                 StatusCode::OK.into_response()

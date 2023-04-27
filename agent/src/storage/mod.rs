@@ -90,13 +90,13 @@ impl Storage {
     // This implementation is just a bunch of painful by-hand delegation logic.
     // I'd like to golf it down.
 
-    pub async fn data_by_sri(
+    pub async fn data_by_integrity(
         &self,
         integrity: Integrity,
     ) -> ServalResult<StreamBody<ReaderStream<SendableStream>>> {
         if !self.has_storage() {
             let proxy = make_proxy_client().await?;
-            let bytes = proxy.data_by_sri(&integrity.to_string()).await?;
+            let bytes = proxy.data_by_integrity(&integrity.to_string()).await?;
             let reader = ReaderStream::new(vec_to_byte_stream(bytes));
             return Ok(StreamBody::new(reader));
         }
@@ -124,7 +124,7 @@ impl Storage {
     /// Check if the given manifest is present in our store, using the fully-qualified name.
     ///
     /// Never checks a proxy; this is intended to be a local check.
-    pub async fn data_exists_by_sri(&self, integrity: &Integrity) -> ServalResult<bool> {
+    pub async fn data_exists_by_integrity(&self, integrity: &Integrity) -> ServalResult<bool> {
         if let Some(local) = &self.local {
             if let Ok(_v) = local.data_exists_by_integrity(integrity).await {
                 return Ok(true);
