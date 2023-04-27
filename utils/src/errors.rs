@@ -41,7 +41,7 @@ pub enum ServalError {
     DataNotFound(String),
 
     /// This job has no metadata
-    #[error("no manifest found for task `{0}`")]
+    #[error("no manifest found for `{0}`")]
     ManifestNotFound(String),
 
     /// Could not locate the named executable

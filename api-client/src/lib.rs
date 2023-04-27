@@ -114,7 +114,8 @@ impl ServalApiClient {
         // StatusCode.CREATED  + ssri string
         if response.status().is_success() {
             let body = response.text().await?;
-            Ok(Integrity::from(body))
+            let integrity: Integrity = body.parse()?;
+            Ok(integrity)
         } else {
             Err(ServalError::StorageError(response.text().await?))
         }
@@ -162,7 +163,8 @@ impl ServalApiClient {
         let response = client.put(url).body(executable).send().await?;
         if response.status().is_success() {
             let body = response.text().await?;
-            Ok(Integrity::from(body))
+            let integrity: Integrity = body.parse()?;
+            Ok(integrity)
         } else {
             Err(ServalError::StorageError(response.text().await?))
         }
@@ -180,12 +182,28 @@ impl ServalApiClient {
         }
     }
 
-    pub async fn data_by_sri(&self, address: &str) -> ApiResult<Vec<u8>> {
+    pub async fn data_by_integrity(&self, address: &str) -> ApiResult<Vec<u8>> {
         let url = self.build_url(&format!("storage/data/{address}"));
         let response = reqwest::get(&url).await?;
         if response.status().is_success() {
             let bytes = response.bytes().await?;
             Ok(bytes.to_vec())
+        } else {
+            Err(ServalError::StorageError(response.text().await?))
+        }
+    }
+
+    /// Store a blob of data in the content-addressable store on the targeted peer.
+    pub async fn store_by_integrity(&self, bytes: Vec<u8>) -> ApiResult<Integrity> {
+        let url = self.build_url("storage/data");
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()?;
+        let response = client.post(url).body(bytes).send().await?;
+        if response.status().is_success() {
+            let body = response.text().await?;
+            let integrity: Integrity = body.parse()?;
+            Ok(integrity)
         } else {
             Err(ServalError::StorageError(response.text().await?))
         }
