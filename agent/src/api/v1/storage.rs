@@ -25,6 +25,7 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
             "/v1/storage/manifests/:name/executable/:version",
             get(get_executable),
         )
+        .route("/v1/storage/data", post(store_by_content_address))
         .route("/v1/storage/data/*address", get(get_by_content_address))
         .route("/v1/storage/data/*address", head(has_content_address))
 }
@@ -51,6 +52,27 @@ async fn proxy(State(state): State<AppState>, mut request: Request<Body>) -> imp
             "Peer with the storage role not available",
         )
             .into_response()
+    }
+}
+
+async fn store_by_content_address(body: Bytes) -> impl IntoResponse {
+    metrics::increment_counter!("storage:cas:get");
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
+    };
+
+    let bytes = body.to_vec();
+
+    match storage.store_by_integrity(&bytes).await {
+        Ok(integrity) => {
+            log::info!(
+                "Stored new blob in CAS storage; integrity={}; size={}",
+                integrity,
+                bytes.len()
+            );
+            (StatusCode::CREATED, integrity.to_string()).into_response()
+        },
+        Err(e) => e.into_response(),
     }
 }
 

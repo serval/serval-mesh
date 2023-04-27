@@ -90,6 +90,42 @@ impl Storage {
     // This implementation is just a bunch of painful by-hand delegation logic.
     // I'd like to golf it down.
 
+    /// Store a blob of data in the content-addressable store, responding with the
+    /// integrity hash of the data.
+    pub async fn store_by_integrity(&self, bytes: &[u8]) -> ServalResult<Integrity> {
+        if !self.has_storage() {
+            // let proxy = make_proxy_client().await?;
+            // return proxy.store_executable(name, version, bytes.to_vec()).await;
+            todo!();
+        }
+
+
+        let local_result = if let Some(local) = &self.local {
+            Some(local.store_by_integrity(bytes).await)
+        } else {
+            None
+        };
+
+        let bucket_result = if let Some(bucket) = &self.bucket {
+            let integrity = Integrity::from(bytes);
+            Some(bucket.store_by_integrity(&integrity, bytes).await)
+        } else {
+            None
+        };
+
+        if let Some(result) = local_result {
+            result
+        } else if let Some(result) = bucket_result {
+            result
+        } else {
+            let integrity = Integrity::from(bytes);
+            Err(ServalError::StorageError(format!(
+                "all storage attempts failed for data blob; len={}; calculated integrity={integrity}",
+                bytes.len()
+            )))
+        }
+    }
+
     pub async fn data_by_integrity(
         &self,
         integrity: Integrity,

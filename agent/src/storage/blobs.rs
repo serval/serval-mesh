@@ -44,6 +44,11 @@ impl BlobStore {
         })
     }
 
+    pub async fn store_by_integrity(&self, bytes: &[u8]) -> ServalResult<Integrity> {
+        let integrity = cacache::write_hash(&self.location, bytes).await?;
+        Ok(integrity)
+    }
+
     /// Given a content address, return a read stream for the object stored there.
     /// Responds with an error if no object is found or if the address is invalid.
     pub async fn data_by_integrity(
