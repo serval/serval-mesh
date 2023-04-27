@@ -71,7 +71,7 @@ async fn store_by_content_address(body: Bytes) -> impl IntoResponse {
                 bytes.len()
             );
             (StatusCode::CREATED, integrity.to_string()).into_response()
-        },
+        }
         Err(e) => e.into_response(),
     }
 }

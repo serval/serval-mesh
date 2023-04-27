@@ -94,11 +94,9 @@ impl Storage {
     /// integrity hash of the data.
     pub async fn store_by_integrity(&self, bytes: &[u8]) -> ServalResult<Integrity> {
         if !self.has_storage() {
-            // let proxy = make_proxy_client().await?;
-            // return proxy.store_executable(name, version, bytes.to_vec()).await;
-            todo!();
+            let proxy = make_proxy_client().await?;
+            return proxy.store_by_integrity(bytes.to_vec()).await;
         }
-
 
         let local_result = if let Some(local) = &self.local {
             Some(local.store_by_integrity(bytes).await)

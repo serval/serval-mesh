@@ -193,6 +193,22 @@ impl ServalApiClient {
         }
     }
 
+    /// Store a blob of data in the content-addressable store on the targeted peer.
+    pub async fn store_by_integrity(&self, bytes: Vec<u8>) -> ApiResult<Integrity> {
+        let url = self.build_url("storage/data");
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()?;
+        let response = client.post(url).body(bytes).send().await?;
+        if response.status().is_success() {
+            let body = response.text().await?;
+            let integrity: Integrity = body.parse()?;
+            Ok(integrity)
+        } else {
+            Err(ServalError::StorageError(response.text().await?))
+        }
+    }
+
     // Convenience function to build urls repeatably.
     fn build_url(&self, path: &str) -> String {
         format!("http://{}/v{}/{path} ", self.socket_addr, self.version)
