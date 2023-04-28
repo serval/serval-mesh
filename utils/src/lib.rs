@@ -1,3 +1,4 @@
+pub mod diffs;
 pub mod errors;
 pub mod futures;
 pub mod mesh;
