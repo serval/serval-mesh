@@ -2,8 +2,9 @@ use axum::body::{Body, Bytes};
 use axum::extract::{Path, State};
 use axum::http::{header, Request, StatusCode};
 use axum::response::IntoResponse;
-use axum::routing::{any, get, head, post, put};
+use axum::routing::{any, get, head, patch, post, put};
 use ssri::Integrity;
+use utils::diffs::apply_patch;
 use utils::errors::ServalError;
 use utils::mesh::ServalRole;
 use utils::structs::Manifest;
@@ -28,6 +29,7 @@ pub fn mount(router: ServalRouter) -> ServalRouter {
         .route("/v1/storage/data", post(store_by_content_address))
         .route("/v1/storage/data/*address", get(get_by_content_address))
         .route("/v1/storage/data/*address", head(has_content_address))
+        .route("/v1/storage/data/*address", patch(patch_content_at_address))
 }
 
 /// Mount a handler for all storage routes that relays requests to a node that can handle them.
@@ -87,7 +89,7 @@ async fn get_by_content_address(Path(address): Path<String>) -> impl IntoRespons
         return e.into_response()
     };
 
-    match storage.data_by_integrity(integrity).await {
+    match storage.stream_by_integrity(integrity).await {
         Ok(stream) => {
             let headers = [(
                 header::CONTENT_TYPE,
@@ -131,6 +133,44 @@ async fn has_content_address(Path(address): Path<String>) -> impl IntoResponse {
                 &address,
                 e
             );
+            e.into_response()
+        }
+    }
+}
+
+async fn patch_content_at_address(Path(address): Path<String>, body: Bytes) -> impl IntoResponse {
+    metrics::increment_counter!("storage:cas:patch");
+    let Some(storage) = STORAGE.get() else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "storage uninitialized; programmer error".to_string()).into_response();
+    };
+
+    let Ok(integrity) = address.parse::<Integrity>() else {
+        let e = ServalError::BlobAddressInvalid(format!("{} is not a valid sub-resource integrity string", address));
+        return e.into_response()
+    };
+
+    match storage.data_by_integrity(integrity).await {
+        Ok(original) => {
+            log::info!("Patching CAS data; address={}", &address);
+            let Ok(updated)= apply_patch(&original, &body) else {
+                return ServalError::StorageError("patch could not be applied".to_string()).into_response();
+            };
+            match storage.store_by_integrity(&updated).await {
+                Ok(integrity) => {
+                    log::info!(
+                        "Stored updated patch in CAS storage; old_integrity={}; new_integrity={}; size={}",
+                        address,
+                        integrity,
+                        updated.len()
+                    );
+                    (StatusCode::CREATED, integrity.to_string()).into_response()
+                }
+                Err(e) => e.into_response(),
+            }
+        }
+        Err(ServalError::DataNotFound(s)) => (StatusCode::NOT_FOUND, s).into_response(),
+        Err(e) => {
+            log::info!("Error serving CAS data; address={}; error={}", &address, e);
             e.into_response()
         }
     }

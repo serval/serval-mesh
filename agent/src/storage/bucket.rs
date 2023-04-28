@@ -22,7 +22,7 @@ impl S3Storage {
     }
 
     /// Check if the given data blob is present in our data store, by integrity hash. Returns a stream.
-    pub async fn data_by_integrity(&self, integrity: &Integrity) -> ServalResult<ByteStream> {
+    pub async fn stream_by_integrity(&self, integrity: &Integrity) -> ServalResult<ByteStream> {
         let object = self
             .client
             .get_object()

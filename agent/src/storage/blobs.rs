@@ -51,7 +51,7 @@ impl BlobStore {
 
     /// Given a content address, return a read stream for the object stored there.
     /// Responds with an error if no object is found or if the address is invalid.
-    pub async fn data_by_integrity(
+    pub async fn stream_by_integrity(
         &self,
         integrity: &Integrity,
     ) -> ServalResult<ReaderStream<SendableStream>> {
