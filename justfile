@@ -58,6 +58,11 @@ tailscale-monitor *ARGS:
 
 tailscale-run *CMD:
     #!/usr/bin/env bash
+    if [ $(uname) == "Darwin" ]; then
+        echo "Serval doesn't currently work well when run against Tailscale using IPv6; aborting."
+        exit 1
+    fi
+
     ADDR=$(tailscale ip --6 2>/dev/null)
     if [ "$?" -ne 0 ]; then
     echo This command requires the Tailscale CLI tool to be installed:
