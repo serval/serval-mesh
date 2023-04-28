@@ -8,7 +8,7 @@ license = "BSD-2-Clause-Patent"
 anyhow = { workspace = true }
 async-once-cell = "0.4.4"
 atty = { workspace = true  }
-clap = { version = "4.2.4", features = ["derive", "wrap_help"] } # older version on purpose
+clap = { version = "4.2.4", features = ["derive", "wrap_help"] }
 dotenvy = { workspace = true  }
 humansize = "2.1.3"
 log = { workspace = true }
