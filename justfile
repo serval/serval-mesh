@@ -59,7 +59,7 @@ tailscale-monitor *ARGS:
 tailscale-run *CMD:
     #!/usr/bin/env bash
     if [ $(uname) == "Darwin" ]; then
-        echo "Serval doesn't currently work well when run against Tailscale using IPv6; aborting."
+        echo "Serval doesn't currently work properly on a Mac when run against Tailscale using IPv6; aborting."
         exit 1
     fi
 
