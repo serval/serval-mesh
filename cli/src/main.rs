@@ -33,10 +33,10 @@ use utils::structs::Manifest;
 struct Args {
     #[clap(
         short,
-        parse(from_occurrences),
+        action = clap::ArgAction::Count,
         help = "Pass -v or -vv to increase verbosity"
     )]
-    verbose: u64,
+    verbose: u8,
     #[clap(subcommand)]
     cmd: Command,
 }
@@ -249,7 +249,7 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     loggerv::Logger::new()
-        .verbosity(args.verbose) // if -v not passed, our default level is WARN
+        .verbosity(args.verbose as u64) // if -v not passed, our default level is WARN
         .line_numbers(false)
         .module_path(true)
         .colors(true)
