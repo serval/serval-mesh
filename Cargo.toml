@@ -14,7 +14,7 @@ atty = "0.2.14"
 aws-config = "0.55.1"
 aws-sdk-s3 = "0.26.0"
 axum = { version = "0.6.1", features = ["macros"] }
-clap = { version = "3.2.23", features = ["derive"] }
+clap = { version = "4.2.4", features = ["derive"] }
 dotenvy = "0.15.6"
 env_logger = "0.10.0"
 log = "0.4.17"
