@@ -35,6 +35,7 @@ help:
 
 # Install required linting/testing tools via cargo.
 @install-tools:
+    rustup install nightly
     cargo install cargo-nextest
     cargo install cargo-deny
 
