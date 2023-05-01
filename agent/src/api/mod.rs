@@ -1,9 +1,11 @@
 use anyhow::Result;
 use axum::extract::State;
+use gethostname::gethostname;
 use axum::http::{Request, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use http::header::HeaderValue;
+use serde::Serialize;
 
 use crate::structures::AppState;
 
@@ -51,4 +53,18 @@ pub async fn ping() -> String {
 pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
     metrics::increment_counter!("monitor:status");
     StatusCode::NOT_IMPLEMENTED
+}
+
+#[derive(Serialize)]
+pub struct AgentMetadata {
+    hostname: String,
+}
+
+/// Provide agent metadata.
+pub async fn meta() -> String {
+    metrics::increment_counter!("meta");
+    let meta = AgentMetadata {
+        hostname: gethostname().into_string().expect("Failed to get hostname"),
+    };
+    serde_json::to_string(&meta).expect("Failed to serialize agent metadata")
 }
