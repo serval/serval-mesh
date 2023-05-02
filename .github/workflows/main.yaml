@@ -50,7 +50,8 @@ jobs:
 
       - name: finally, get picky about formatting
         run: |
-          cargo fmt +nightly --check || echo "::set-output name=error-message::Fix formatting errors by running \`just lint\` locally."
+          cargo fmt --check || \
+          (echo "::set-output name=error-message::Fix formatting errors by running \`just lint\` locally."; exit 1)
 
   cargo-deny:
     runs-on: ubuntu-latest
