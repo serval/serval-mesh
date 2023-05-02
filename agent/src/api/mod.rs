@@ -1,4 +1,5 @@
 use anyhow::Result;
+use axum::Json;
 use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::middleware::Next;
@@ -54,8 +55,8 @@ pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
 }
 
 /// Provide agent status information.
-pub async fn agent_status(state: State<AppState>) -> String {
+pub async fn agent_status(state: State<AppState>) -> Json<AgentInfo> {
     metrics::increment_counter!("meta");
     let meta = AgentInfo::new(&state);
-    serde_json::to_string(&meta).expect("Failed to serialize agent metadata")
+    Json(meta)
 }
