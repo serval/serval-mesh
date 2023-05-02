@@ -57,6 +57,5 @@ pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
 /// Provide agent status information.
 pub async fn agent_status(state: State<AppState>) -> Json<AgentInfo> {
     metrics::increment_counter!("meta");
-    let meta = AgentInfo::new(&state);
-    Json(meta)
+    Json(AgentInfo::new(&state))
 }
