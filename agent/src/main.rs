@@ -237,7 +237,7 @@ fn init_router(state: &Arc<RunnerState>) -> Router {
     let mut router: Router<Arc<RunnerState>, Body> = Router::new()
         .route("/monitor/ping", get(ping))
         .route("/monitor/status", get(monitor_status))
-        .route("/meta", get(meta));
+        .route("/status", get(agent_status));
     router = v1::mesh::mount(router);
 
     // NOTE: We have two of these now. If we develop a third, generalize this pattern.
