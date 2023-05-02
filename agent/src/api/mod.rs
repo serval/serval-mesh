@@ -1,9 +1,9 @@
 use anyhow::Result;
-use axum::Json;
 use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use http::header::HeaderValue;
 
 use crate::structures::{AgentInfo, AppState};
