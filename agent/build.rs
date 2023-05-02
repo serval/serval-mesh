@@ -9,6 +9,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         .all_git()
         .all_rustc()
         .emit()?;
-    println!("Hello");
     Ok(())
 }
