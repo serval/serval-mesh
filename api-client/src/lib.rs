@@ -12,7 +12,8 @@ use std::time::Duration;
 use reqwest::{Response, StatusCode};
 use ssri::Integrity;
 use utils::errors::ServalError;
-use utils::mesh::{PeerMetadata, ServalRole};
+use utils::mesh::ServalRole;
+use utils::structs::api::MeshMember;
 use utils::structs::Manifest;
 
 type ApiResult<T> = Result<T, ServalError>;
@@ -86,19 +87,18 @@ impl ServalApiClient {
     }
 
     /// Get a list of all peers the node is aware of.
-    pub async fn all_peers(&self) -> ApiResult<Vec<PeerMetadata>> {
+    pub async fn all_peers(&self) -> ApiResult<Vec<MeshMember>> {
         let url = self.build_url("mesh/peers");
         let response = reqwest::get(&url).await?;
-        let body: Vec<PeerMetadata> = response.json().await?;
-
+        let body: Vec<MeshMember> = response.json().await?;
         Ok(body)
     }
 
     /// Get a list of all known peers advertising the given role.
-    pub async fn peers_with_role(&self, role: ServalRole) -> ApiResult<Vec<PeerMetadata>> {
+    pub async fn peers_with_role(&self, role: ServalRole) -> ApiResult<Vec<MeshMember>> {
         let url = self.build_url(&format!("mesh/peers/{role}"));
         let response = reqwest::get(&url).await?;
-        let body: Vec<PeerMetadata> = response.json().await?;
+        let body: Vec<MeshMember> = response.json().await?;
 
         Ok(body)
     }

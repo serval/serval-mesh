@@ -10,10 +10,5 @@ layout {
             command "bash"
             args "-c" "EXTENSIONS_PATH=../wasm-samples/build PORT=8100 RUNNER_ROLE=auto STORAGE_ROLE=never cargo run --bin serval-agent"
         }
-        pane {
-            name "Queue"
-            command "cargo"
-            args "run" "--bin" "queue"
-        }
     }
 }
