@@ -54,12 +54,12 @@ impl ServalApiClient {
     }
 
     /// Get monitoring status from whatever node we're pointing to.
-    pub async fn monitor_status(&self) -> ApiResult<JsonObject> {
+    pub async fn monitor_status(&self) -> ApiResult<String> {
         // This url is not versioned.
-        let url = format!("http://{}/monitor/status", self.socket_addr);
-        let response = reqwest::get(&url).await?;
-        let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
-
+        // let url = format!("http://{}/monitor/status", self.socket_addr);
+        // let response = reqwest::get(&url).await?;
+        // let body: serde_json::Map<String, serde_json::Value> = response.json().await?;
+        let body = "Not implemented".to_string();
         Ok(body)
     }
 
