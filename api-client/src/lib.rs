@@ -182,7 +182,7 @@ impl ServalApiClient {
         }
     }
 
-    pub async fn data_by_integrity(&self, address: &str) -> ApiResult<Vec<u8>> {
+    pub async fn stream_by_integrity(&self, address: &str) -> ApiResult<Vec<u8>> {
         let url = self.build_url(&format!("storage/data/{address}"));
         let response = reqwest::get(&url).await?;
         if response.status().is_success() {

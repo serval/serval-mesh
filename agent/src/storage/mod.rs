@@ -124,31 +124,58 @@ impl Storage {
         }
     }
 
-    pub async fn data_by_integrity(
+    pub async fn stream_by_integrity(
         &self,
         integrity: Integrity,
     ) -> ServalResult<StreamBody<ReaderStream<SendableStream>>> {
         if !self.has_storage() {
             let proxy = make_proxy_client().await?;
-            let bytes = proxy.data_by_integrity(&integrity.to_string()).await?;
+            let bytes = proxy.stream_by_integrity(&integrity.to_string()).await?;
             let reader = ReaderStream::new(vec_to_byte_stream(bytes));
             return Ok(StreamBody::new(reader));
         }
 
         if let Some(local) = &self.local {
-            if let Ok(v) = local.data_by_integrity(&integrity).await {
+            if let Ok(v) = local.stream_by_integrity(&integrity).await {
                 log::info!("serving from local blobs; {integrity}");
                 return Ok(StreamBody::new(v));
             }
         }
 
         if let Some(bucket) = &self.bucket {
-            if let Ok(bytestream) = bucket.data_by_integrity(&integrity).await {
+            if let Ok(bytestream) = bucket.stream_by_integrity(&integrity).await {
                 log::info!("serving from s3 bucket; {integrity}");
                 let readable = bytestream.into_async_read();
                 let pinned: SendableStream = Box::pin(readable);
                 let rs = ReaderStream::new(pinned);
                 return Ok(StreamBody::new(rs));
+            }
+        }
+
+        Err(ServalError::DataNotFound(integrity.to_string()))
+    }
+
+    /// Load data by its integrity into memory.
+    pub async fn data_by_integrity(&self, integrity: Integrity) -> ServalResult<Vec<u8>> {
+        let integrity_string = integrity.to_string();
+
+        if !self.has_storage() {
+            let proxy = make_proxy_client().await?;
+            let bytes = proxy.stream_by_integrity(&integrity_string).await?;
+            return Ok(bytes);
+        }
+
+        if let Some(local) = &self.local {
+            if let Ok(bytes) = local.data_by_key(&integrity_string).await {
+                log::info!("serving from local blobs; {integrity}");
+                return Ok(bytes);
+            }
+        }
+
+        if let Some(bucket) = &self.bucket {
+            if let Ok(bytes) = bucket.data_by_key(&integrity_string).await {
+                log::info!("serving from s3 bucket; {integrity}");
+                return Ok(bytes);
             }
         }
 
