@@ -203,7 +203,7 @@ async fn get_executable(
     }
 }
 
-/// Fetch task manifest by name. The manifest is returned as json.
+/// Fetch task manifest by name. The manifest is returned as toml.
 async fn get_manifest(
     Path(name): Path<String>,
     State(_state): State<AppState>,
