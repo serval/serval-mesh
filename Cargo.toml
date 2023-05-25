@@ -28,7 +28,7 @@ toml = "0.7.0"
 tokio = { version = "1.25.0", features = ["full"] }
 tokio-util = { version = "0.7.4", features = ["io"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
-wasi-common = "5.0.0"
-wasmtime = "5.0.0"
-wasmtime-wasi = "5.0.0"
+wasi-common = "9.0.1"
+wasmtime = "9.0.1"
+wasmtime-wasi = "9.0.1"
 

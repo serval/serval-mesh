@@ -15,5 +15,3 @@ thiserror = { workspace = true }
 wasi-common = { workspace = true }
 wasmtime = { workspace = true }
 wasmtime-wasi = { workspace = true }
-wasi-experimental-http = { git = "https://github.com/serval/wasi-experimental-http.git", branch = "update-dependencies" }
-wasi-experimental-http-wasmtime = { git = "https://github.com/serval/wasi-experimental-http.git", branch = "update-dependencies" }
