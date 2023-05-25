@@ -23,7 +23,6 @@ use wasmtime_wasi::{Dir, WasiCtx, WasiCtxBuilder};
 pub mod errors;
 pub mod extensions;
 mod runtime;
-use wasi_experimental_http_wasmtime::{HttpCtx, HttpState};
 
 use crate::errors::ServalEngineError;
 use crate::runtime::register_exports;
@@ -77,32 +76,6 @@ impl ServalEngine {
     ) -> Result<WasmResult, ServalEngineError> {
         let stdout = WritePipe::new_in_memory();
         let stderr = WritePipe::new_in_memory();
-
-        // Link the experimental HTTP support
-        let allowed_http_hosts = if permissions.contains(&Permission::AllHttpHosts) {
-            // todo: unclear whether we should actually support a wildcard like this
-            vec!["insecure:allow-all".to_string()]
-        } else {
-            permissions
-                .iter()
-                .filter_map(|perm| match perm {
-                    Permission::HttpHost(origin) => Some(origin.to_owned()),
-                    _ => None,
-                })
-                .collect()
-        };
-
-        if !allowed_http_hosts.is_empty() {
-            let http_state =
-                HttpState::new().map_err(ServalEngineError::EngineInitializationError)?;
-            http_state
-                .add_to_linker(&mut self.linker, move |_| HttpCtx {
-                    // todo: there's some confusion around whether
-                    allowed_hosts: Some(allowed_http_hosts.clone()),
-                    max_concurrent_requests: Some(42),
-                })
-                .map_err(ServalEngineError::EngineInitializationError)?;
-        }
 
         let stdin = ReadPipe::from(stdin_bytes);
         let mut wasi_builder = WasiCtxBuilder::new()
