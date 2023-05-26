@@ -1,11 +1,16 @@
+use std::collections::HashMap;
+use std::time::Duration;
+
 use anyhow::Result;
 use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use http::header::HeaderValue;
+use utils::mesh::PeerMetadata;
 
-use crate::structures::AppState;
+use crate::structures::{AgentInfo, AppState, MESH};
 
 pub mod v1;
 // Follow this pattern for additional major versions. E.g.,
@@ -51,4 +56,16 @@ pub async fn ping() -> String {
 pub async fn monitor_status(_state: State<AppState>) -> impl IntoResponse {
     metrics::increment_counter!("monitor:status");
     StatusCode::NOT_IMPLEMENTED
+}
+
+/// Provide agent status information.
+pub async fn agent_info(state: State<AppState>) -> Json<AgentInfo> {
+    metrics::increment_counter!("agent:info");
+    Json(AgentInfo::new(&state))
+}
+
+/// Provide agent peer information.
+pub async fn agent_peers(_state: State<AppState>) -> Json<HashMap<PeerMetadata, Duration>> {
+    metrics::increment_counter!("agent:peers");
+    Json(MESH.get().unwrap().peer_latencies().await)
 }
